@@ -1,10 +1,11 @@
 """Declarative base and shared column mixins for all ORM models."""
 
+import enum
 import uuid
 from datetime import datetime
 from typing import Any, ClassVar
 
-from sqlalchemy import DateTime, MetaData, func
+from sqlalchemy import DateTime, Enum, MetaData, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 # Deterministic constraint names so Alembic autogenerate produces stable,
@@ -25,6 +26,20 @@ class Base(DeclarativeBase):
     # INSERT *and* UPDATE. Otherwise they are expired after flush and reading them
     # triggers an implicit lazy load, which raises under asyncio.
     __mapper_args__: ClassVar[dict[str, Any]] = {"eager_defaults": True}
+
+
+def str_enum_type(enum_class: type[enum.StrEnum], name: str, length: int = 32) -> Enum:
+    """Column type for a StrEnum: VARCHAR + CHECK rather than a native PG enum, so
+    adding a value later is a plain migration instead of ALTER TYPE."""
+    return Enum(
+        enum_class,
+        name=name,
+        native_enum=False,
+        create_constraint=True,
+        length=length,
+        values_callable=lambda members: [member.value for member in members],
+        validate_strings=True,
+    )
 
 
 class UUIDPrimaryKeyMixin:

@@ -87,6 +87,53 @@ async def invite(
     return response.json()
 
 
+@dataclass(frozen=True)
+class Workspace:
+    """An organization with one member of each role."""
+
+    org_id: str
+    admin: AuthedUser
+    agent: AuthedUser
+    customer: AuthedUser  # a member with the customer role
+
+
+def in_org(user: AuthedUser, org_id: str) -> dict[str, str]:
+    """Headers for tenant-scoped endpoints: the user's token plus the organization."""
+    return {**user.headers, "X-Organization-Id": org_id}
+
+
+async def create_customer(
+    api: httpx2.AsyncClient,
+    staff: AuthedUser,
+    org_id: str,
+    name: str = "Casey Customer",
+    email: str | None = None,
+) -> dict[str, Any]:
+    response = await api.post(
+        f"{API}/customers", json={"name": name, "email": email}, headers=in_org(staff, org_id)
+    )
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
+async def create_ticket(
+    api: httpx2.AsyncClient,
+    actor: AuthedUser,
+    org_id: str,
+    *,
+    subject: str = "Printer is on fire",
+    message: str = "It started smoking after the update.",
+    **extra: Any,
+) -> dict[str, Any]:
+    response = await api.post(
+        f"{API}/tickets",
+        json={"subject": subject, "message": message, **extra},
+        headers=in_org(actor, org_id),
+    )
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
 async def add_member(
     api: httpx2.AsyncClient,
     outbox: Outbox,

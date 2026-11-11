@@ -14,6 +14,7 @@ from app.models import Organization, OrganizationMember, OrgRole, User
 from app.repositories.organizations import OrganizationRepository
 from app.schemas.organizations import MemberUpdate, OrganizationCreate, OrganizationUpdate
 from app.services.authorization import STAFF_ROLES, require_role
+from app.services.tickets import TicketService
 
 SLUG_TAKEN = "Organization slug is already taken"
 LAST_ADMIN = "An organization must keep at least one admin"
@@ -79,6 +80,9 @@ class OrganizationService:
         member = await self._get_member(actor, member_id)
         if member.role == OrgRole.ADMIN and data.role != OrgRole.ADMIN:
             await self._ensure_not_last_admin(actor.organization_id)
+        if member.role in STAFF_ROLES and data.role not in STAFF_ROLES:
+            # Only staff can own tickets.
+            await TicketService(self.session).unassign_member(actor, member.user_id)
         member.role = data.role
         await self.session.commit()
         return member
@@ -88,6 +92,9 @@ class OrganizationService:
         member = await self._get_member(actor, member_id)
         if member.role == OrgRole.ADMIN:
             await self._ensure_not_last_admin(actor.organization_id)
+        # Before the membership goes: the actor may be removing themselves, and
+        # only staff may update tickets.
+        await TicketService(self.session).unassign_member(actor, member.user_id)
         await self.orgs.delete(member)
         await self.session.commit()
 

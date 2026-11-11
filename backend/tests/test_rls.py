@@ -14,7 +14,19 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import NullPool
 
 from app.core.database import reset_rls_context, rls_bypass, set_rls_context
-from tests.factories import AuthedUser, create_org, create_user, invite
+from tests.factories import (
+    API,
+    AuthedUser,
+    Outbox,
+    Workspace,
+    add_member,
+    create_customer,
+    create_org,
+    create_ticket,
+    create_user,
+    in_org,
+    invite,
+)
 
 pytestmark = pytest.mark.anyio
 
@@ -87,6 +99,89 @@ async def test_writes_to_another_tenant_are_blocked(
                 ),
                 {"id": uuid.uuid4(), "org": bob_org["id"], "user": alice.id},
             )
+
+
+TICKETING_TABLES = ("customers", "tickets", "ticket_messages", "ticket_events", "ticket_counters")
+
+
+@pytest.fixture
+async def ticketing(api: httpx2.AsyncClient, ws: Workspace, outbox: Outbox) -> dict:
+    """Two customers with a ticket each (one with an internal note and an assignment),
+    plus a ticket in another organization."""
+    other_customer = await create_user(api, full_name="Otto Other")
+    await add_member(api, outbox, ws.admin, ws.org_id, other_customer, "customer")
+    mine = await create_ticket(api, ws.customer, ws.org_id, message="public question")
+    theirs = await create_ticket(api, other_customer, ws.org_id)
+    staff = in_org(ws.agent, ws.org_id)
+    await api.post(
+        f"{API}/tickets/{mine['id']}/messages",
+        json={"body": "secret note", "is_internal": True},
+        headers=staff,
+    )
+    await api.patch(f"{API}/tickets/{mine['id']}", json={"assignee_id": ws.agent.id}, headers=staff)
+    stranger = await create_user(api)
+    stranger_org = await create_org(api, stranger, "Stranger Co")
+    stranger_customer = await create_customer(api, stranger, stranger_org["id"])
+    await create_ticket(api, stranger, stranger_org["id"], customer_id=stranger_customer["id"])
+    return {"mine": mine, "theirs": theirs, "stranger_org": stranger_org["id"]}
+
+
+async def as_member(session: AsyncSession, ws: Workspace, user: AuthedUser) -> None:
+    await reset_rls_context(session)
+    await set_rls_context(session, organization_id=uuid.UUID(ws.org_id), user_id=uuid.UUID(user.id))
+
+
+async def test_ticketing_tables_only_show_the_current_tenant(
+    db_session: AsyncSession, ws: Workspace, ticketing: dict
+) -> None:
+    await as_member(db_session, ws, ws.agent)
+
+    for table in TICKETING_TABLES:
+        assert await org_ids(db_session, table) == {ws.org_id}, table
+
+
+async def test_customer_role_sees_only_their_own_rows(
+    db_session: AsyncSession, ws: Workspace, ticketing: dict
+) -> None:
+    await as_member(db_session, ws, ws.customer)
+
+    async def column(sql: str) -> list:
+        return list((await db_session.execute(text(sql))).scalars())  # no filters on purpose
+
+    assert [str(t) for t in await column("SELECT id FROM tickets")] == [ticketing["mine"]["id"]]
+    assert await column("SELECT email FROM customers") == [ws.customer.email]
+    assert await column("SELECT body FROM ticket_messages") == ["public question"]
+    assert sorted(await column("SELECT DISTINCT type FROM ticket_events")) == [
+        "created",
+        "status_changed",
+    ]
+
+
+async def test_customer_role_cannot_write_internal_notes_or_others_tickets(
+    db_session: AsyncSession, ws: Workspace, ticketing: dict
+) -> None:
+    await as_member(db_session, ws, ws.customer)
+
+    with pytest.raises(DBAPIError, match="row-level security"):
+        async with db_session.begin_nested():
+            await db_session.execute(
+                text(
+                    "INSERT INTO ticket_messages "
+                    "(id, organization_id, ticket_id, author_id, author_type, body, is_internal) "
+                    "VALUES (:id, :org, :ticket, :author, 'customer', 'x', true)"
+                ),
+                {
+                    "id": uuid.uuid4(),
+                    "org": ws.org_id,
+                    "ticket": ticketing["mine"]["id"],
+                    "author": ws.customer.id,
+                },
+            )
+    changed = await db_session.execute(
+        text("UPDATE tickets SET subject = 'pwned' WHERE id = :id"),
+        {"id": ticketing["theirs"]["id"]},
+    )
+    assert changed.rowcount == 0
 
 
 async def test_app_role_cannot_bypass_rls(db_session: AsyncSession) -> None:

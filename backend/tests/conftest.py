@@ -36,7 +36,7 @@ from app.core.database import get_db_session, reset_rls_context
 from app.core.email import get_email_sender
 from app.core.rate_limit import InMemoryRateLimiter
 from app.main import app
-from tests.factories import Outbox
+from tests.factories import Outbox, Workspace, add_member, create_org, create_user
 
 ClientFactory = Callable[..., AbstractAsyncContextManager[httpx2.AsyncClient]]
 
@@ -162,3 +162,15 @@ def make_client(
 async def api(make_client: ClientFactory) -> AsyncIterator[httpx2.AsyncClient]:
     async with make_client() as http_client:
         yield http_client
+
+
+@pytest.fixture
+async def ws(api: httpx2.AsyncClient, outbox: Outbox) -> Workspace:
+    """An organization with an admin, an agent, and a customer member."""
+    admin = await create_user(api, full_name="Ada Admin")
+    agent = await create_user(api, full_name="Abe Agent")
+    customer = await create_user(api, full_name="Cleo Customer")
+    org = await create_org(api, admin)
+    await add_member(api, outbox, admin, org["id"], agent, "agent")
+    await add_member(api, outbox, admin, org["id"], customer, "customer")
+    return Workspace(org["id"], admin, agent, customer)

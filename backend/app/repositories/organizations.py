@@ -59,6 +59,19 @@ class OrganizationRepository:
         )
         return await self.session.scalar(stmt)
 
+    async def get_membership_with_user(
+        self, organization_id: uuid.UUID, user_id: uuid.UUID
+    ) -> OrganizationMember | None:
+        stmt = (
+            select(OrganizationMember)
+            .options(joinedload(OrganizationMember.user))
+            .where(
+                OrganizationMember.organization_id == organization_id,
+                OrganizationMember.user_id == user_id,
+            )
+        )
+        return await self.session.scalar(stmt)
+
     async def get_membership_by_email(
         self, organization_id: uuid.UUID, email: str
     ) -> OrganizationMember | None:

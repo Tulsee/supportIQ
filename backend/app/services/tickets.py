@@ -1,0 +1,333 @@
+"""Tickets: lifecycle, assignment, messages, and the timeline.
+
+Lifecycle (the only status changes allowed)::
+
+    OPEN -> ASSIGNED -> IN_PROGRESS <-> WAITING_FOR_CUSTOMER
+                        IN_PROGRESS  -> RESOLVED -> CLOSED
+                        RESOLVED     -> IN_PROGRESS (reopen)
+
+ASSIGNED is reached by assigning someone to an OPEN ticket, and unassigning an
+ASSIGNED ticket returns it to OPEN, so "assigned" always means someone owns it. A
+customer replying to a ticket that waits for them, or to a resolved ticket, moves
+it back to IN_PROGRESS. CLOSED is final.
+"""
+
+import uuid
+from dataclasses import replace
+from typing import Any
+
+from sqlalchemy import func
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.exceptions import AppError, ConflictError, NotFoundError, PermissionDeniedError
+from app.core.security import utcnow
+from app.models import (
+    CUSTOMER_VISIBLE_EVENTS,
+    MessageAuthorType,
+    OrganizationMember,
+    Ticket,
+    TicketEvent,
+    TicketEventType,
+    TicketMessage,
+    TicketPriority,
+    TicketStatus,
+    User,
+)
+from app.repositories.customers import CustomerRepository
+from app.repositories.organizations import OrganizationRepository
+from app.repositories.tickets import TicketFilters, TicketRepository
+from app.schemas.tickets import MessageCreate, TicketCreate, TicketUpdate
+from app.services.authorization import STAFF_ROLES, require_role
+from app.services.customers import CustomerService
+
+S = TicketStatus
+TRANSITIONS: dict[TicketStatus, frozenset[TicketStatus]] = {
+    S.OPEN: frozenset({S.ASSIGNED}),
+    S.ASSIGNED: frozenset({S.IN_PROGRESS}),
+    S.IN_PROGRESS: frozenset({S.WAITING_FOR_CUSTOMER, S.RESOLVED}),
+    S.WAITING_FOR_CUSTOMER: frozenset({S.IN_PROGRESS}),
+    S.RESOLVED: frozenset({S.IN_PROGRESS, S.CLOSED}),
+    S.CLOSED: frozenset(),
+}
+# Statuses a customer's reply moves back to IN_PROGRESS.
+_REOPENED_BY_CUSTOMER_REPLY = (S.WAITING_FOR_CUSTOMER, S.RESOLVED)
+
+TICKET_CLOSED = "This ticket is closed. Open a new ticket to continue."
+
+
+def _label(status: TicketStatus) -> str:
+    return status.value.replace("_", " ")
+
+
+def _person(user: User | None) -> dict[str, str] | None:
+    return {"id": str(user.id), "name": user.full_name} if user else None
+
+
+def is_staff(member: OrganizationMember) -> bool:
+    return member.role in STAFF_ROLES
+
+
+def allowed_statuses(member: OrganizationMember, ticket: Ticket) -> list[TicketStatus]:
+    """Status choices to offer this member. ASSIGNED is excluded: it is reached by
+    assigning someone, not by picking it."""
+    if not is_staff(member):
+        return []
+    allowed = TRANSITIONS[ticket.status]
+    return [status for status in TicketStatus if status in allowed and status != S.ASSIGNED]
+
+
+class TicketService:
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+        self.tickets = TicketRepository(session)
+        self.customers = CustomerRepository(session)
+        self.orgs = OrganizationRepository(session)
+
+    # --- Reading --------------------------------------------------------------------
+
+    async def list_tickets(
+        self,
+        member: OrganizationMember,
+        user: User,
+        filters: TicketFilters,
+        *,
+        limit: int,
+        offset: int,
+    ) -> tuple[list[Ticket], int]:
+        if not is_staff(member):
+            # Customers only ever see their own tickets (RLS enforces this too).
+            filters = replace(filters, only_for_user_id=user.id, assignee=None)
+        return await self.tickets.find(
+            member.organization_id, filters, current_user_id=user.id, limit=limit, offset=offset
+        )
+
+    async def counts(
+        self, member: OrganizationMember, user: User
+    ) -> tuple[dict[TicketStatus, int], int, int]:
+        require_role(member, *STAFF_ROLES)
+        return await self.tickets.counts(member.organization_id, user.id)
+
+    async def get(
+        self,
+        member: OrganizationMember,
+        user: User,
+        ticket_id: uuid.UUID,
+        *,
+        for_update: bool = False,
+    ) -> Ticket:
+        ticket = await self.tickets.get(member.organization_id, ticket_id, for_update=for_update)
+        if ticket is None or (not is_staff(member) and ticket.customer.user_id != user.id):
+            raise NotFoundError("Ticket not found")
+        return ticket
+
+    async def list_messages(
+        self,
+        member: OrganizationMember,
+        user: User,
+        ticket_id: uuid.UUID,
+        *,
+        limit: int,
+        offset: int,
+    ) -> tuple[list[TicketMessage], int]:
+        ticket = await self.get(member, user, ticket_id)
+        return await self.tickets.list_messages(
+            ticket.id, include_internal=is_staff(member), limit=limit, offset=offset
+        )
+
+    async def list_events(
+        self, member: OrganizationMember, user: User, ticket_id: uuid.UUID
+    ) -> list[TicketEvent]:
+        ticket = await self.get(member, user, ticket_id)
+        types = None if is_staff(member) else CUSTOMER_VISIBLE_EVENTS
+        return await self.tickets.list_events(ticket.id, types=types)
+
+    # --- Writing --------------------------------------------------------------------
+
+    async def create(self, member: OrganizationMember, user: User, data: TicketCreate) -> Ticket:
+        if is_staff(member):
+            if data.customer_id is None:
+                raise AppError("Choose the customer this ticket is for", code="customer_required")
+            customer = await self.customers.get(member.organization_id, data.customer_id)
+            if customer is None:
+                raise AppError("Customer not found in this organization", code="invalid_customer")
+            author_type = MessageAuthorType.AGENT
+        else:
+            if data.customer_id or data.priority or data.assignee_id:
+                raise PermissionDeniedError("Customers can only set a ticket's subject and message")
+            customer = await CustomerService(self.session).ensure_for_member(member, user)
+            author_type = MessageAuthorType.CUSTOMER
+
+        ticket = Ticket(
+            id=uuid.uuid4(),
+            organization_id=member.organization_id,
+            number=await self.tickets.next_number(member.organization_id),
+            subject=data.subject,
+            status=S.OPEN,
+            priority=data.priority or TicketPriority.NORMAL,
+            created_by_id=user.id,
+            resolved_at=None,
+            closed_at=None,
+        )
+        ticket.customer = customer
+        ticket.assignee = None
+        message = TicketMessage(
+            organization_id=member.organization_id,
+            author_id=user.id,
+            author_type=author_type,
+            body=data.message,
+            is_internal=False,
+        )
+        message.ticket = ticket
+        self.tickets.add(ticket, message)
+        self._record(ticket, user.id, TicketEventType.CREATED, {})
+        if data.assignee_id is not None:
+            await self._assign(ticket, user.id, data.assignee_id)
+        await self.session.commit()
+        return ticket
+
+    async def update(
+        self, member: OrganizationMember, user: User, ticket_id: uuid.UUID, data: TicketUpdate
+    ) -> Ticket:
+        require_role(member, *STAFF_ROLES)
+        ticket = await self.get(member, user, ticket_id, for_update=True)
+        if ticket.status == S.CLOSED:
+            raise ConflictError("Closed tickets can't be changed", code="ticket_closed")
+        fields = data.model_fields_set
+
+        if "subject" in fields and data.subject is not None and data.subject != ticket.subject:
+            self._record(
+                ticket,
+                user.id,
+                TicketEventType.SUBJECT_CHANGED,
+                {"from": ticket.subject, "to": data.subject},
+            )
+            ticket.subject = data.subject
+        if "priority" in fields and data.priority is not None and data.priority != ticket.priority:
+            self._record(
+                ticket,
+                user.id,
+                TicketEventType.PRIORITY_CHANGED,
+                {"from": ticket.priority, "to": data.priority},
+            )
+            ticket.priority = data.priority
+        # Assignment first: assigning an OPEN ticket makes it ASSIGNED, from which
+        # a status in the same request (e.g. IN_PROGRESS) can follow.
+        if "assignee_id" in fields:
+            await self._assign(ticket, user.id, data.assignee_id)
+        if "status" in fields and data.status is not None and data.status != ticket.status:
+            self._transition(ticket, user.id, data.status)
+
+        await self.session.commit()
+        return ticket
+
+    async def add_message(
+        self, member: OrganizationMember, user: User, ticket_id: uuid.UUID, data: MessageCreate
+    ) -> TicketMessage:
+        staff = is_staff(member)
+        if data.is_internal and not staff:
+            raise PermissionDeniedError("Only staff can add internal notes")
+        ticket = await self.get(member, user, ticket_id, for_update=True)
+        if ticket.status == S.CLOSED:
+            raise ConflictError(TICKET_CLOSED, code="ticket_closed")
+
+        message = TicketMessage(
+            organization_id=member.organization_id,
+            author_id=user.id,
+            author_type=MessageAuthorType.AGENT if staff else MessageAuthorType.CUSTOMER,
+            body=data.body,
+            is_internal=data.is_internal,
+        )
+        message.ticket = ticket
+        message.author = user
+        self.tickets.add(message)
+        if not staff and ticket.status in _REOPENED_BY_CUSTOMER_REPLY:
+            self._set_status(ticket, user.id, S.IN_PROGRESS)
+        # New activity sorts the ticket to the top. clock_timestamp(), not now():
+        # the moment of the reply, not the start of its transaction.
+        ticket.updated_at = func.clock_timestamp()
+        await self.session.commit()
+        return message
+
+    async def unassign_member(self, actor: OrganizationMember, user_id: uuid.UUID) -> int:
+        """Return a departing (or demoted) member's open tickets to the queue.
+        Does not commit; the caller's membership change does."""
+        tickets = await self.tickets.active_assigned_to(actor.organization_id, user_id)
+        for ticket in tickets:
+            await self._assign(ticket, actor.user_id, None)
+        return len(tickets)
+
+    # --- Helpers --------------------------------------------------------------------
+
+    async def _assign(
+        self, ticket: Ticket, actor_id: uuid.UUID | None, assignee_id: uuid.UUID | None
+    ) -> None:
+        if assignee_id == ticket.assignee_id:
+            return
+        previous = ticket.assignee
+        if assignee_id is None:
+            ticket.assignee = None
+            self._record(ticket, actor_id, TicketEventType.UNASSIGNED, {"from": _person(previous)})
+            if ticket.status == S.ASSIGNED:
+                self._set_status(ticket, actor_id, S.OPEN)  # back to the queue
+            return
+        membership = await self.orgs.get_membership_with_user(ticket.organization_id, assignee_id)
+        if membership is None or membership.role not in STAFF_ROLES:
+            raise AppError(
+                "Tickets can only be assigned to admins and agents of this organization",
+                code="invalid_assignee",
+            )
+        ticket.assignee = membership.user
+        self._record(
+            ticket,
+            actor_id,
+            TicketEventType.ASSIGNED,
+            {"from": _person(previous), "to": _person(membership.user)},
+        )
+        if ticket.status == S.OPEN:
+            self._set_status(ticket, actor_id, S.ASSIGNED)
+
+    def _transition(self, ticket: Ticket, actor_id: uuid.UUID, to: TicketStatus) -> None:
+        if to == S.ASSIGNED:
+            raise ConflictError(
+                "Assign the ticket to someone to mark it assigned",
+                code="invalid_status_transition",
+            )
+        allowed = TRANSITIONS[ticket.status]
+        if to not in allowed:
+            raise ConflictError(
+                f"A ticket can't move from {_label(ticket.status)} to {_label(to)}",
+                code="invalid_status_transition",
+                details={
+                    "from": ticket.status,
+                    "to": to,
+                    "allowed": [s for s in TicketStatus if s in allowed],
+                },
+            )
+        self._set_status(ticket, actor_id, to)
+
+    def _set_status(self, ticket: Ticket, actor_id: uuid.UUID | None, to: TicketStatus) -> None:
+        previous = ticket.status
+        ticket.status = to
+        if to == S.RESOLVED:
+            ticket.resolved_at = utcnow()
+        elif previous == S.RESOLVED and to == S.IN_PROGRESS:
+            ticket.resolved_at = None  # reopened
+        if to == S.CLOSED:
+            ticket.closed_at = utcnow()
+        self._record(ticket, actor_id, TicketEventType.STATUS_CHANGED, {"from": previous, "to": to})
+
+    def _record(
+        self,
+        ticket: Ticket,
+        actor_id: uuid.UUID | None,
+        event_type: TicketEventType,
+        data: dict[str, Any],
+    ) -> None:
+        event = TicketEvent(
+            organization_id=ticket.organization_id,
+            actor_id=actor_id,
+            type=event_type,
+            data=data,
+        )
+        event.ticket = ticket
+        self.tickets.add(event)

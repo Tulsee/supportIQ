@@ -4,7 +4,7 @@ import uuid
 from sqlalchemy import Enum, ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin, str_enum_type
 from app.models.user import User
 
 
@@ -15,17 +15,7 @@ class OrgRole(enum.StrEnum):
 
 
 def org_role_type() -> Enum:
-    """Column type for OrgRole: VARCHAR + CHECK rather than a native PG enum, so
-    adding a role later is a plain migration instead of ALTER TYPE."""
-    return Enum(
-        OrgRole,
-        name="org_role",
-        native_enum=False,
-        create_constraint=True,
-        length=32,
-        values_callable=lambda roles: [role.value for role in roles],
-        validate_strings=True,
-    )
+    return str_enum_type(OrgRole, "org_role")
 
 
 class Organization(UUIDPrimaryKeyMixin, TimestampMixin, Base):
