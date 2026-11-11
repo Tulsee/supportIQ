@@ -31,6 +31,7 @@ from app.core.security import InvalidTokenError, decode_access_token
 from app.models import OrganizationMember, User
 from app.repositories.organizations import OrganizationRepository
 from app.repositories.users import UserRepository
+from app.websocket.broker import EventBroker, RedisEventBroker
 
 DbSession = Annotated[AsyncSession, Depends(get_db_session)]
 
@@ -45,7 +46,12 @@ def get_client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
+def get_event_broker() -> EventBroker:
+    return RedisEventBroker(get_redis())
+
+
 RateLimiterDep = Annotated[RateLimiter, Depends(get_rate_limiter)]
+EventBrokerDep = Annotated[EventBroker, Depends(get_event_broker)]
 EmailSenderDep = Annotated[EmailSender, Depends(get_email_sender)]
 ClientIp = Annotated[str, Depends(get_client_ip)]
 

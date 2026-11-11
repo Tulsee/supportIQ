@@ -12,6 +12,7 @@
 import hashlib
 import secrets
 import uuid
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from functools import cache
 
@@ -72,8 +73,14 @@ def create_access_token(user_id: uuid.UUID) -> tuple[str, int]:
     return token, expires_in
 
 
-def decode_access_token(token: str) -> uuid.UUID:
-    """Return the user id from a valid access token, else raise ``InvalidTokenError``."""
+@dataclass(frozen=True)
+class AccessClaims:
+    user_id: uuid.UUID
+    expires_at: datetime
+
+
+def decode_access_claims(token: str) -> AccessClaims:
+    """Validate an access token and return its claims, else raise ``InvalidTokenError``."""
     try:
         payload = jwt.decode(
             token,
@@ -83,9 +90,17 @@ def decode_access_token(token: str) -> uuid.UUID:
         )
         if payload["type"] != ACCESS_TOKEN_TYPE:
             raise InvalidTokenError("Not an access token")
-        return uuid.UUID(payload["sub"])
-    except (jwt.PyJWTError, ValueError) as exc:
+        return AccessClaims(
+            user_id=uuid.UUID(payload["sub"]),
+            expires_at=datetime.fromtimestamp(payload["exp"], UTC),
+        )
+    except (jwt.PyJWTError, ValueError, TypeError) as exc:
         raise InvalidTokenError(str(exc)) from exc
+
+
+def decode_access_token(token: str) -> uuid.UUID:
+    """Return the user id from a valid access token, else raise ``InvalidTokenError``."""
+    return decode_access_claims(token).user_id
 
 
 # --- Opaque tokens (refresh tokens, invitation tokens) ------------------------------

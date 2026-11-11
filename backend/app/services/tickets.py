@@ -39,6 +39,8 @@ from app.repositories.tickets import TicketFilters, TicketRepository
 from app.schemas.tickets import MessageCreate, TicketCreate, TicketUpdate
 from app.services.authorization import STAFF_ROLES, require_role
 from app.services.customers import CustomerService
+from app.websocket.broker import EventBroker, EventType
+from app.websocket.broker import TicketEvent as RealtimeEvent
 
 S = TicketStatus
 TRANSITIONS: dict[TicketStatus, frozenset[TicketStatus]] = {
@@ -77,11 +79,24 @@ def allowed_statuses(member: OrganizationMember, ticket: Ticket) -> list[TicketS
 
 
 class TicketService:
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(self, session: AsyncSession, events: EventBroker | None = None) -> None:
         self.session = session
+        self.events = events  # real-time notifications, published after each commit
         self.tickets = TicketRepository(session)
         self.customers = CustomerRepository(session)
         self.orgs = OrganizationRepository(session)
+
+    async def _notify(self, kind: EventType, ticket: Ticket, *, staff_only: bool = False) -> None:
+        if self.events is not None:
+            await self.events.publish(
+                RealtimeEvent.build(
+                    kind,
+                    organization_id=ticket.organization_id,
+                    ticket_id=ticket.id,
+                    customer_user_id=ticket.customer.user_id,
+                    staff_only=staff_only,
+                )
+            )
 
     # --- Reading --------------------------------------------------------------------
 
@@ -183,6 +198,7 @@ class TicketService:
         if data.assignee_id is not None:
             await self._assign(ticket, user.id, data.assignee_id)
         await self.session.commit()
+        await self._notify("ticket.created", ticket)
         return ticket
 
     async def update(
@@ -193,6 +209,7 @@ class TicketService:
         if ticket.status == S.CLOSED:
             raise ConflictError("Closed tickets can't be changed", code="ticket_closed")
         fields = data.model_fields_set
+        before = (ticket.status, ticket.subject)
 
         if "subject" in fields and data.subject is not None and data.subject != ticket.subject:
             self._record(
@@ -218,6 +235,9 @@ class TicketService:
             self._transition(ticket, user.id, data.status)
 
         await self.session.commit()
+        # Customers see status and subject; priority and assignment are staff-only.
+        customer_visible = (ticket.status, ticket.subject) != before
+        await self._notify("ticket.updated", ticket, staff_only=not customer_visible)
         return ticket
 
     async def add_message(
@@ -246,6 +266,8 @@ class TicketService:
         # the moment of the reply, not the start of its transaction.
         ticket.updated_at = func.clock_timestamp()
         await self.session.commit()
+        # An internal note must not even signal its existence to the customer.
+        await self._notify("message.created", ticket, staff_only=data.is_internal)
         return message
 
     async def unassign_member(self, actor: OrganizationMember, user_id: uuid.UUID) -> int:

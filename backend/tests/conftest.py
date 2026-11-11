@@ -30,12 +30,13 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
-from app.api.deps import get_rate_limiter
+from app.api.deps import get_event_broker, get_rate_limiter
 from app.core.config import BACKEND_DIR, settings
 from app.core.database import get_db_session, reset_rls_context
 from app.core.email import get_email_sender
 from app.core.rate_limit import InMemoryRateLimiter
 from app.main import app
+from app.websocket.broker import InMemoryEventBroker
 from tests.factories import Outbox, Workspace, add_member, create_org, create_user
 
 ClientFactory = Callable[..., AbstractAsyncContextManager[httpx2.AsyncClient]]
@@ -129,11 +130,21 @@ def outbox() -> Outbox:
 
 
 @pytest.fixture
+def broker() -> InMemoryEventBroker:
+    """Real-time events stay in the test process (no Redis)."""
+    return InMemoryEventBroker()
+
+
+@pytest.fixture
 def make_client(
-    db_session: AsyncSession, rate_limiter: InMemoryRateLimiter, outbox: Outbox
+    db_session: AsyncSession,
+    rate_limiter: InMemoryRateLimiter,
+    outbox: Outbox,
+    broker: InMemoryEventBroker,
 ) -> ClientFactory:
     """Factory for HTTP clients against ``target_app`` (default: the real app), all
-    sharing the test's rolled-back session, in-memory rate limiter, and outbox."""
+    sharing the test's rolled-back session, in-memory rate limiter, outbox, and
+    event broker. The overrides also apply to WebSocket connections (tests/ws.py)."""
 
     @asynccontextmanager
     async def _make(target_app: FastAPI = app) -> AsyncIterator[httpx2.AsyncClient]:
@@ -143,16 +154,20 @@ def make_client(
             await reset_rls_context(db_session)
             yield db_session
 
-        target_app.dependency_overrides[get_db_session] = _session_override
-        target_app.dependency_overrides[get_rate_limiter] = lambda: rate_limiter
-        target_app.dependency_overrides[get_email_sender] = lambda: outbox
+        overrides = {
+            get_db_session: _session_override,
+            get_rate_limiter: lambda: rate_limiter,
+            get_email_sender: lambda: outbox,
+            get_event_broker: lambda: broker,
+        }
+        target_app.dependency_overrides.update(overrides)
         try:
             async with httpx2.AsyncClient(
                 transport=httpx2.ASGITransport(app=target_app), base_url="http://testserver"
             ) as http_client:
                 yield http_client
         finally:
-            for dependency in (get_db_session, get_rate_limiter, get_email_sender):
+            for dependency in overrides:
                 target_app.dependency_overrides.pop(dependency, None)
 
     return _make

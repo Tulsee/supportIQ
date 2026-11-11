@@ -9,6 +9,7 @@ from app.api.v1.endpoints import (
     health,
     invitations,
     organizations,
+    realtime,
     tickets,
     users,
 )
@@ -22,4 +23,5 @@ api_router.include_router(invitations.org_router)
 api_router.include_router(invitations.public_router)
 api_router.include_router(customers.router)
 api_router.include_router(tickets.router)
+api_router.include_router(realtime.router)
 api_router.include_router(admin.router)
