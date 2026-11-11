@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Suspense } from "react";
 
 import { OrgSwitcher } from "@/components/app-shell/org-switcher";
 import { UserMenu } from "@/components/app-shell/user-menu";
@@ -46,11 +47,17 @@ type NavItem = {
 
 const WORKSPACE: NavItem[] = [
   { title: "Dashboard", icon: LayoutDashboardIcon, href: "/dashboard" },
-  { title: "Tickets", icon: TicketIcon },
-  { title: "Customers", icon: UsersIcon },
+  { title: "Tickets", icon: TicketIcon, href: "/tickets", matchNested: true },
+  { title: "Customers", icon: UsersIcon, href: "/customers", matchNested: true },
   { title: "Knowledge base", icon: BookOpenIcon },
   { title: "AI inspector", icon: ScanSearchIcon },
   { title: "Analytics", icon: ChartLineIcon },
+];
+
+// Customer members only use the portal.
+const PORTAL: NavItem[] = [
+  { title: "Home", icon: LayoutDashboardIcon, href: "/dashboard" },
+  { title: "My requests", icon: TicketIcon, href: "/tickets", matchNested: true },
 ];
 
 const SETTINGS: NavItem[] = [
@@ -68,8 +75,15 @@ function isCurrent(pathname: string, { href, matchNested }: NavItem): boolean {
   return pathname === href || (!!matchNested && pathname.startsWith(`${href}/`));
 }
 
-function NavGroup({ label, items }: { label: string; items: NavItem[] }) {
-  const pathname = usePathname();
+function NavGroup({
+  label,
+  items,
+  pathname,
+}: {
+  label: string;
+  items: NavItem[];
+  pathname: string | null;
+}) {
   return (
     <SidebarGroup>
       <SidebarGroupLabel>{label}</SidebarGroupLabel>
@@ -81,7 +95,7 @@ function NavGroup({ label, items }: { label: string; items: NavItem[] }) {
               <SidebarMenuItem key={title}>
                 {href ? (
                   <SidebarMenuButton
-                    isActive={isCurrent(pathname, item)}
+                    isActive={pathname !== null && isCurrent(pathname, item)}
                     tooltip={title}
                     render={<Link href={href} />}
                   >
@@ -106,23 +120,42 @@ function NavGroup({ label, items }: { label: string; items: NavItem[] }) {
   );
 }
 
-export function AppSidebar() {
+function NavGroups({ pathname }: { pathname: string | null }) {
   const user = useCurrentUser();
   const { activeOrganization } = useOrganizations();
+  return (
+    <>
+      {activeOrganization?.role === "customer" ? (
+        <NavGroup label="Support" items={PORTAL} pathname={pathname} />
+      ) : activeOrganization ? (
+        <>
+          <NavGroup label="Workspace" items={WORKSPACE} pathname={pathname} />
+          <NavGroup label="Settings" items={SETTINGS} pathname={pathname} />
+        </>
+      ) : null}
+      {user.is_superadmin ? (
+        <NavGroup label="Platform" items={PLATFORM} pathname={pathname} />
+      ) : null}
+    </>
+  );
+}
 
+function CurrentNavGroups() {
+  return <NavGroups pathname={usePathname()} />;
+}
+
+export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
         <OrgSwitcher />
       </SidebarHeader>
       <SidebarContent>
-        {activeOrganization ? (
-          <>
-            <NavGroup label="Workspace" items={WORKSPACE} />
-            <NavGroup label="Settings" items={SETTINGS} />
-          </>
-        ) : null}
-        {user.is_superadmin ? <NavGroup label="Platform" items={PLATFORM} /> : null}
+        {/* usePathname() suspends on dynamic routes (e.g. /tickets/[id]) under Cache
+            Components; until it resolves, show the same links without highlighting. */}
+        <Suspense fallback={<NavGroups pathname={null} />}>
+          <CurrentNavGroups />
+        </Suspense>
       </SidebarContent>
       <SidebarFooter>
         <UserMenu />

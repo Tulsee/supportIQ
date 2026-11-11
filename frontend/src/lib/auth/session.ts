@@ -19,7 +19,6 @@ const REFRESH_MARGIN_MS = 60_000; // refresh a minute before the access token ex
 
 let accessToken: string | null = null;
 let expiresAt = 0;
-let activeOrganizationId: string | null = null;
 let inFlightRefresh: Promise<boolean> | null = null;
 const expiredListeners = new Set<() => void>();
 
@@ -79,14 +78,6 @@ export const session = {
     if (!accessToken) return null;
     if (Date.now() < expiresAt - REFRESH_MARGIN_MS) return accessToken;
     return (await refresh()) ? accessToken : null;
-  },
-
-  /** Sent as X-Organization-Id for tenant-scoped endpoints. */
-  get activeOrganizationId(): string | null {
-    return activeOrganizationId;
-  },
-  set activeOrganizationId(id: string | null) {
-    activeOrganizationId = id;
   },
 
   /** The API rejected our credentials: drop them and notify listeners. */

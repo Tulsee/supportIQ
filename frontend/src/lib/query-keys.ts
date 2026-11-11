@@ -2,8 +2,10 @@ type Page = { limit: number; offset?: number };
 type SearchPage = Page & { search?: string };
 
 /**
- * Query keys. Paginated keys include their page, so differently-sized pages never
- * share a cache entry; the key without a page is a prefix for invalidation.
+ * Query keys. Paginated keys include their page/filters, so different views never
+ * share a cache entry; the key without them is a prefix for invalidation.
+ * Tenant data is keyed under its organization, so switching organizations never
+ * shows another organization's cached data.
  */
 export const queryKeys = {
   organizations: ["organizations"] as const,
@@ -13,6 +15,26 @@ export const queryKeys = {
     page
       ? (["organizations", orgId, "invitations", page] as const)
       : (["organizations", orgId, "invitations"] as const),
+
+  tickets: (orgId: string, filters?: object) =>
+    filters
+      ? (["organizations", orgId, "tickets", "list", filters] as const)
+      : (["organizations", orgId, "tickets"] as const),
+  ticketCounts: (orgId: string) => ["organizations", orgId, "tickets", "counts"] as const,
+  ticket: (orgId: string, ticketId: string) =>
+    ["organizations", orgId, "tickets", "detail", ticketId] as const,
+  ticketMessages: (orgId: string, ticketId: string) =>
+    ["organizations", orgId, "tickets", "detail", ticketId, "messages"] as const,
+  ticketEvents: (orgId: string, ticketId: string) =>
+    ["organizations", orgId, "tickets", "detail", ticketId, "events"] as const,
+
+  customers: (orgId: string, page?: SearchPage) =>
+    page
+      ? (["organizations", orgId, "customers", "list", page] as const)
+      : (["organizations", orgId, "customers"] as const),
+  customer: (orgId: string, customerId: string) =>
+    ["organizations", orgId, "customers", "detail", customerId] as const,
+
   adminUsers: (page?: SearchPage) =>
     page ? (["admin", "users", page] as const) : (["admin", "users"] as const),
   adminOrganizations: (page?: SearchPage) =>

@@ -17,6 +17,21 @@ export type OrgRole = Organization["role"];
 export type Member = Schemas["MemberRead"];
 export type Invitation = Schemas["InvitationRead"];
 export type InvitationPreview = Schemas["InvitationPreview"];
+export type Customer = Schemas["CustomerRead"];
+export type Ticket = Schemas["TicketRead"];
+export type TicketStatus = Ticket["status"];
+export type TicketPriority = Ticket["priority"];
+export type TicketMessage = Schemas["MessageRead"];
+export type TicketEvent = Schemas["EventRead"];
+
+/**
+ * The tenant header for organization-scoped endpoints (customers, tickets, ...).
+ * Passed explicitly with each call (the schema marks it required), so a request
+ * can never go out with another organization's id.
+ */
+export function tenant(organizationId: string): { "X-Organization-Id": string } {
+  return { "X-Organization-Id": organizationId };
+}
 
 /** An error response from the API, decoded from its `{ error: {...} }` envelope. */
 export class ApiError extends Error {
@@ -45,9 +60,6 @@ const authMiddleware: Middleware = {
     if (!isSessionEndpoint(request)) {
       const token = await session.getAccessToken();
       if (token) request.headers.set("Authorization", `Bearer ${token}`);
-      if (session.activeOrganizationId) {
-        request.headers.set("X-Organization-Id", session.activeOrganizationId);
-      }
     }
     return request;
   },

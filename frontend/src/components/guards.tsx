@@ -1,14 +1,14 @@
 "use client";
 
 import { ShieldAlertIcon } from "lucide-react";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import type { ReactNode } from "react";
 
 import { FullPageSpinner } from "@/components/full-page-spinner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAuth, useCurrentUser } from "@/lib/auth/auth-provider";
-import { useOrganizations } from "@/lib/org/org-provider";
+import { useActiveOrganization, useOrganizations } from "@/lib/org/org-provider";
 
 /**
  * Renders children only for a signed-in user; otherwise sends them to sign in and
@@ -17,11 +17,14 @@ import { useOrganizations } from "@/lib/org/org-provider";
 export function AuthGuard({ children }: { children: ReactNode }) {
   const { status } = useAuth();
   const router = useRouter();
-  const pathname = usePathname();
 
   useEffect(() => {
-    if (status === "anonymous") router.replace(`/login?next=${encodeURIComponent(pathname)}`);
-  }, [status, router, pathname]);
+    if (status !== "anonymous") return;
+    // Read at redirect time rather than via usePathname(): that hook suspends on
+    // dynamic routes under Cache Components, and this also keeps the query string.
+    const here = window.location.pathname + window.location.search;
+    router.replace(`/login?next=${encodeURIComponent(here)}`);
+  }, [status, router]);
 
   if (status !== "authenticated") return <FullPageSpinner />;
   return children;
@@ -49,6 +52,25 @@ export function RequireOrganization({ children }: { children: ReactNode }) {
     );
   }
   if (!activeOrganization) return <FullPageSpinner className="min-h-[50svh]" />;
+  return children;
+}
+
+/** Pages for an organization's admins and agents. A UX guard: the API checks too. */
+export function RequireStaff({ children }: { children: ReactNode }) {
+  const organization = useActiveOrganization();
+  if (organization.role === "customer") {
+    return (
+      <div className="mx-auto max-w-md p-6">
+        <Alert>
+          <ShieldAlertIcon aria-hidden />
+          <AlertTitle>For the support team</AlertTitle>
+          <AlertDescription>
+            This page is only available to admins and agents of {organization.name}.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
   return children;
 }
 

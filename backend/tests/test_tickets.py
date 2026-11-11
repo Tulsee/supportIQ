@@ -2,7 +2,11 @@ from typing import Any
 
 import httpx2
 import pytest
+from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.database import rls_bypass
 from tests.factories import (
     API,
     AuthedUser,
@@ -364,6 +368,37 @@ async def test_tickets_of_another_organization_are_not_found(
     assert (await api.get(TICKETS, headers=headers)).json()["total"] == 0
     # Naming the organization without being a member doesn't help either.
     assert (await api.get(TICKETS, headers=in_org(intruder, ws.org_id))).status_code == 404
+
+
+async def test_deleting_an_organization_removes_its_tickets(
+    api: httpx2.AsyncClient, ws: Workspace, db_session: AsyncSession
+) -> None:
+    """Customers and tickets both cascade from the organization; the
+    ticket -> customer reference must not block that cascade midway."""
+    ticket = await create_ticket(api, ws.customer, ws.org_id)
+    await reply(api, ws, ticket, ws.agent, "hello")
+
+    async with rls_bypass(db_session):
+        await db_session.execute(
+            text("DELETE FROM organizations WHERE id = :id"), {"id": ws.org_id}
+        )
+        left = await db_session.scalar(
+            text("SELECT count(*) FROM tickets WHERE organization_id = :id"), {"id": ws.org_id}
+        )
+
+    assert left == 0
+
+
+async def test_a_customer_with_tickets_cannot_be_deleted_directly(
+    api: httpx2.AsyncClient, ws: Workspace, db_session: AsyncSession
+) -> None:
+    ticket = await create_ticket(api, ws.customer, ws.org_id)
+
+    with pytest.raises(IntegrityError):
+        async with rls_bypass(db_session), db_session.begin_nested():
+            await db_session.execute(
+                text("DELETE FROM customers WHERE id = :id"), {"id": ticket["customer"]["id"]}
+            )
 
 
 # --- Listing ----------------------------------------------------------------------------------

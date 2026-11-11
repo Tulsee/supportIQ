@@ -1,0 +1,75 @@
+import type { TicketEvent, TicketStatus } from "@/lib/api/client";
+import {
+  CUSTOMER_STATUS_LABELS,
+  PRIORITY_LABELS,
+  STATUS_LABELS,
+  formatDateTime,
+  timeAgo,
+} from "@/lib/tickets";
+
+type Person = { id: string; name: string } | null;
+
+function describe(event: TicketEvent, audience: "staff" | "customer", byMe: boolean): string {
+  const labels = audience === "customer" ? CUSTOMER_STATUS_LABELS : STATUS_LABELS;
+  const data = event.data as Record<string, unknown>;
+  switch (event.type) {
+    case "created":
+      return "opened the ticket";
+    case "status_changed": {
+      const to = labels[data.to as TicketStatus] ?? String(data.to);
+      if (audience === "customer") {
+        // In the customer's terms: someone took it on; their reply moved it along.
+        if (data.to === "assigned") return "picked up your request";
+        if (byMe) return `replied, moving it to ${to}`;
+      }
+      return `changed the status to ${to}`;
+    }
+    case "priority_changed":
+      return `set the priority to ${PRIORITY_LABELS[data.to as keyof typeof PRIORITY_LABELS] ?? data.to}`;
+    case "subject_changed":
+      return `renamed the ticket to “${data.to}”`;
+    case "assigned": {
+      const to = data.to as Person;
+      const from = data.from as Person;
+      return from ? `reassigned it from ${from.name} to ${to?.name}` : `assigned it to ${to?.name}`;
+    }
+    case "unassigned": {
+      const from = data.from as Person;
+      return from ? `unassigned ${from.name}` : "unassigned the ticket";
+    }
+  }
+}
+
+/** Status, priority and assignment history, oldest first. */
+export function TicketTimeline({
+  events,
+  currentUserId,
+  audience,
+}: {
+  events: TicketEvent[];
+  currentUserId: string;
+  audience: "staff" | "customer";
+}) {
+  return (
+    <ol className="relative space-y-3 border-l pl-4 text-sm">
+      {events.map((event) => {
+        const byMe = event.actor?.id === currentUserId;
+        const actor = byMe ? "You" : (event.actor?.full_name ?? "Someone");
+        return (
+          <li key={event.id} className="relative">
+            <span
+              className="absolute top-1.5 -left-[21px] size-2 rounded-full bg-muted-foreground/40 ring-4 ring-card"
+              aria-hidden
+            />
+            <span className="font-medium">{actor}</span> {describe(event, audience, byMe)}
+            <div className="text-xs text-muted-foreground">
+              <time dateTime={event.created_at} title={formatDateTime(event.created_at)}>
+                {timeAgo(event.created_at)}
+              </time>
+            </div>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}

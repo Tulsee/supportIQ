@@ -1,0 +1,361 @@
+"use client";
+
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeftIcon, CircleCheckIcon, LockIcon } from "lucide-react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { useId } from "react";
+import { toast } from "sonner";
+
+import { Conversation } from "@/components/tickets/conversation";
+import { LIVE_QUERY, refreshTickets, useAssignableMembers } from "@/components/tickets/hooks";
+import { NewRequestDialog } from "@/components/tickets/new-request-dialog";
+import { ReplyBox } from "@/components/tickets/reply-box";
+import { PriorityLabel, StatusBadge } from "@/components/tickets/ticket-badges";
+import { TicketTimeline } from "@/components/tickets/ticket-timeline";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  ApiError,
+  api,
+  errorMessage,
+  tenant,
+  unwrap,
+  type Schemas,
+  type Ticket,
+  type TicketPriority,
+  type TicketStatus,
+} from "@/lib/api/client";
+import { useCurrentUser } from "@/lib/auth/auth-provider";
+import { useActiveOrganization } from "@/lib/org/org-provider";
+import { queryKeys } from "@/lib/query-keys";
+import { PRIORITIES, PRIORITY_LABELS, STATUS_LABELS, formatDateTime } from "@/lib/tickets";
+
+const UNASSIGNED = "unassigned";
+const MESSAGES_PAGE = { limit: 100 };
+
+/** Staff controls: status (lifecycle-aware), assignee, priority. */
+function TicketProperties({ ticket }: { ticket: Ticket }) {
+  // Unique per instance: visited routes stay mounted (hidden), so two ticket
+  // pages can be in the document at once.
+  const uid = useId();
+  const organization = useActiveOrganization();
+  const user = useCurrentUser();
+  const queryClient = useQueryClient();
+  const { members } = useAssignableMembers();
+  const closed = ticket.status === "closed";
+
+  const update = useMutation({
+    mutationFn: (body: Schemas["TicketUpdate"]) =>
+      unwrap(
+        api.PATCH("/api/v1/tickets/{ticket_id}", {
+          params: { path: { ticket_id: ticket.id }, header: tenant(organization.id) },
+          body,
+        }),
+      ),
+    onSuccess: async (updated) => {
+      queryClient.setQueryData(queryKeys.ticket(organization.id, ticket.id), updated);
+      await refreshTickets(queryClient, organization.id);
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+
+  const statusOptions: TicketStatus[] = [ticket.status, ...ticket.allowed_statuses];
+  const assigneeItems: Record<string, string> = {
+    [UNASSIGNED]: "Unassigned",
+    ...Object.fromEntries(members.map((m) => [m.user_id, m.full_name])),
+  };
+  // Keep the current assignee selectable even if they left the organization.
+  if (ticket.assignee && !(ticket.assignee.id in assigneeItems)) {
+    assigneeItems[ticket.assignee.id] = ticket.assignee.full_name;
+  }
+
+  return (
+    <Card size="sm">
+      <CardHeader>
+        <CardTitle>
+          <h2>Properties</h2>
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <FieldGroup className="gap-4">
+          <Field>
+            <FieldLabel htmlFor={`${uid}-status`}>Status</FieldLabel>
+            <Select
+              items={STATUS_LABELS}
+              value={ticket.status}
+              onValueChange={(value) => {
+                if (value && value !== ticket.status) update.mutate({ status: value as TicketStatus });
+              }}
+              disabled={update.isPending || ticket.allowed_statuses.length === 0}
+            >
+              <SelectTrigger id={`${uid}-status`} className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {statusOptions.map((status) => (
+                  <SelectItem key={status} value={status}>
+                    {STATUS_LABELS[status]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {ticket.status === "open" ? (
+              <FieldDescription>Assign someone to start work on it.</FieldDescription>
+            ) : null}
+          </Field>
+          <Field>
+            <div className="flex items-center justify-between">
+              <FieldLabel htmlFor={`${uid}-assignee`}>Assignee</FieldLabel>
+              {!closed && ticket.assignee?.id !== user.id ? (
+                <Button
+                  variant="link"
+                  size="xs"
+                  className="h-auto p-0"
+                  disabled={update.isPending}
+                  onClick={() => update.mutate({ assignee_id: user.id })}
+                >
+                  Assign to me
+                </Button>
+              ) : null}
+            </div>
+            <Select
+              items={assigneeItems}
+              value={ticket.assignee?.id ?? UNASSIGNED}
+              onValueChange={(value) => {
+                if (!value || value === (ticket.assignee?.id ?? UNASSIGNED)) return;
+                update.mutate({ assignee_id: value === UNASSIGNED ? null : value });
+              }}
+              disabled={update.isPending || closed}
+            >
+              <SelectTrigger id={`${uid}-assignee`} className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(assigneeItems).map(([id, name]) => (
+                  <SelectItem key={id} value={id}>
+                    {name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor={`${uid}-priority`}>Priority</FieldLabel>
+            <Select
+              items={PRIORITY_LABELS}
+              value={ticket.priority}
+              onValueChange={(value) => {
+                if (value && value !== ticket.priority) {
+                  update.mutate({ priority: value as TicketPriority });
+                }
+              }}
+              disabled={update.isPending || closed}
+            >
+              <SelectTrigger id={`${uid}-priority`} className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PRIORITIES.map((priority) => (
+                  <SelectItem key={priority} value={priority}>
+                    {PRIORITY_LABELS[priority]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+        </FieldGroup>
+      </CardContent>
+    </Card>
+  );
+}
+
+export function TicketDetail() {
+  const { id } = useParams<{ id: string }>();
+  const organization = useActiveOrganization();
+  const user = useCurrentUser();
+  const audience = organization.role === "customer" ? "customer" : "staff";
+  const header = tenant(organization.id);
+
+  const ticket = useQuery({
+    queryKey: queryKeys.ticket(organization.id, id),
+    ...LIVE_QUERY,
+    queryFn: () =>
+      unwrap(
+        api.GET("/api/v1/tickets/{ticket_id}", {
+          params: { path: { ticket_id: id }, header },
+        }),
+      ),
+  });
+  const messages = useQuery({
+    queryKey: queryKeys.ticketMessages(organization.id, id),
+    ...LIVE_QUERY,
+    queryFn: () =>
+      unwrap(
+        api.GET("/api/v1/tickets/{ticket_id}/messages", {
+          params: { path: { ticket_id: id }, query: MESSAGES_PAGE, header },
+        }),
+      ),
+    enabled: ticket.isSuccess,
+  });
+  const events = useQuery({
+    queryKey: queryKeys.ticketEvents(organization.id, id),
+    ...LIVE_QUERY,
+    queryFn: () =>
+      unwrap(
+        api.GET("/api/v1/tickets/{ticket_id}/events", {
+          params: { path: { ticket_id: id }, header },
+        }),
+      ),
+    enabled: ticket.isSuccess,
+  });
+
+  const backLink = (
+    <Link
+      href="/tickets"
+      className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+    >
+      <ArrowLeftIcon className="size-4" aria-hidden />
+      {audience === "customer" ? "My requests" : "Tickets"}
+    </Link>
+  );
+
+  if (ticket.isPending) {
+    return (
+      <div className="space-y-4">
+        {backLink}
+        <Skeleton className="h-8 w-2/3" />
+        <Skeleton className="h-40 w-full" />
+      </div>
+    );
+  }
+  if (ticket.isError) {
+    const notFound = ticket.error instanceof ApiError && ticket.error.status === 404;
+    return (
+      <div className="space-y-4">
+        {backLink}
+        <Alert variant={notFound ? "default" : "destructive"}>
+          <AlertTitle>{notFound ? "Ticket not found" : "Couldn't load this ticket"}</AlertTitle>
+          <AlertDescription>
+            {notFound
+              ? "It may belong to another organization, or you don't have access to it."
+              : errorMessage(ticket.error)}
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  const data = ticket.data;
+  const closed = data.status === "closed";
+
+  return (
+    <div className="space-y-6">
+      <div className="space-y-3">
+        {backLink}
+        <div className="space-y-2">
+          <h1 className="text-2xl font-semibold tracking-tight break-words">
+            <span className="mr-2 font-normal text-muted-foreground">#{data.number}</span>
+            {data.subject}
+          </h1>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+            <StatusBadge status={data.status} audience={audience} />
+            {audience === "staff" ? <PriorityLabel priority={data.priority} /> : null}
+            <span>
+              Opened {formatDateTime(data.created_at)}
+              {audience === "staff" ? ` for ${data.customer.name}` : ""}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
+        <section className="space-y-6" aria-label="Messages">
+          {messages.isPending ? (
+            <Skeleton className="h-32 w-full" />
+          ) : messages.isError ? (
+            <Alert variant="destructive">
+              <AlertDescription>{errorMessage(messages.error)}</AlertDescription>
+            </Alert>
+          ) : (
+            <Conversation
+              messages={messages.data.items}
+              currentUserId={user.id}
+              audience={audience}
+            />
+          )}
+          {closed ? (
+            <Alert>
+              <LockIcon aria-hidden />
+              <AlertTitle>This ticket is closed</AlertTitle>
+              <AlertDescription>
+                {audience === "customer" ? (
+                  <span className="flex flex-wrap items-center gap-3">
+                    Need more help? Open a new request.
+                    <NewRequestDialog />
+                  </span>
+                ) : (
+                  "Closed tickets can't take new replies."
+                )}
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <>
+              {audience === "customer" && data.status === "resolved" ? (
+                <Alert>
+                  <CircleCheckIcon aria-hidden />
+                  <AlertTitle>Marked as resolved</AlertTitle>
+                  <AlertDescription>
+                    Not fixed yet? Reply below and we&apos;ll pick it back up.
+                  </AlertDescription>
+                </Alert>
+              ) : null}
+              <ReplyBox ticket={data} audience={audience} />
+            </>
+          )}
+        </section>
+
+        <aside className="space-y-4" aria-label="Ticket details">
+          {audience === "staff" ? <TicketProperties ticket={data} /> : null}
+          {audience === "staff" ? (
+            <Card size="sm">
+              <CardHeader>
+                <CardTitle>
+                  <h2>Customer</h2>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1 text-sm">
+                <Link href={`/customers/${data.customer.id}`} className="font-medium hover:underline">
+                  {data.customer.name}
+                </Link>
+                {data.customer.email ? (
+                  <div className="truncate text-muted-foreground">{data.customer.email}</div>
+                ) : null}
+              </CardContent>
+            </Card>
+          ) : null}
+          <Card size="sm">
+            <CardHeader>
+              <CardTitle>
+                <h2>Activity</h2>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {events.isPending ? (
+                <Skeleton className="h-16 w-full" />
+              ) : events.isError ? (
+                <p className="text-sm text-muted-foreground">{errorMessage(events.error)}</p>
+              ) : (
+                <TicketTimeline events={events.data} currentUserId={user.id} audience={audience} />
+              )}
+            </CardContent>
+          </Card>
+        </aside>
+      </div>
+    </div>
+  );
+}

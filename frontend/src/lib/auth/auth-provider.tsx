@@ -31,7 +31,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOutLocally = useCallback(() => {
     session.clear();
-    session.activeOrganizationId = null;
     queryClient.clear();
     setState({ status: "anonymous", user: null });
   }, [queryClient]);

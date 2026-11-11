@@ -1,11 +1,10 @@
 "use client";
 
 import { type QueryClient, useQuery } from "@tanstack/react-query";
-import { createContext, use, useCallback, useEffect, useMemo, useState } from "react";
+import { createContext, use, useCallback, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
 import { api, unwrap, type Organization } from "@/lib/api/client";
-import { session } from "@/lib/auth/session";
 import { queryKeys } from "@/lib/query-keys";
 
 const STORAGE_KEY = "supportiq.activeOrganizationId";
@@ -66,10 +65,6 @@ export function OrgProvider({ children }: { children: ReactNode }) {
   const organizations = useMemo(() => data?.items ?? [], [data]);
   const activeOrganization =
     organizations.find((org) => org.id === selectedId) ?? organizations[0] ?? null;
-
-  useEffect(() => {
-    session.activeOrganizationId = activeOrganization?.id ?? null;
-  }, [activeOrganization]);
 
   const selectOrganization = useCallback((id: string) => {
     setSelectedId(id);
