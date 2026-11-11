@@ -1,0 +1,124 @@
+# Runs on every pull request and on pushes to main.
+#   backend:  lint, format, migrations (apply, drift check, round trip), tests
+#   frontend: API types in sync with the backend contract, lint, typecheck, build
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backend
+    # Same images and host ports as docker-compose.yml, so the default settings and
+    # the test fixtures work unchanged.
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: supportiq
+          POSTGRES_PASSWORD: supportiq
+          POSTGRES_DB: supportiq
+        ports: ["5433:5432"]
+        options: >-
+          --health-cmd "pg_isready -U supportiq"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+      redis:
+        image: redis:8.10-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Check formatting
+        run: uv run ruff format --check .
+
+      # Service containers start before checkout, so they can't mount the init
+      # scripts that docker compose uses; apply them here instead.
+      - name: Create the test database and the least-privilege app role
+        env:
+          PGPASSWORD: supportiq
+        run: |
+          for script in ../infrastructure/docker/postgres/init/*.sql; do
+            psql -h 127.0.0.1 -p 5433 -U supportiq -d supportiq -v ON_ERROR_STOP=1 -f "$script"
+          done
+
+      - name: Migrations apply, match the models, and round-trip
+        run: |
+          uv run alembic upgrade head
+          uv run alembic check
+          uv run alembic downgrade base
+          uv run alembic upgrade head
+
+      - name: Tests
+        run: uv run pytest
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # The typed API client is generated from the backend's OpenAPI document.
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: API types match the backend contract
+        run: |
+          npm run gen:api
+          if ! git diff --exit-code -- src/lib/api/schema.d.ts; then
+            echo "::error file=frontend/src/lib/api/schema.d.ts::Out of date with the backend API. Run 'npm run gen:api' in frontend/ and commit the result."
+            exit 1
+          fi
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build

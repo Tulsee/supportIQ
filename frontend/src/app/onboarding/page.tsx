@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Brand } from "@/components/brand";
 import { AuthGuard } from "@/components/guards";
 import { CreateOrganizationForm } from "@/components/organizations/create-organization-form";
+import { OnboardingExits } from "@/components/organizations/onboarding-exits";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const metadata: Metadata = { title: "Create your organization" };
@@ -29,6 +30,9 @@ export default function OnboardingPage() {
               </p>
             </CardContent>
           </Card>
+          <div className="mt-6">
+            <OnboardingExits />
+          </div>
         </AuthGuard>
       </div>
     </main>

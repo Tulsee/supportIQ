@@ -1,4 +1,4 @@
-"""Registration, login, token refresh, and logout.
+"""Registration, login, token refresh, password change, and logout.
 
 The access token is returned in the response body (send it as
 ``Authorization: Bearer <token>``). The refresh token is only ever set as an
@@ -9,14 +9,16 @@ from typing import Annotated
 
 from fastapi import APIRouter, Cookie, Response, status
 
-from app.api.deps import ClientIp, DbSession, RateLimiterDep
+from app.api.deps import ClientIp, CurrentUser, DbSession, RateLimiterDep
 from app.core.config import settings
-from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse
+from app.schemas.auth import ChangePasswordRequest, LoginRequest, RegisterRequest, TokenResponse
 from app.schemas.common import error_responses
 from app.schemas.users import UserRead
 from app.services.auth import AuthService, IssuedTokens
 
-router = APIRouter(prefix="/auth", tags=["auth"], responses=error_responses(401, 409, 422, 429))
+router = APIRouter(
+    prefix="/auth", tags=["auth"], responses=error_responses(400, 401, 409, 422, 429)
+)
 
 RefreshCookie = Annotated[
     str | None,
@@ -74,6 +76,23 @@ async def refresh(
 ) -> TokenResponse:
     """Rotates the refresh-token cookie. Reusing an old refresh token ends the session."""
     tokens = await AuthService(session, limiter).refresh(refresh_token)
+    return _respond_with_tokens(response, tokens)
+
+
+@router.post("/change-password", summary="Change your password")
+async def change_password(
+    body: ChangePasswordRequest,
+    user: CurrentUser,
+    response: Response,
+    session: DbSession,
+    limiter: RateLimiterDep,
+) -> TokenResponse:
+    """Requires the current password (400 `invalid_current_password` if wrong; repeated
+    failures are rate limited). Signs out every other session and returns a fresh
+    access token and refresh-token cookie for this one."""
+    tokens = await AuthService(session, limiter).change_password(
+        user, body.current_password, body.new_password
+    )
     return _respond_with_tokens(response, tokens)
 
 

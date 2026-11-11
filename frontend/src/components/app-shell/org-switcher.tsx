@@ -1,6 +1,7 @@
 "use client";
 
 import { CheckIcon, ChevronsUpDownIcon, PlusIcon } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import {
@@ -12,8 +13,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
-import { useActiveOrganization, useOrganizations } from "@/lib/org/org-provider";
+import {
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarMenuSkeleton,
+} from "@/components/ui/sidebar";
+import { useOrganizations } from "@/lib/org/org-provider";
 import { ROLE_LABELS, initials } from "@/lib/roles";
 
 function OrgAvatar({ name }: { name: string }) {
@@ -26,8 +32,28 @@ function OrgAvatar({ name }: { name: string }) {
 
 export function OrgSwitcher() {
   const router = useRouter();
-  const { organizations, selectOrganization } = useOrganizations();
-  const active = useActiveOrganization();
+  const { organizations, activeOrganization: active, isLoading, selectOrganization } =
+    useOrganizations();
+
+  if (!active) {
+    // Loading, or the user (e.g. a platform admin) belongs to no organization yet.
+    return (
+      <SidebarMenu>
+        <SidebarMenuItem>
+          {isLoading ? (
+            <SidebarMenuSkeleton showIcon />
+          ) : (
+            <SidebarMenuButton size="lg" render={<Link href="/onboarding" />}>
+              <span className="flex aspect-square size-8 shrink-0 items-center justify-center rounded-lg border border-dashed border-sidebar-foreground/40">
+                <PlusIcon className="size-4" aria-hidden />
+              </span>
+              <span className="truncate font-medium">Create organization</span>
+            </SidebarMenuButton>
+          )}
+        </SidebarMenuItem>
+      </SidebarMenu>
+    );
+  }
 
   return (
     <SidebarMenu>

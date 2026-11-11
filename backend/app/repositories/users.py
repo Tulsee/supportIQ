@@ -22,7 +22,12 @@ class UserRepository:
     async def list_all(
         self, *, search: str | None, limit: int, offset: int
     ) -> tuple[list[User], int]:
-        condition = User.email.contains(search.lower(), autoescape=True) if search else true()
+        condition = (
+            User.email.icontains(search, autoescape=True)
+            | User.full_name.icontains(search, autoescape=True)
+            if search
+            else true()
+        )
         stmt = select(User).where(condition).order_by(User.email).limit(limit).offset(offset)
         users = list((await self.session.scalars(stmt)).all())
         total = await self.session.scalar(select(func.count()).select_from(User).where(condition))

@@ -61,6 +61,24 @@ async def test_superadmin_lists_users_and_all_organizations(
     assert me["is_superadmin"] is True
 
 
+async def test_user_search_matches_name_or_email(
+    api: httpx2.AsyncClient, db_session: AsyncSession
+) -> None:
+    root = await create_user(api, "root@example.com")
+    await create_user(api, "olive@example.com", full_name="Olive Other")
+    await create_user(api, "pat@example.com", full_name="Pat 100% Real")
+    await make_superadmin(db_session, root)
+
+    async def search(term: str) -> list[str]:
+        response = await api.get(f"{ADMIN}/users", params={"search": term}, headers=root.headers)
+        return [u["email"] for u in response.json()["items"]]
+
+    assert await search("other") == ["olive@example.com"]  # by name, case-insensitive
+    assert await search("PAT@") == ["pat@example.com"]  # by email
+    assert await search("100%") == ["pat@example.com"]  # LIKE wildcards are literal
+    assert await search("%") == ["pat@example.com"]
+
+
 async def test_superadmin_has_no_implicit_access_to_tenant_data(
     api: httpx2.AsyncClient, db_session: AsyncSession
 ) -> None:

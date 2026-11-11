@@ -9,6 +9,15 @@ const backendUrl = process.env.BACKEND_URL ?? "http://127.0.0.1:8000";
 const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
+  experimental: {
+    instantInsights: {
+      // Validate instant navigation only where a segment opts in (`instant = true`).
+      // The signed-in app renders behind a client-side session check (the access
+      // token lives in browser memory), so by design nothing below <AuthGuard> can
+      // render on the server; the default (validate every page) would flag them all.
+      validationLevel: "manual-warning",
+    },
+  },
   turbopack: {
     rules: {
       "*.css": {

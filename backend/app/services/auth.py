@@ -1,4 +1,4 @@
-"""Registration, login (with rate limiting), and refresh-token rotation."""
+"""Registration, login (with rate limiting), refresh-token rotation, password change."""
 
 import hashlib
 import uuid
@@ -10,7 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.exceptions import AuthenticationError, ConflictError, TooManyRequestsError
+from app.core.exceptions import AppError, AuthenticationError, ConflictError, TooManyRequestsError
 from app.core.rate_limit import RateLimiter
 from app.core.security import (
     create_access_token,
@@ -27,6 +27,8 @@ from app.schemas.auth import RegisterRequest
 
 INVALID_CREDENTIALS = "Invalid email or password"
 EMAIL_TAKEN = "An account with this email already exists"
+WRONG_CURRENT_PASSWORD = "Your current password is incorrect"
+PASSWORD_UNCHANGED = "Choose a password that differs from your current one"
 
 
 @dataclass(frozen=True)
@@ -127,6 +129,44 @@ class AuthService:
 
         record.revoked_at = now
         tokens = self._issue_tokens(user.id, family_id=record.family_id)
+        await self.session.commit()
+        return tokens
+
+    async def change_password(
+        self, user: User, current_password: str, new_password: str
+    ) -> IssuedTokens:
+        """Set a new password and sign out every other session.
+
+        All of the user's refresh tokens are revoked and a fresh session is issued for
+        the caller. Other devices can't renew their access; their already-issued access
+        tokens lapse within ``access_token_expire_minutes``.
+
+        Wrong current passwords count toward a per-account limit, so a hijacked
+        session can't be used to brute-force the password.
+        """
+        key = f"password-change:user:{user.id}"
+        limit = {
+            "limit": settings.login_account_failure_limit,
+            "window_seconds": settings.login_account_window_seconds,
+        }
+        lockout = await self.rate_limiter.check(key, **limit)
+        if not lockout.allowed:
+            raise TooManyRequestsError(
+                "Too many incorrect password attempts. Try again later.",
+                retry_after=lockout.retry_after,
+            )
+        if not await to_thread.run_sync(verify_password, current_password, user.password_hash):
+            await self.rate_limiter.hit(key, **limit)
+            # 400, not 401: the caller *is* authenticated, and a 401 would make
+            # clients treat their session as expired.
+            raise AppError(WRONG_CURRENT_PASSWORD, code="invalid_current_password")
+        if current_password == new_password:
+            raise AppError(PASSWORD_UNCHANGED, code="password_unchanged")
+
+        await self.rate_limiter.reset(key)
+        user.password_hash = await to_thread.run_sync(hash_password, new_password)
+        await self.refresh_tokens.revoke_all_for_user(user.id, utcnow())
+        tokens = self._issue_tokens(user.id, family_id=uuid.uuid4())
         await self.session.commit()
         return tokens
 

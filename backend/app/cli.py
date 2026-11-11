@@ -3,6 +3,7 @@
     uv run python -m app.cli grant-superadmin admin@example.com
     uv run python -m app.cli revoke-superadmin admin@example.com
     uv run python -m app.cli purge-expired
+    uv run python -m app.cli export-openapi --output openapi.json
 
 Super admin can only be bootstrapped here (there is no API to grant it from
 scratch); afterwards super admins can manage each other via /api/v1/admin.
@@ -10,7 +11,9 @@ scratch); afterwards super admins can manage each other via /api/v1/admin.
 
 import argparse
 import asyncio
+import json
 import sys
+from pathlib import Path
 
 from app.core.database import SessionLocal, engine
 from app.core.exceptions import NotFoundError
@@ -39,6 +42,19 @@ async def _purge_expired() -> int:
     return 0
 
 
+def _export_openapi(output: Path | None) -> int:
+    """Write the API contract (no server or database needed). The frontend's typed
+    client is generated from it, and CI checks that the two stay in sync."""
+    from app.main import app  # imported lazily: only this command needs the app
+
+    document = json.dumps(app.openapi(), indent=2) + "\n"
+    if output is None:
+        sys.stdout.write(document)
+    else:
+        output.write_text(document, encoding="utf-8")
+    return 0
+
+
 async def _run(args: argparse.Namespace) -> int:
     try:
         if args.command == "grant-superadmin":
@@ -58,7 +74,12 @@ def main(argv: list[str] | None = None) -> int:
     revoke = commands.add_parser("revoke-superadmin", help="Remove super admin from a user")
     revoke.add_argument("email")
     commands.add_parser("purge-expired", help="Delete expired refresh tokens and stale invitations")
-    return asyncio.run(_run(parser.parse_args(argv)))
+    export = commands.add_parser("export-openapi", help="Write the OpenAPI document as JSON")
+    export.add_argument("--output", type=Path, help="File to write (default: stdout)")
+    args = parser.parse_args(argv)
+    if args.command == "export-openapi":
+        return _export_openapi(args.output)
+    return asyncio.run(_run(args))
 
 
 if __name__ == "__main__":

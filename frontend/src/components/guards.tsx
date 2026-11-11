@@ -1,12 +1,13 @@
 "use client";
 
+import { ShieldAlertIcon } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import type { ReactNode } from "react";
 
 import { FullPageSpinner } from "@/components/full-page-spinner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { useAuth } from "@/lib/auth/auth-provider";
+import { useAuth, useCurrentUser } from "@/lib/auth/auth-provider";
 import { useOrganizations } from "@/lib/org/org-provider";
 
 /**
@@ -47,6 +48,25 @@ export function RequireOrganization({ children }: { children: ReactNode }) {
       </div>
     );
   }
-  if (!activeOrganization) return <FullPageSpinner />;
+  if (!activeOrganization) return <FullPageSpinner className="min-h-[50svh]" />;
+  return children;
+}
+
+/** Platform administration pages. A UX guard: the API requires super admin too. */
+export function RequireSuperAdmin({ children }: { children: ReactNode }) {
+  const user = useCurrentUser();
+  if (!user.is_superadmin) {
+    return (
+      <div className="mx-auto max-w-md p-6">
+        <Alert>
+          <ShieldAlertIcon aria-hidden />
+          <AlertTitle>Platform administrators only</AlertTitle>
+          <AlertDescription>
+            Your account doesn&apos;t have access to platform administration.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
   return children;
 }

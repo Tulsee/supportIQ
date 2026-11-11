@@ -3,12 +3,14 @@
 import {
   BookOpenIcon,
   Building2Icon,
+  BuildingIcon,
   ChartLineIcon,
   LayoutDashboardIcon,
   ScanSearchIcon,
   TicketIcon,
   UserCogIcon,
   UsersIcon,
+  UsersRoundIcon,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -30,10 +32,18 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
+import { useCurrentUser } from "@/lib/auth/auth-provider";
+import { useOrganizations } from "@/lib/org/org-provider";
 
-type NavItem = { title: string; icon: LucideIcon; href?: string };
+type NavItem = {
+  title: string;
+  icon: LucideIcon;
+  /** Omitted for upcoming modules, shown so the product shape is visible. */
+  href?: string;
+  /** Also highlight for nested pages (e.g. /tickets/123). */
+  matchNested?: boolean;
+};
 
-// Items without an href are upcoming modules, shown so the product shape is visible.
 const WORKSPACE: NavItem[] = [
   { title: "Dashboard", icon: LayoutDashboardIcon, href: "/dashboard" },
   { title: "Tickets", icon: TicketIcon },
@@ -48,6 +58,16 @@ const SETTINGS: NavItem[] = [
   { title: "Members", icon: UserCogIcon, href: "/settings/members" },
 ];
 
+const PLATFORM: NavItem[] = [
+  { title: "All users", icon: UsersRoundIcon, href: "/admin/users" },
+  { title: "All organizations", icon: BuildingIcon, href: "/admin/organizations" },
+];
+
+function isCurrent(pathname: string, { href, matchNested }: NavItem): boolean {
+  if (!href) return false;
+  return pathname === href || (!!matchNested && pathname.startsWith(`${href}/`));
+}
+
 function NavGroup({ label, items }: { label: string; items: NavItem[] }) {
   const pathname = usePathname();
   return (
@@ -55,28 +75,31 @@ function NavGroup({ label, items }: { label: string; items: NavItem[] }) {
       <SidebarGroupLabel>{label}</SidebarGroupLabel>
       <SidebarGroupContent>
         <SidebarMenu>
-          {items.map(({ title, icon: Icon, href }) => (
-            <SidebarMenuItem key={title}>
-              {href ? (
-                <SidebarMenuButton
-                  isActive={pathname === href}
-                  tooltip={title}
-                  render={<Link href={href} />}
-                >
-                  <Icon aria-hidden />
-                  <span>{title}</span>
-                </SidebarMenuButton>
-              ) : (
-                <>
-                  <SidebarMenuButton disabled tooltip={`${title} (coming soon)`}>
+          {items.map((item) => {
+            const { title, icon: Icon, href } = item;
+            return (
+              <SidebarMenuItem key={title}>
+                {href ? (
+                  <SidebarMenuButton
+                    isActive={isCurrent(pathname, item)}
+                    tooltip={title}
+                    render={<Link href={href} />}
+                  >
                     <Icon aria-hidden />
                     <span>{title}</span>
                   </SidebarMenuButton>
-                  <SidebarMenuBadge className="text-[10px] opacity-60">Soon</SidebarMenuBadge>
-                </>
-              )}
-            </SidebarMenuItem>
-          ))}
+                ) : (
+                  <>
+                    <SidebarMenuButton disabled tooltip={`${title} (coming soon)`}>
+                      <Icon aria-hidden />
+                      <span>{title}</span>
+                    </SidebarMenuButton>
+                    <SidebarMenuBadge className="text-[10px] opacity-60">Soon</SidebarMenuBadge>
+                  </>
+                )}
+              </SidebarMenuItem>
+            );
+          })}
         </SidebarMenu>
       </SidebarGroupContent>
     </SidebarGroup>
@@ -84,14 +107,22 @@ function NavGroup({ label, items }: { label: string; items: NavItem[] }) {
 }
 
 export function AppSidebar() {
+  const user = useCurrentUser();
+  const { activeOrganization } = useOrganizations();
+
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
         <OrgSwitcher />
       </SidebarHeader>
       <SidebarContent>
-        <NavGroup label="Workspace" items={WORKSPACE} />
-        <NavGroup label="Settings" items={SETTINGS} />
+        {activeOrganization ? (
+          <>
+            <NavGroup label="Workspace" items={WORKSPACE} />
+            <NavGroup label="Settings" items={SETTINGS} />
+          </>
+        ) : null}
+        {user.is_superadmin ? <NavGroup label="Platform" items={PLATFORM} /> : null}
       </SidebarContent>
       <SidebarFooter>
         <UserMenu />

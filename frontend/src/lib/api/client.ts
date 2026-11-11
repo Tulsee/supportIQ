@@ -32,12 +32,17 @@ export class ApiError extends Error {
   }
 }
 
-const isAuthEndpoint = (request: Request) =>
-  new URL(request.url).pathname.startsWith("/api/v1/auth/");
+// Endpoints that establish or end a session: they never take the access token, and
+// their 401s (wrong password, missing cookie) don't mean an active session ended.
+const SESSION_ENDPOINTS = new Set(
+  ["login", "register", "refresh", "logout"].map((name) => `/api/v1/auth/${name}`),
+);
+const isSessionEndpoint = (request: Request) =>
+  SESSION_ENDPOINTS.has(new URL(request.url).pathname);
 
 const authMiddleware: Middleware = {
   async onRequest({ request }) {
-    if (!isAuthEndpoint(request)) {
+    if (!isSessionEndpoint(request)) {
       const token = await session.getAccessToken();
       if (token) request.headers.set("Authorization", `Bearer ${token}`);
       if (session.activeOrganizationId) {
@@ -49,7 +54,7 @@ const authMiddleware: Middleware = {
   async onResponse({ request, response }) {
     // Tokens are refreshed proactively before they expire, so a 401 here means
     // the session was revoked (logout elsewhere, deactivated account).
-    if (response.status === 401 && !isAuthEndpoint(request)) session.expire();
+    if (response.status === 401 && !isSessionEndpoint(request)) session.expire();
     return response;
   },
 };

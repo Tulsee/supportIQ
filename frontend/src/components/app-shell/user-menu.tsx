@@ -1,6 +1,13 @@
 "use client";
 
-import { ChevronsUpDownIcon, LogOutIcon, MonitorIcon, MoonIcon, SunIcon } from "lucide-react";
+import {
+  ChevronsUpDownIcon,
+  CircleUserIcon,
+  LogOutIcon,
+  MonitorIcon,
+  MoonIcon,
+  SunIcon,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 
@@ -49,6 +56,11 @@ export function UserMenu() {
             <ChevronsUpDownIcon className="ml-auto" aria-hidden />
           </DropdownMenuTrigger>
           <DropdownMenuContent className="min-w-56" align="end" side="top" sideOffset={4}>
+            <DropdownMenuItem onClick={() => router.push("/account")}>
+              <CircleUserIcon aria-hidden />
+              Account settings
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuLabel>Theme</DropdownMenuLabel>
               <DropdownMenuRadioGroup value={theme ?? "system"} onValueChange={setTheme}>

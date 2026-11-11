@@ -7,8 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit",
-    "gen:api": "openapi-typescript http://127.0.0.1:8000/api/v1/openapi.json -o src/lib/api/schema.d.ts"
+    "typecheck": "next typegen && tsc --noEmit",
+    "gen:api": "uv run --directory ../backend python -m app.cli export-openapi --output ../frontend/openapi.json && openapi-typescript openapi.json -o src/lib/api/schema.d.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
