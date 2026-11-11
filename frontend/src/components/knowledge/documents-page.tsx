@@ -5,12 +5,12 @@ import { BookOpenIcon } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
-import { KnowledgeSearch } from "@/components/knowledge/knowledge-search";
 import { DocumentStatusBadge } from "@/components/knowledge/document-status";
 import { UploadDocumentDialog } from "@/components/knowledge/upload-document-dialog";
 import { NoWorkerAlert, useWorkerOffline } from "@/components/knowledge/worker-status";
 import { PageHeader } from "@/components/page-header";
 import { Pager } from "@/components/pager";
+import { RetrievalPlayground } from "@/components/retrieval/retrieval-playground";
 import { SearchInput } from "@/components/search-input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -168,7 +168,7 @@ export function DocumentsPage() {
             )}
           </CardContent>
         </Card>
-        <KnowledgeSearch />
+        <RetrievalPlayground />
       </div>
     </>
   );

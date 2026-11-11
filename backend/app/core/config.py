@@ -111,6 +111,16 @@ class Settings(BaseSettings):
     # silently truncated when embedded. Overlap keeps the plan's 15% ratio.
     chunk_size_tokens: Annotated[int, Field(ge=32, le=510)] = 480
     chunk_overlap_tokens: Annotated[int, Field(ge=0)] = 72
+    # Retrieval: candidates from each retriever, Reciprocal Rank Fusion constant,
+    # how many fused candidates the cross-encoder reorders, and passages returned.
+    reranker_model: str = "Xenova/ms-marco-MiniLM-L-6-v2"
+    retrieval_sparse_top_k: int = 20
+    retrieval_dense_top_k: int = 20
+    retrieval_rrf_k: int = 60
+    retrieval_rerank_candidates: int = 20
+    retrieval_top_k: int = 5
+    bm25_k1: float = 1.2  # term-frequency saturation
+    bm25_b: float = 0.75  # document-length normalization
     # OCR for scanned PDF pages: pages with fewer extractable characters than this
     # are rendered and read with OCR (about 1-2 s per page), up to a page limit.
     ocr_enabled: bool = True

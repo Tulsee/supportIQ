@@ -7,9 +7,15 @@ from typing import Any
 
 import httpx2
 
+from ai_engine.chunking.chunker import ChunkingConfig
 from app.core.email import EmailMessage
+from app.services.ingestion import IngestionLimits
 
 API = "/api/v1"
+# Small chunks, so short test documents still produce several of them.
+TEST_INGESTION_LIMITS = IngestionLimits(
+    max_pages=50, max_characters=200_000, chunking=ChunkingConfig(size=40, overlap=8)
+)
 DEFAULT_PASSWORD = "correct-horse-battery"
 _TOKEN_IN_LINK = re.compile(r"#token=([A-Za-z0-9_\-]+)")
 

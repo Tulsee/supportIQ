@@ -512,26 +512,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/documents/search": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Search the knowledge base
-         * @description Semantic (dense vector) search over indexed chunks, most similar first.
-         */
-        get: operations["search_documents_api_v1_documents_search_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/documents/{document_id}": {
         parameters: {
             query?: never;
@@ -619,6 +599,62 @@ export interface paths {
          *     409 `ingestion_in_progress` while it is queued or processing.
          */
         post: operations["reindex_document_api_v1_documents__document_id__reindex_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/retrieve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retrieve evidence passages for a query
+         * @description Keyword (BM25) and/or semantic search, fused with Reciprocal Rank Fusion and
+         *     reranked by a cross-encoder. `strategy: auto` adapts to the query; the run is
+         *     recorded (see `GET /ai/runs/{run_id}`).
+         */
+        post: operations["retrieve_api_v1_ai_retrieve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Recent AI runs */
+        get: operations["list_runs_api_v1_ai_runs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/runs/{run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Inspect an AI run */
+        get: operations["get_run_api_v1_ai_runs__run_id__get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1290,6 +1326,20 @@ export interface components {
             /** Offset */
             offset: number;
         };
+        /** Page[RetrievalRunSummary] */
+        Page_RetrievalRunSummary_: {
+            /** Items */
+            items: components["schemas"]["RetrievalRunSummary"][];
+            /**
+             * Total
+             * @description Total matching items across all pages.
+             */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
         /** Page[TicketRead] */
         Page_TicketRead_: {
             /** Items */
@@ -1352,24 +1402,162 @@ export interface components {
             /** Full Name */
             full_name: string;
         };
-        /** SearchHit */
-        SearchHit: {
+        /**
+         * RequestedStrategy
+         * @enum {string}
+         */
+        RequestedStrategy: "auto" | "sparse" | "dense" | "hybrid";
+        /** RetrievalRunRead */
+        RetrievalRunRead: {
             /**
-             * Score
-             * @description Cosine similarity between the query and the chunk.
+             * Id
+             * Format: uuid
              */
-            score: number;
-            document: components["schemas"]["DocumentSummary"];
-            chunk: components["schemas"]["ChunkRead"];
-        };
-        /** SearchResults */
-        SearchResults: {
+            id: string;
             /** Query */
             query: string;
-            /** Embedding Model */
-            embedding_model: string;
-            /** Results */
-            results: components["schemas"]["SearchHit"][];
+            /** Query Type */
+            query_type: string;
+            /** Requested Strategy */
+            requested_strategy: string;
+            /** Strategy */
+            strategy: string;
+            /** Latency Ms */
+            latency_ms: number;
+            /** Result Count */
+            result_count: number;
+            user: components["schemas"]["PersonSummary"] | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Reasons
+             * @description Why the query analysis chose this strategy.
+             */
+            reasons: string[];
+            /**
+             * Config
+             * @description Models, top-k values, fusion weights, BM25 parameters: enough to reproduce the run.
+             */
+            config: {
+                [key: string]: unknown;
+            };
+            /** Timings Ms */
+            timings_ms: {
+                [key: string]: number;
+            };
+            /**
+             * Degraded
+             * @description Retrievers that failed during the run (it continued without them).
+             */
+            degraded: {
+                [key: string]: string;
+            };
+            /**
+             * Results
+             * @description The selected passages, best first.
+             */
+            results: components["schemas"]["RetrievedPassage"][];
+            /**
+             * Other Candidates
+             * @description Candidates considered but not selected, by fused rank.
+             */
+            other_candidates: components["schemas"]["RetrievedPassage"][];
+        };
+        /** RetrievalRunSummary */
+        RetrievalRunSummary: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Query */
+            query: string;
+            /** Query Type */
+            query_type: string;
+            /** Requested Strategy */
+            requested_strategy: string;
+            /** Strategy */
+            strategy: string;
+            /** Latency Ms */
+            latency_ms: number;
+            /** Result Count */
+            result_count: number;
+            user: components["schemas"]["PersonSummary"] | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** RetrieveRequest */
+        RetrieveRequest: {
+            /** Query */
+            query: string;
+            /**
+             * @description `auto` picks a strategy per query (adaptive retrieval); the others are fixed, for comparison.
+             * @default auto
+             */
+            strategy: components["schemas"]["RequestedStrategy"];
+            /**
+             * Rerank
+             * @description Reorder candidates with the cross-encoder.
+             * @default true
+             */
+            rerank: boolean;
+            /**
+             * Top K
+             * @description Passages to select.
+             * @default 5
+             */
+            top_k: number;
+        };
+        /** RetrievedPassage */
+        RetrievedPassage: {
+            /**
+             * Final Rank
+             * @description Set for the selected passages, 1 = best.
+             */
+            final_rank: number | null;
+            /** Fused Rank */
+            fused_rank: number;
+            /**
+             * Fused Score
+             * @description Weighted Reciprocal Rank Fusion score.
+             */
+            fused_score: number;
+            /** @description BM25 rank and score, if it found this. */
+            sparse: components["schemas"]["StageScore"] | null;
+            /** @description Vector-search rank and cosine similarity. */
+            dense: components["schemas"]["StageScore"] | null;
+            /**
+             * Rerank Score
+             * @description Cross-encoder score (a logit).
+             */
+            rerank_score: number | null;
+            /**
+             * Relevance
+             * @description The cross-encoder score mapped to 0-1.
+             */
+            relevance: number | null;
+            /** Document Id */
+            document_id: string | null;
+            /** Document Version */
+            document_version: number;
+            /** Chunk Index */
+            chunk_index: number;
+            document: components["schemas"]["DocumentSummary"] | null;
+            /** @description The passage; null if it has been replaced by a re-index since the run. */
+            chunk: components["schemas"]["ChunkRead"] | null;
+        };
+        /** StageScore */
+        StageScore: {
+            /** Rank */
+            rank: number;
+            /** Score */
+            score: number;
         };
         /** TicketCounts */
         TicketCounts: {
@@ -4174,105 +4362,6 @@ export interface operations {
             };
         };
     };
-    search_documents_api_v1_documents_search_get: {
-        parameters: {
-            query: {
-                /** @description What to look for. */
-                q: string;
-                limit?: number;
-            };
-            header: {
-                /** @description The organization to act in. */
-                "X-Organization-Id": string;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SearchResults"];
-                };
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Request Entity Too Large */
-            413: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Too Many Requests */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Service Unavailable */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
     get_document_api_v1_documents__document_id__get: {
         parameters: {
             query?: never;
@@ -4829,6 +4918,248 @@ export interface operations {
             };
             /** @description Request Entity Too Large */
             413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    retrieve_api_v1_ai_retrieve_post: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RetrieveRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetrievalRunRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_runs_api_v1_ai_runs_get: {
+        parameters: {
+            query?: {
+                /** @description Maximum items to return. */
+                limit?: number;
+                /** @description Number of items to skip. */
+                offset?: number;
+            };
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_RetrievalRunSummary_"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_run_api_v1_ai_runs__run_id__get: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RetrievalRunRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

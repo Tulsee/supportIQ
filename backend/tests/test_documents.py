@@ -8,7 +8,6 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_engine.chunking.chunker import ChunkingConfig
 from ai_engine.embeddings.embedder import HashingEmbedder
 from ai_engine.ingestion.ocr import OcrLine, OcrOptions
 from ai_engine.retrieval.vector_store import QdrantVectorStore
@@ -17,7 +16,6 @@ from app.core.database import reset_rls_context, rls_bypass, set_rls_context
 from app.core.security import utcnow
 from app.core.storage import LocalObjectStorage, StorageError
 from app.services.ingestion import (
-    IngestionLimits,
     IngestionService,
     Outcome,
     TransientIngestionError,
@@ -25,6 +23,7 @@ from app.services.ingestion import (
 from app.services.maintenance import fail_stalled_ingestions
 from tests.factories import (
     API,
+    TEST_INGESTION_LIMITS,
     AuthedUser,
     RecordingQueue,
     Workspace,
@@ -37,30 +36,7 @@ from tests.samples import HANDBOOK_MD, make_pdf
 pytestmark = pytest.mark.anyio
 
 DOCS = f"{API}/documents"
-LIMITS = IngestionLimits(max_pages=50, max_characters=200_000, chunking=ChunkingConfig(40, 8))
-
-
-@pytest.fixture
-def ingest(
-    db_session: AsyncSession,
-    storage: LocalObjectStorage,
-    embedder: HashingEmbedder,
-    vector_store: QdrantVectorStore,
-    ingestion_queue: RecordingQueue,
-):
-    """Run the queued job for a document, as a worker would."""
-
-    async def _ingest(
-        document_id: str, *, ingestion_id: uuid.UUID | None = None, final_attempt: bool = True
-    ) -> Outcome:
-        if ingestion_id is None:
-            ingestion_id = next(
-                job for doc, job in reversed(ingestion_queue.jobs) if str(doc) == document_id
-            )
-        service = IngestionService(db_session, storage, embedder, vector_store, LIMITS)
-        return await service.run(uuid.UUID(document_id), ingestion_id, final_attempt=final_attempt)
-
-    return _ingest
+LIMITS = TEST_INGESTION_LIMITS
 
 
 async def upload(
@@ -95,7 +71,12 @@ async def chunks_of(api: httpx2.AsyncClient, ws: Workspace, doc_id: str) -> list
 
 
 async def search(api: httpx2.AsyncClient, ws: Workspace, q: str) -> list[dict]:
-    response = await api.get(f"{DOCS}/search", params={"q": q}, headers=in_org(ws.agent, ws.org_id))
+    """Semantic search through the retrieval endpoint (dense only, no reranking)."""
+    response = await api.post(
+        f"{API}/ai/retrieve",
+        json={"query": q, "strategy": "dense", "rerank": False, "top_k": 8},
+        headers=in_org(ws.agent, ws.org_id),
+    )
     assert response.status_code == 200, response.text
     return response.json()["results"]
 
@@ -146,8 +127,8 @@ async def test_only_admins_upload_and_customers_never_read(
     by_agent = await upload(api, ws, "notes.txt", b"agent notes", actor=ws.agent)
     agent_list = await api.get(DOCS, headers=in_org(ws.agent, ws.org_id))
     customer_list = await api.get(DOCS, headers=in_org(ws.customer, ws.org_id))
-    customer_search = await api.get(
-        f"{DOCS}/search", params={"q": "refund"}, headers=in_org(ws.customer, ws.org_id)
+    customer_search = await api.post(
+        f"{API}/ai/retrieve", json={"query": "refund"}, headers=in_org(ws.customer, ws.org_id)
     )
 
     assert by_agent.status_code == 403
@@ -284,7 +265,7 @@ async def test_search_finds_relevant_chunks_only_in_the_organization(
     assert results, "expected hits"
     assert {r["document"]["id"] for r in results} == {doc["id"]}
     assert results[0]["chunk"]["section_heading"] == "Damaged items"
-    assert results[0]["score"] >= results[-1]["score"]
+    assert results[0]["dense"]["score"] >= results[-1]["dense"]["score"]
 
 
 async def test_failed_ingestion_is_visible_and_retryable(

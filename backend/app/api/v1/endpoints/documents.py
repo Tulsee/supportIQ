@@ -16,7 +16,6 @@ from ai_engine.ingestion.extract import MEDIA_TYPES
 from app.api.deps import (
     CurrentUser,
     DbSession,
-    EmbedderDep,
     IngestionQueueDep,
     Pagination,
     RateLimiterDep,
@@ -32,14 +31,11 @@ from app.schemas.common import Page, error_responses
 from app.schemas.documents import (
     ChunkRead,
     DocumentRead,
-    DocumentSummary,
     DocumentTitle,
-    SearchHit,
-    SearchResults,
     WorkerStatus,
 )
 from app.services.authorization import STAFF_ROLES, require_role
-from app.services.documents import DocumentService, KnowledgeSearchService
+from app.services.documents import DocumentService
 
 router = APIRouter(
     prefix="/documents",
@@ -129,39 +125,6 @@ async def worker_status(member: TenantMembership, registry: WorkerRegistryDep) -
     if workers is None:
         return WorkerStatus(status="unknown", workers=None)
     return WorkerStatus(status="online" if workers else "offline", workers=workers)
-
-
-@router.get("/search", summary="Search the knowledge base")
-async def search_documents(
-    member: TenantMembership,
-    user: CurrentUser,
-    session: DbSession,
-    embedder: EmbedderDep,
-    vector_store: VectorStoreDep,
-    limiter: RateLimiterDep,
-    q: Annotated[str, Query(min_length=2, max_length=500, description="What to look for.")],
-    limit: Annotated[int, Query(ge=1, le=20)] = 8,
-) -> SearchResults:
-    """Semantic (dense vector) search over indexed chunks, most similar first."""
-    hits = await KnowledgeSearchService(session, embedder, vector_store, limiter).search(
-        member, user, q.strip(), limit=limit
-    )
-    return SearchResults(
-        query=q,
-        embedding_model=embedder.model_name,
-        results=[
-            SearchHit(
-                score=score,
-                document=DocumentSummary(
-                    id=chunk.document.id,
-                    title=chunk.document.title,
-                    file_type=chunk.document.file_type,
-                ),
-                chunk=ChunkRead.build(chunk),
-            )
-            for chunk, score in hits
-        ],
-    )
 
 
 @router.get("/{document_id}", summary="Get a document")

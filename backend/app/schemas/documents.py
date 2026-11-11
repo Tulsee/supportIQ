@@ -105,15 +105,3 @@ class DocumentSummary(BaseModel):
     id: uuid.UUID
     title: str
     file_type: DocumentType
-
-
-class SearchHit(BaseModel):
-    score: float = Field(description="Cosine similarity between the query and the chunk.")
-    document: DocumentSummary
-    chunk: ChunkRead
-
-
-class SearchResults(BaseModel):
-    query: str
-    embedding_model: str
-    results: list[SearchHit]

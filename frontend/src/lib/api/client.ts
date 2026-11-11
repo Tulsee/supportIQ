@@ -26,7 +26,9 @@ export type TicketEvent = Schemas["EventRead"];
 // "Document" would shadow the DOM type.
 export type KnowledgeDocument = Schemas["DocumentRead"];
 export type DocumentChunk = Schemas["ChunkRead"];
-export type SearchHit = Schemas["SearchHit"];
+export type RetrievalRun = Schemas["RetrievalRunRead"];
+export type RetrievalRunSummary = Schemas["RetrievalRunSummary"];
+export type RetrievedPassage = Schemas["RetrievedPassage"];
 
 /**
  * The tenant header for organization-scoped endpoints (customers, tickets, ...).

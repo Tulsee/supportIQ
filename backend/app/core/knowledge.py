@@ -6,6 +6,7 @@ from qdrant_client import AsyncQdrantClient
 
 from ai_engine.embeddings.embedder import Embedder, FastEmbedEmbedder
 from ai_engine.ingestion.ocr import OcrEngine, RapidOcrEngine
+from ai_engine.reranking.cross_encoder import FastEmbedReranker, Reranker
 from ai_engine.retrieval.vector_store import QdrantVectorStore, collection_name
 from app.core.config import settings
 
@@ -18,6 +19,12 @@ def get_embedder() -> Embedder:
         cache_dir=settings.model_cache_dir,
         query_prefix=settings.embedding_query_prefix,
     )
+
+
+@lru_cache
+def get_reranker() -> Reranker:
+    """Loaded lazily on first rerank (the first call may download the model)."""
+    return FastEmbedReranker(settings.reranker_model, cache_dir=settings.model_cache_dir)
 
 
 @lru_cache

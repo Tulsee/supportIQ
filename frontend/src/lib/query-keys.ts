@@ -43,8 +43,13 @@ export const queryKeys = {
     ["organizations", orgId, "documents", "detail", documentId] as const,
   documentChunks: (orgId: string, documentId: string, page: Page) =>
     ["organizations", orgId, "documents", "detail", documentId, "chunks", page] as const,
-  knowledgeSearch: (orgId: string, query: string) =>
-    ["organizations", orgId, "documents", "search", query] as const,
+
+  aiRuns: (orgId: string, page?: Page) =>
+    page
+      ? (["organizations", orgId, "ai-runs", "list", page] as const)
+      : (["organizations", orgId, "ai-runs"] as const),
+  aiRun: (orgId: string, runId: string) =>
+    ["organizations", orgId, "ai-runs", "detail", runId] as const,
 
   adminUsers: (page?: SearchPage) =>
     page ? (["admin", "users", page] as const) : (["admin", "users"] as const),

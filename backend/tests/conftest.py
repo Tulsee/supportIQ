@@ -18,7 +18,8 @@ os.environ["MIGRATION_DATABASE_URL"] = os.environ.get(
 os.environ["CELERY_BROKER_URL"] = "memory://"
 
 import asyncio
-from collections.abc import AsyncIterator, Callable, Iterator
+import uuid
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from pathlib import Path
 
@@ -35,12 +36,14 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import NullPool
 
 from ai_engine.embeddings.embedder import HashingEmbedder
+from ai_engine.reranking.cross_encoder import OverlapReranker
 from ai_engine.retrieval.vector_store import QdrantVectorStore
 from app.api.deps import (
     get_embedder_dep,
     get_event_broker,
     get_ingestion_queue,
     get_rate_limiter,
+    get_reranker_dep,
     get_vector_store,
     get_worker_registry,
 )
@@ -50,8 +53,10 @@ from app.core.email import get_email_sender
 from app.core.rate_limit import InMemoryRateLimiter
 from app.core.storage import LocalObjectStorage, get_object_storage
 from app.main import app
+from app.services.ingestion import IngestionService, Outcome
 from app.websocket.broker import InMemoryEventBroker
 from tests.factories import (
+    TEST_INGESTION_LIMITS,
     Outbox,
     RecordingQueue,
     StaticWorkerRegistry,
@@ -189,6 +194,37 @@ def worker_registry() -> StaticWorkerRegistry:
 
 
 @pytest.fixture
+def reranker() -> OverlapReranker:
+    """Model-free cross-encoder stand-in (word overlap)."""
+    return OverlapReranker()
+
+
+@pytest.fixture
+def ingest(
+    db_session: AsyncSession,
+    storage: LocalObjectStorage,
+    embedder: HashingEmbedder,
+    vector_store: QdrantVectorStore,
+    ingestion_queue: RecordingQueue,
+) -> Callable[..., Awaitable[Outcome]]:
+    """Run the queued ingestion job for a document, as a worker would."""
+
+    async def _ingest(
+        document_id: str, *, ingestion_id: uuid.UUID | None = None, final_attempt: bool = True
+    ) -> Outcome:
+        if ingestion_id is None:
+            ingestion_id = next(
+                job for doc, job in reversed(ingestion_queue.jobs) if str(doc) == document_id
+            )
+        service = IngestionService(
+            db_session, storage, embedder, vector_store, TEST_INGESTION_LIMITS
+        )
+        return await service.run(uuid.UUID(document_id), ingestion_id, final_attempt=final_attempt)
+
+    return _ingest
+
+
+@pytest.fixture
 def make_client(
     db_session: AsyncSession,
     rate_limiter: InMemoryRateLimiter,
@@ -199,6 +235,7 @@ def make_client(
     vector_store: QdrantVectorStore,
     ingestion_queue: RecordingQueue,
     worker_registry: StaticWorkerRegistry,
+    reranker: OverlapReranker,
 ) -> ClientFactory:
     """Factory for HTTP clients against ``target_app`` (default: the real app), all
     sharing the test's rolled-back session and in-process stand-ins (rate limiter,
@@ -223,6 +260,7 @@ def make_client(
             get_vector_store: lambda: vector_store,
             get_ingestion_queue: lambda: ingestion_queue,
             get_worker_registry: lambda: worker_registry,
+            get_reranker_dep: lambda: reranker,
         }
         target_app.dependency_overrides.update(overrides)
         try:

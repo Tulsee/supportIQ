@@ -4,6 +4,7 @@ Import every model module here: Alembic's env.py imports this package, and
 autogenerate can only detect tables whose models have been imported.
 """
 
+from app.models.ai_run import AIRun, AIRunKind, RetrievalResult
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 from app.models.customer import Customer
 from app.models.document import ACTIVE_INGESTION, Document, DocumentChunk, DocumentStatus
@@ -26,6 +27,8 @@ from app.models.user import User
 __all__ = [
     "ACTIVE_INGESTION",
     "CUSTOMER_VISIBLE_EVENTS",
+    "AIRun",
+    "AIRunKind",
     "Base",
     "Customer",
     "Document",
@@ -37,6 +40,7 @@ __all__ = [
     "OrganizationInvitation",
     "OrganizationMember",
     "RefreshToken",
+    "RetrievalResult",
     "Ticket",
     "TicketCounter",
     "TicketEvent",

@@ -17,7 +17,6 @@ from anyio import to_thread
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ai_engine.embeddings.embedder import Embedder
 from ai_engine.ingestion.extract import MEDIA_TYPES, DocumentType, ExtractionError, detect_type
 from ai_engine.retrieval.vector_store import QdrantVectorStore
 from app.core.config import settings
@@ -323,48 +322,3 @@ class DocumentService:
             await self.storage.delete(key)
         except StorageError:
             logger.warning("Couldn't remove orphaned upload %s", key)
-
-
-class KnowledgeSearchService:
-    """Semantic search over a knowledge base (dense retrieval). Hybrid retrieval,
-    reranking, and answer generation build on this in later modules."""
-
-    def __init__(
-        self,
-        session: AsyncSession,
-        embedder: Embedder,
-        vector_store: QdrantVectorStore,
-        rate_limiter: RateLimiter | None = None,
-    ) -> None:
-        self.session = session
-        self.embedder = embedder
-        self.vectors = vector_store
-        self.documents = DocumentRepository(session)
-        self.rate_limiter = rate_limiter
-
-    async def search(
-        self, member: OrganizationMember, user: User, query: str, *, limit: int
-    ) -> list[tuple[DocumentChunk, float]]:
-        require_role(member, *STAFF_ROLES)
-        if self.rate_limiter is not None:
-            result = await self.rate_limiter.hit(
-                f"knowledge:search:user:{user.id}",
-                limit=settings.knowledge_search_limit,
-                window_seconds=60,
-            )
-            if not result.allowed:
-                raise TooManyRequestsError(
-                    "Too many searches. Wait a moment.", retry_after=result.retry_after
-                )
-        vector = await to_thread.run_sync(self.embedder.embed_query, query)
-        try:
-            # Over-fetch: hits whose chunks were replaced since are dropped below.
-            hits = await self.vectors.search(member.organization_id, vector, limit=limit * 3)
-        except Exception as exc:
-            logger.warning("Vector search failed: %s", exc)
-            raise ServiceUnavailableError("Search is temporarily unavailable.") from exc
-        chunks = await self.documents.chunks_by_id(
-            member.organization_id, [hit.chunk_id for hit in hits]
-        )
-        results = [(chunks[hit.chunk_id], hit.score) for hit in hits if hit.chunk_id in chunks]
-        return results[:limit]
