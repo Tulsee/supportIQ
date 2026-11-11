@@ -48,6 +48,17 @@ class RecordingQueue:
         self.jobs.append((document_id, ingestion_id))
 
 
+@dataclass
+class StaticWorkerRegistry:
+    """Test stand-in: reports a fixed number of live ingestion workers
+    (None: couldn't be determined)."""
+
+    count: int | None = 1
+
+    async def live_workers(self) -> int | None:
+        return self.count
+
+
 @dataclass(frozen=True)
 class AuthedUser:
     id: str

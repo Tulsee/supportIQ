@@ -23,6 +23,7 @@ from app.api.deps import (
     StorageDep,
     TenantMembership,
     VectorStoreDep,
+    WorkerRegistryDep,
 )
 from app.core.config import settings
 from app.core.exceptions import PayloadTooLargeError
@@ -35,7 +36,9 @@ from app.schemas.documents import (
     DocumentTitle,
     SearchHit,
     SearchResults,
+    WorkerStatus,
 )
+from app.services.authorization import STAFF_ROLES, require_role
 from app.services.documents import DocumentService, KnowledgeSearchService
 
 router = APIRouter(
@@ -116,6 +119,16 @@ async def list_documents(
         limit=page.limit,
         offset=page.offset,
     )
+
+
+@router.get("/workers", summary="Is a worker running to index documents?")
+async def worker_status(member: TenantMembership, registry: WorkerRegistryDep) -> WorkerStatus:
+    """Without a running worker, uploads wait in the queue (status `queued`)."""
+    require_role(member, *STAFF_ROLES)
+    workers = await registry.live_workers()
+    if workers is None:
+        return WorkerStatus(status="unknown", workers=None)
+    return WorkerStatus(status="online" if workers else "offline", workers=workers)
 
 
 @router.get("/search", summary="Search the knowledge base")

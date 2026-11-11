@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from typing import Annotated, Self
+from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, Field, StringConstraints
 
@@ -92,6 +92,13 @@ class ChunkRead(BaseModel):
             content=chunk.content,
             embedding_model=chunk.embedding_model,
         )
+
+
+class WorkerStatus(BaseModel):
+    status: Literal["online", "offline", "unknown"] = Field(
+        description="Whether a background worker is running to index queued documents."
+    )
+    workers: int | None
 
 
 class DocumentSummary(BaseModel):

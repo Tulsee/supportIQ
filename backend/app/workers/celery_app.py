@@ -8,10 +8,15 @@ Run a worker (from backend/):
 (each process loads its own copy of the embedding model).
 """
 
+from typing import Any
+
 from celery import Celery
+from celery.signals import worker_ready, worker_shutdown
+from redis import Redis
 
 from app.core.config import settings
 from app.core.logging import configure_logging
+from app.workers.heartbeat import Heartbeat
 
 configure_logging(settings.log_level)
 
@@ -29,3 +34,20 @@ celery_app.conf.update(
     task_serializer="json",
     accept_content=["json"],
 )
+
+_heartbeat: Heartbeat | None = None
+
+
+@worker_ready.connect
+def _announce_worker(sender: Any = None, **_: Any) -> None:
+    """Let the app know a worker is running (see app.workers.heartbeat)."""
+    global _heartbeat
+    node = getattr(sender, "hostname", None) or "worker"
+    _heartbeat = Heartbeat(Redis.from_url(settings.redis_url), node)
+    _heartbeat.start()
+
+
+@worker_shutdown.connect
+def _withdraw_worker(**_: Any) -> None:
+    if _heartbeat is not None:
+        _heartbeat.stop()

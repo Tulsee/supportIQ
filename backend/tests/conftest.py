@@ -42,6 +42,7 @@ from app.api.deps import (
     get_ingestion_queue,
     get_rate_limiter,
     get_vector_store,
+    get_worker_registry,
 )
 from app.core.config import BACKEND_DIR, settings
 from app.core.database import get_db_session, reset_rls_context
@@ -53,6 +54,7 @@ from app.websocket.broker import InMemoryEventBroker
 from tests.factories import (
     Outbox,
     RecordingQueue,
+    StaticWorkerRegistry,
     Workspace,
     add_member,
     create_org,
@@ -182,6 +184,11 @@ def ingestion_queue() -> RecordingQueue:
 
 
 @pytest.fixture
+def worker_registry() -> StaticWorkerRegistry:
+    return StaticWorkerRegistry(count=1)
+
+
+@pytest.fixture
 def make_client(
     db_session: AsyncSession,
     rate_limiter: InMemoryRateLimiter,
@@ -191,6 +198,7 @@ def make_client(
     embedder: HashingEmbedder,
     vector_store: QdrantVectorStore,
     ingestion_queue: RecordingQueue,
+    worker_registry: StaticWorkerRegistry,
 ) -> ClientFactory:
     """Factory for HTTP clients against ``target_app`` (default: the real app), all
     sharing the test's rolled-back session and in-process stand-ins (rate limiter,
@@ -214,6 +222,7 @@ def make_client(
             get_embedder_dep: lambda: embedder,
             get_vector_store: lambda: vector_store,
             get_ingestion_queue: lambda: ingestion_queue,
+            get_worker_registry: lambda: worker_registry,
         }
         target_app.dependency_overrides.update(overrides)
         try:

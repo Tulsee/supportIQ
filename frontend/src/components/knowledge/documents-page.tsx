@@ -8,6 +8,7 @@ import { useState } from "react";
 import { KnowledgeSearch } from "@/components/knowledge/knowledge-search";
 import { DocumentStatusBadge } from "@/components/knowledge/document-status";
 import { UploadDocumentDialog } from "@/components/knowledge/upload-document-dialog";
+import { NoWorkerAlert, useWorkerOffline } from "@/components/knowledge/worker-status";
 import { PageHeader } from "@/components/page-header";
 import { Pager } from "@/components/pager";
 import { SearchInput } from "@/components/search-input";
@@ -52,6 +53,8 @@ export function DocumentsPage() {
     refetchInterval: (current) =>
       current.state.data?.items.some(isIndexing) ? POLL_MS : false,
   });
+  const anyQueued = documents.data?.items.some((d) => d.status === "queued") ?? false;
+  const workerOffline = useWorkerOffline(anyQueued);
 
   return (
     <>
@@ -61,6 +64,7 @@ export function DocumentsPage() {
         actions={isAdmin ? <UploadDocumentDialog /> : null}
       />
       <div className="space-y-6">
+        {workerOffline ? <NoWorkerAlert /> : null}
         <Card>
           <CardContent className="space-y-4">
             <SearchInput

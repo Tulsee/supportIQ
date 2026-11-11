@@ -36,6 +36,7 @@ from app.models import OrganizationMember, User
 from app.repositories.organizations import OrganizationRepository
 from app.repositories.users import UserRepository
 from app.websocket.broker import EventBroker, RedisEventBroker
+from app.workers.heartbeat import RedisWorkerRegistry, WorkerRegistry
 from app.workers.queue import CeleryIngestionQueue, IngestionQueue
 
 DbSession = Annotated[AsyncSession, Depends(get_db_session)]
@@ -59,6 +60,10 @@ def get_ingestion_queue() -> IngestionQueue:
     return CeleryIngestionQueue()
 
 
+def get_worker_registry() -> WorkerRegistry:
+    return RedisWorkerRegistry(get_redis())
+
+
 def get_embedder_dep() -> Embedder:
     return get_embedder()
 
@@ -71,6 +76,7 @@ RateLimiterDep = Annotated[RateLimiter, Depends(get_rate_limiter)]
 EventBrokerDep = Annotated[EventBroker, Depends(get_event_broker)]
 StorageDep = Annotated[ObjectStorage, Depends(get_object_storage)]
 IngestionQueueDep = Annotated[IngestionQueue, Depends(get_ingestion_queue)]
+WorkerRegistryDep = Annotated[WorkerRegistry, Depends(get_worker_registry)]
 EmbedderDep = Annotated[Embedder, Depends(get_embedder_dep)]
 VectorStoreDep = Annotated[QdrantVectorStore, Depends(get_vector_store)]
 EmailSenderDep = Annotated[EmailSender, Depends(get_email_sender)]

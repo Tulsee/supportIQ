@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { ConfirmAction } from "@/components/confirm-action";
 import { DocumentStatusBadge } from "@/components/knowledge/document-status";
 import { UploadDocumentDialog } from "@/components/knowledge/upload-document-dialog";
+import { NoWorkerAlert, useWorkerOffline } from "@/components/knowledge/worker-status";
 import { Pager } from "@/components/pager";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -161,6 +162,7 @@ export function DocumentDetail() {
     staleTime: 0,
     refetchInterval: (current) => (current.state.data && isIndexing(current.state.data) ? 2_000 : false),
   });
+  const workerOffline = useWorkerOffline(document.data?.status === "queued");
 
   const refresh = () =>
     queryClient.invalidateQueries({ queryKey: queryKeys.documents(organization.id), refetchType: "all" });
@@ -322,6 +324,8 @@ export function DocumentDetail() {
           <AlertTitle>Indexed with warnings</AlertTitle>
           <AlertDescription className="whitespace-pre-line">{doc.error}</AlertDescription>
         </Alert>
+      ) : workerOffline ? (
+        <NoWorkerAlert />
       ) : indexing ? (
         <Alert>
           <RefreshCwIcon className="animate-spin" aria-hidden />
