@@ -66,6 +66,9 @@ async def test_ollama_sends_the_prompt_and_settings_and_reads_the_reply() -> Non
     ]
     assert body["think"] is False and body["keep_alive"] == "5m"
     assert body["options"] == {"temperature": 0.1, "num_predict": 512, "num_ctx": 4096}
+    seeded = ollama(handler, seed=7)
+    await seeded.complete(PROMPT)
+    assert sent[1]["options"]["seed"] == 7 and seeded.config["seed"] == 7
     assert completion.text == "Use WPA3 [1]."
     assert completion.stop_reason == "stop"
     assert (completion.input_tokens, completion.output_tokens) == (812, 9)

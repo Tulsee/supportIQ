@@ -23,6 +23,9 @@ class OrganizationRepository:
     async def delete(self, obj: Organization | OrganizationMember) -> None:
         await self.session.delete(obj)
 
+    async def get_by_slug(self, slug: str) -> Organization | None:
+        return await self.session.scalar(select(Organization).where(Organization.slug == slug))
+
     async def slug_exists(self, slug: str) -> bool:
         return bool(await self.session.scalar(select(exists().where(Organization.slug == slug))))
 

@@ -151,6 +151,7 @@ class Settings(BaseSettings):
     ollama_context_tokens: Annotated[int, Field(ge=2048)] = 8192
     ollama_think: bool = False  # let reasoning models think first (much slower on CPU)
     ollama_keep_alive: str = "10m"  # how long Ollama keeps the model in memory when idle
+    ollama_seed: int | None = None  # fixed sampling seed (evaluations set one)
     anthropic_api_key: SecretStr | None = None
     anthropic_model: str = "claude-opus-5-5"
     anthropic_effort: Literal["low", "medium", "high", "xhigh", "max"] = "medium"

@@ -109,6 +109,7 @@ class OllamaClient:
         think: bool,
         keep_alive: str,
         timeout_seconds: float,
+        seed: int | None = None,
         transport: httpx2.AsyncBaseTransport | None = None,  # tests
     ) -> None:
         self.base_url = base_url.rstrip("/")
@@ -119,6 +120,7 @@ class OllamaClient:
         self.think = think
         self.keep_alive = keep_alive
         self.timeout_seconds = timeout_seconds
+        self.seed = seed  # fixed sampling seed, for reproducible evaluations
         self._transport = transport
 
     @property
@@ -133,6 +135,7 @@ class OllamaClient:
             "context_tokens": self.context_tokens,
             "think": self.think,
             "keep_alive": self.keep_alive,
+            "seed": self.seed,
         }
 
     @property
@@ -168,6 +171,7 @@ class OllamaClient:
                 "temperature": self.temperature,
                 "num_predict": self.max_output_tokens,
                 "num_ctx": self.context_tokens,
+                **({"seed": self.seed} if self.seed is not None else {}),
             },
         }
         started = time.perf_counter()

@@ -3,11 +3,16 @@
 from functools import lru_cache
 
 from ai_engine.generation.llm import ClaudeClient, LLMClient, OllamaClient
-from app.core.config import settings
+from app.core.config import Settings, settings
 
 
 @lru_cache
 def get_llm_client() -> LLMClient:
+    return build_llm_client(settings)
+
+
+def build_llm_client(settings: Settings) -> LLMClient:
+    """A client for ``settings`` (evaluations pass adjusted copies)."""
     if settings.llm_provider == "anthropic":
         key = settings.anthropic_api_key
         return ClaudeClient(
@@ -26,6 +31,7 @@ def get_llm_client() -> LLMClient:
         think=settings.ollama_think,
         keep_alive=settings.ollama_keep_alive,
         timeout_seconds=settings.llm_timeout_seconds,
+        seed=settings.ollama_seed,
     )
 
 
