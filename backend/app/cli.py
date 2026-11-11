@@ -37,7 +37,8 @@ async def _purge_expired() -> int:
         result = await purge_expired(session)
     print(
         f"Deleted {result.refresh_tokens} expired refresh tokens "
-        f"and {result.invitations} stale invitations"
+        f"and {result.invitations} stale invitations; "
+        f"marked {result.stalled_ingestions} stalled document ingestions as failed"
     )
     return 0
 

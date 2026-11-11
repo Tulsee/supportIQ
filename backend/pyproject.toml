@@ -19,8 +19,15 @@ dependencies = [
     "pyjwt>=2.15.1",
     "pwdlib[argon2]>=0.3.1",
     # --- Infrastructure ---
-    "redis>=8.1.0",       # rate limiting (later: cache, Celery broker)
-    "aiosmtplib>=5.1.3",  # outgoing email (invitations)
+    "redis>=8.1.0",          # rate limiting, real-time events, Celery broker
+    "aiosmtplib>=5.1.3",     # outgoing email (invitations)
+    "celery[redis]>=5.7.0",  # background jobs (document ingestion)
+    "boto3>=1.44.0",         # S3-compatible object storage (original documents)
+    # --- Knowledge base ---
+    "pypdf[crypto]>=7.0.1",  # PDF text, page by page; crypto: AES "permissions-only" PDFs
+    "python-docx>=1.2.0",    # DOCX text extraction
+    "fastembed>=0.9.1",      # BGE embeddings on ONNX Runtime (no PyTorch)
+    "qdrant-client>=1.20.0", # vector index
 ]
 
 [dependency-groups]
@@ -44,3 +51,7 @@ known-first-party = ["app"]
 testpaths = ["tests"]
 pythonpath = ["."]
 addopts = "-ra --strict-markers"
+filterwarnings = [
+    # Tests use Qdrant's in-memory mode, where payload indexes are no-ops.
+    "ignore:Payload indexes have no effect in the local Qdrant:UserWarning",
+]

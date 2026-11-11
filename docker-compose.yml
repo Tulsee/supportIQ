@@ -46,5 +46,31 @@ services:
       - "127.0.0.1:${MAILPIT_SMTP_PORT:-1025}:1025"
       - "127.0.0.1:${MAILPIT_UI_PORT:-8025}:8025"
 
+  # Vector index for knowledge-base chunks. Dashboard: http://127.0.0.1:6433/dashboard
+  qdrant:
+    image: qdrant/qdrant:v1.20.0
+    restart: unless-stopped
+    ports:
+      # Host port 6433: 6333 is often taken by other local Qdrant instances.
+      - "127.0.0.1:${QDRANT_PORT:-6433}:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+  # S3-compatible object storage for original documents. RustFS, because MinIO no
+  # longer publishes container images. Console: http://127.0.0.1:9001
+  object-storage:
+    image: rustfs/rustfs:1.0.5
+    restart: unless-stopped
+    environment:
+      RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY_ID:-supportiq}
+      RUSTFS_SECRET_KEY: ${S3_SECRET_ACCESS_KEY:-supportiq-dev-secret}
+    ports:
+      - "127.0.0.1:${S3_PORT:-9000}:9000"
+      - "127.0.0.1:${S3_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - object_data:/data
+
 volumes:
   postgres_data:
+  qdrant_data:
+  object_data:

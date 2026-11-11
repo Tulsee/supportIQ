@@ -20,6 +20,7 @@ from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.database import SessionLocal, engine
 from app.core.exceptions import register_exception_handlers
+from app.core.knowledge import close_qdrant_client
 from app.core.logging import configure_logging
 from app.core.redis import close_redis
 from app.services.maintenance import maintenance_loop
@@ -43,6 +44,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         with contextlib.suppress(asyncio.CancelledError):
             await maintenance
     await close_redis()
+    await close_qdrant_client()
     await engine.dispose()
     logger.info("Shutdown complete")
 

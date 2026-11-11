@@ -6,6 +6,7 @@ autogenerate can only detect tables whose models have been imported.
 
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 from app.models.customer import Customer
+from app.models.document import ACTIVE_INGESTION, Document, DocumentChunk, DocumentStatus
 from app.models.invitation import OrganizationInvitation
 from app.models.organization import Organization, OrganizationMember, OrgRole
 from app.models.refresh_token import RefreshToken
@@ -23,9 +24,13 @@ from app.models.ticket import (
 from app.models.user import User
 
 __all__ = [
+    "ACTIVE_INGESTION",
     "CUSTOMER_VISIBLE_EVENTS",
     "Base",
     "Customer",
+    "Document",
+    "DocumentChunk",
+    "DocumentStatus",
     "MessageAuthorType",
     "OrgRole",
     "Organization",

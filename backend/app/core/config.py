@@ -82,6 +82,44 @@ class Settings(BaseSettings):
     # Purge expired refresh tokens and stale invitations. 0 disables the loop.
     maintenance_interval_minutes: int = 60
 
+    # --- Background jobs (Celery) ---------------------------------------------------
+    # A separate Redis database from rate limits and real-time events.
+    celery_broker_url: str = "redis://127.0.0.1:6379/1"
+
+    # --- Object storage (original documents) ------------------------------------------
+    # "s3": any S3-compatible service (dev: RustFS from docker-compose.yml).
+    # "local": a directory on disk, for setups without object storage.
+    storage_backend: Literal["s3", "local"] = "s3"
+    s3_endpoint_url: str | None = "http://127.0.0.1:9000"  # None for AWS S3
+    s3_access_key_id: str = "supportiq"
+    s3_secret_access_key: SecretStr = SecretStr("supportiq-dev-secret")
+    s3_region: str = "us-east-1"
+    s3_bucket: str = "supportiq-documents"
+    local_storage_dir: Path = REPO_ROOT / ".cache" / "storage"
+
+    # --- Knowledge base -----------------------------------------------------------------
+    qdrant_url: str = "http://127.0.0.1:6433"
+    qdrant_api_key: SecretStr | None = None
+    # One collection per embedding model (the model is appended), so switching
+    # models never mixes vectors of different spaces.
+    qdrant_collection_prefix: str = "supportiq_chunks"
+    embedding_model: str = "BAAI/bge-small-en-v1.5"
+    # BGE v1.5 recommends this instruction for short queries against passages.
+    embedding_query_prefix: str = "Represent this sentence for searching relevant passages: "
+    model_cache_dir: Path = REPO_ROOT / ".cache" / "models"
+    # BGE-small reads at most 512 tokens (510 plus [CLS]/[SEP]); longer chunks would be
+    # silently truncated when embedded. Overlap keeps the plan's 15% ratio.
+    chunk_size_tokens: Annotated[int, Field(ge=32, le=510)] = 480
+    chunk_overlap_tokens: Annotated[int, Field(ge=0)] = 72
+    # Upload and processing limits.
+    max_upload_bytes: int = 20 * 1024 * 1024
+    max_document_pages: int = 2_000
+    max_extracted_characters: int = 5_000_000
+    document_upload_limit: int = 30  # per user, per hour
+    knowledge_search_limit: int = 60  # per user, per minute
+    # Queued/processing longer than this means the worker died or the job was lost.
+    ingestion_stale_minutes: int = 30
+
     # --- Auth -----------------------------------------------------------------
     jwt_secret_key: SecretStr = SecretStr(_DEV_JWT_SECRET)
     access_token_expire_minutes: int = 15
@@ -102,6 +140,12 @@ class Settings(BaseSettings):
     @classmethod
     def _strip_trailing_slash(cls, value: str) -> str:
         return value.rstrip("/")
+
+    @model_validator(mode="after")
+    def _check_chunking(self) -> Self:
+        if self.chunk_overlap_tokens >= self.chunk_size_tokens // 2:
+            raise ValueError("CHUNK_OVERLAP_TOKENS must be less than half of CHUNK_SIZE_TOKENS")
+        return self
 
     @model_validator(mode="after")
     def _enforce_auth_safety(self) -> Self:

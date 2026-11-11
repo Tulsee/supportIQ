@@ -14,10 +14,13 @@ os.environ["MIGRATION_DATABASE_URL"] = os.environ.get(
     "TEST_MIGRATION_DATABASE_URL",
     "postgresql+asyncpg://supportiq:supportiq@127.0.0.1:5433/supportiq_test",
 )
+# Background jobs never reach a real broker from tests (they run in-process).
+os.environ["CELERY_BROKER_URL"] = "memory://"
 
 import asyncio
 from collections.abc import AsyncIterator, Callable, Iterator
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
+from pathlib import Path
 
 import httpx2
 import pytest
@@ -25,19 +28,36 @@ from alembic import command
 from alembic.config import Config
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from qdrant_client import AsyncQdrantClient
 from sqlalchemy import make_url, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
-from app.api.deps import get_event_broker, get_rate_limiter
+from ai_engine.embeddings.embedder import HashingEmbedder
+from ai_engine.retrieval.vector_store import QdrantVectorStore
+from app.api.deps import (
+    get_embedder_dep,
+    get_event_broker,
+    get_ingestion_queue,
+    get_rate_limiter,
+    get_vector_store,
+)
 from app.core.config import BACKEND_DIR, settings
 from app.core.database import get_db_session, reset_rls_context
 from app.core.email import get_email_sender
 from app.core.rate_limit import InMemoryRateLimiter
+from app.core.storage import LocalObjectStorage, get_object_storage
 from app.main import app
 from app.websocket.broker import InMemoryEventBroker
-from tests.factories import Outbox, Workspace, add_member, create_org, create_user
+from tests.factories import (
+    Outbox,
+    RecordingQueue,
+    Workspace,
+    add_member,
+    create_org,
+    create_user,
+)
 
 ClientFactory = Callable[..., AbstractAsyncContextManager[httpx2.AsyncClient]]
 
@@ -135,16 +155,47 @@ def broker() -> InMemoryEventBroker:
     return InMemoryEventBroker()
 
 
+# --- Knowledge base: in-process stand-ins for storage, embeddings, Qdrant, the queue --
+
+
+@pytest.fixture
+def storage(tmp_path: Path) -> LocalObjectStorage:
+    return LocalObjectStorage(tmp_path / "objects")
+
+
+@pytest.fixture
+def embedder() -> HashingEmbedder:
+    return HashingEmbedder(dimensions=64)
+
+
+@pytest.fixture
+async def vector_store(embedder: HashingEmbedder) -> AsyncIterator[QdrantVectorStore]:
+    """Qdrant's own client in local (in-memory) mode: real API, no server."""
+    client = AsyncQdrantClient(location=":memory:")
+    yield QdrantVectorStore(client, "test_chunks", embedder.dimensions)
+    await client.close()
+
+
+@pytest.fixture
+def ingestion_queue() -> RecordingQueue:
+    return RecordingQueue()
+
+
 @pytest.fixture
 def make_client(
     db_session: AsyncSession,
     rate_limiter: InMemoryRateLimiter,
     outbox: Outbox,
     broker: InMemoryEventBroker,
+    storage: LocalObjectStorage,
+    embedder: HashingEmbedder,
+    vector_store: QdrantVectorStore,
+    ingestion_queue: RecordingQueue,
 ) -> ClientFactory:
     """Factory for HTTP clients against ``target_app`` (default: the real app), all
-    sharing the test's rolled-back session, in-memory rate limiter, outbox, and
-    event broker. The overrides also apply to WebSocket connections (tests/ws.py)."""
+    sharing the test's rolled-back session and in-process stand-ins (rate limiter,
+    outbox, event broker, storage, embedder, vector store, job queue). The
+    overrides also apply to WebSocket connections (tests/ws.py)."""
 
     @asynccontextmanager
     async def _make(target_app: FastAPI = app) -> AsyncIterator[httpx2.AsyncClient]:
@@ -159,6 +210,10 @@ def make_client(
             get_rate_limiter: lambda: rate_limiter,
             get_email_sender: lambda: outbox,
             get_event_broker: lambda: broker,
+            get_object_storage: lambda: storage,
+            get_embedder_dep: lambda: embedder,
+            get_vector_store: lambda: vector_store,
+            get_ingestion_queue: lambda: ingestion_queue,
         }
         target_app.dependency_overrides.update(overrides)
         try:

@@ -86,6 +86,16 @@ function StaffDashboard() {
       unwrap(api.GET("/api/v1/tickets/counts", { params: { header: tenant(organization.id) } })),
   });
 
+  const indexedDocuments = useQuery({
+    queryKey: queryKeys.documents(organization.id, { status: ["indexed"], limit: 1 }),
+    queryFn: () =>
+      unwrap(
+        api.GET("/api/v1/documents", {
+          params: { query: { status: ["indexed"], limit: 1 }, header: tenant(organization.id) },
+        }),
+      ),
+  });
+
   const byStatus = counts.data?.by_status;
   const active = byStatus ? ACTIVE_STATUSES.reduce((sum, s) => sum + byStatus[s], 0) : undefined;
   const total = byStatus ? Object.values(byStatus).reduce((sum, n) => sum + n, 0) : 0;
@@ -98,7 +108,11 @@ function StaffDashboard() {
       href: isAdmin ? "/settings/members" : undefined,
     },
     { title: "Log your first ticket", done: total > 0, href: "/tickets" },
-    { title: "Upload knowledge base documents", done: false, note: "Coming soon" },
+    {
+      title: "Upload knowledge base documents",
+      done: (indexedDocuments.data?.total ?? 0) > 0,
+      href: "/knowledge-base",
+    },
     { title: "Answer customer questions with cited AI", done: false, note: "Coming soon" },
   ];
 

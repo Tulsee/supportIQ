@@ -32,6 +32,22 @@ class Outbox:
         return match.group(1)
 
 
+@dataclass
+class RecordingQueue:
+    """Test ingestion queue: records jobs instead of sending them to a worker.
+    Set ``unavailable`` to simulate a broker outage."""
+
+    jobs: list[tuple[uuid.UUID, uuid.UUID]] = field(default_factory=list)
+    unavailable: bool = False
+
+    async def enqueue(self, document_id: uuid.UUID, ingestion_id: uuid.UUID) -> None:
+        if self.unavailable:
+            from app.workers.queue import QueueUnavailableError
+
+            raise QueueUnavailableError("broker down")
+        self.jobs.append((document_id, ingestion_id))
+
+
 @dataclass(frozen=True)
 class AuthedUser:
     id: str

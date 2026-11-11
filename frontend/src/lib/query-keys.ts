@@ -35,6 +35,17 @@ export const queryKeys = {
   customer: (orgId: string, customerId: string) =>
     ["organizations", orgId, "customers", "detail", customerId] as const,
 
+  documents: (orgId: string, filters?: object) =>
+    filters
+      ? (["organizations", orgId, "documents", "list", filters] as const)
+      : (["organizations", orgId, "documents"] as const),
+  document: (orgId: string, documentId: string) =>
+    ["organizations", orgId, "documents", "detail", documentId] as const,
+  documentChunks: (orgId: string, documentId: string, page: Page) =>
+    ["organizations", orgId, "documents", "detail", documentId, "chunks", page] as const,
+  knowledgeSearch: (orgId: string, query: string) =>
+    ["organizations", orgId, "documents", "search", query] as const,
+
   adminUsers: (page?: SearchPage) =>
     page ? (["admin", "users", page] as const) : (["admin", "users"] as const),
   adminOrganizations: (page?: SearchPage) =>

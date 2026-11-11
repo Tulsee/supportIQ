@@ -49,7 +49,7 @@ const WORKSPACE: NavItem[] = [
   { title: "Dashboard", icon: LayoutDashboardIcon, href: "/dashboard" },
   { title: "Tickets", icon: TicketIcon, href: "/tickets", matchNested: true },
   { title: "Customers", icon: UsersIcon, href: "/customers", matchNested: true },
-  { title: "Knowledge base", icon: BookOpenIcon },
+  { title: "Knowledge base", icon: BookOpenIcon, href: "/knowledge-base", matchNested: true },
   { title: "AI inspector", icon: ScanSearchIcon },
   { title: "Analytics", icon: ChartLineIcon },
 ];

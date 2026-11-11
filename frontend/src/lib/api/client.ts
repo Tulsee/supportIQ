@@ -23,6 +23,10 @@ export type TicketStatus = Ticket["status"];
 export type TicketPriority = Ticket["priority"];
 export type TicketMessage = Schemas["MessageRead"];
 export type TicketEvent = Schemas["EventRead"];
+// "Document" would shadow the DOM type.
+export type KnowledgeDocument = Schemas["DocumentRead"];
+export type DocumentChunk = Schemas["ChunkRead"];
+export type SearchHit = Schemas["SearchHit"];
 
 /**
  * The tenant header for organization-scoped endpoints (customers, tickets, ...).

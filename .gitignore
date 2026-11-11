@@ -50,6 +50,7 @@ playwright/.cache/
 # --- AI / data ---------------------------------------------------------------------
 # Never commit customer documents, private evaluation data, or model weights.
 uploads/
+.cache/
 *.safetensors
 *.pt
 *.pth

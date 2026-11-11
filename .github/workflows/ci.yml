@@ -42,6 +42,16 @@ jobs:
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 5s --health-timeout 5s --health-retries 12
+      # S3-compatible object storage (the storage tests use a throwaway bucket).
+      object-storage:
+        image: rustfs/rustfs:1.0.5
+        env:
+          RUSTFS_ACCESS_KEY: supportiq
+          RUSTFS_SECRET_KEY: supportiq-dev-secret
+        ports: ["9000:9000"]
+    env:
+      # The embedding model (~67 MB), downloaded once and cached between runs.
+      MODEL_CACHE_DIR: ${{ github.workspace }}/.cache/models
     steps:
       - uses: actions/checkout@v7
 
@@ -52,6 +62,12 @@ jobs:
 
       - name: Install dependencies
         run: uv sync --locked
+
+      - name: Cache the embedding model
+        uses: actions/cache@v6
+        with:
+          path: .cache/models
+          key: models-bge-small-en-v1.5
 
       - name: Lint
         run: uv run ruff check .
@@ -68,6 +84,14 @@ jobs:
           for script in ../infrastructure/docker/postgres/init/*.sql; do
             psql -h 127.0.0.1 -p 5433 -U supportiq -d supportiq -v ON_ERROR_STOP=1 -f "$script"
           done
+
+      - name: Wait for object storage
+        run: |
+          for i in $(seq 1 30); do
+            curl -s -o /dev/null http://127.0.0.1:9000/ && exit 0
+            sleep 1
+          done
+          echo "::error::S3-compatible storage did not start" && exit 1
 
       - name: Migrations apply, match the models, and round-trip
         run: |
