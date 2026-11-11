@@ -9,24 +9,45 @@ Request context is resolved in layers:
    - ``TenantMembership``: from the ``X-Organization-Id`` header, for tenant-scoped
      resources (customers, tickets, documents, ...).
 3. What they may do: decided by services via ``require_role(membership, ...)``.
+
+Steps 1 and 2 also set the database row-level-security context (current user,
+current organization), so Postgres enforces the same tenant boundary.
 """
 
 import uuid
 from dataclasses import dataclass
 from typing import Annotated
 
-from fastapi import Depends, Header, Query
+from fastapi import Depends, Header, Query, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db_session
-from app.core.exceptions import AuthenticationError, NotFoundError
+from app.core.database import get_db_session, set_rls_context
+from app.core.email import EmailSender, get_email_sender
+from app.core.exceptions import AuthenticationError, NotFoundError, PermissionDeniedError
+from app.core.rate_limit import RateLimiter, RedisRateLimiter
+from app.core.redis import get_redis
 from app.core.security import InvalidTokenError, decode_access_token
 from app.models import OrganizationMember, User
 from app.repositories.organizations import OrganizationRepository
 from app.repositories.users import UserRepository
 
 DbSession = Annotated[AsyncSession, Depends(get_db_session)]
+
+
+def get_rate_limiter() -> RateLimiter:
+    return RedisRateLimiter(get_redis())
+
+
+def get_client_ip(request: Request) -> str:
+    # Behind a reverse proxy, run uvicorn with --proxy-headers and
+    # --forwarded-allow-ips so request.client reflects the real client address.
+    return request.client.host if request.client else "unknown"
+
+
+RateLimiterDep = Annotated[RateLimiter, Depends(get_rate_limiter)]
+EmailSenderDep = Annotated[EmailSender, Depends(get_email_sender)]
+ClientIp = Annotated[str, Depends(get_client_ip)]
 
 _bearer_scheme = HTTPBearer(
     auto_error=False, description="Access token from `POST /api/v1/auth/login`."
@@ -46,10 +67,20 @@ async def get_current_user(
     user = await UserRepository(session).get(user_id)
     if user is None or not user.is_active:
         raise AuthenticationError("Invalid or expired access token")
+    await set_rls_context(session, user_id=user.id)
     return user
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
+
+
+async def require_superadmin(user: CurrentUser) -> User:
+    if not user.is_superadmin:
+        raise PermissionDeniedError("Platform administrator access required")
+    return user
+
+
+SuperAdmin = Annotated[User, Depends(require_superadmin)]
 
 
 async def _membership_or_404(
@@ -59,6 +90,7 @@ async def _membership_or_404(
     if membership is None:
         # 404 rather than 403: don't reveal that an inaccessible organization exists.
         raise NotFoundError("Organization not found")
+    await set_rls_context(session, organization_id=organization_id)
     return membership
 
 

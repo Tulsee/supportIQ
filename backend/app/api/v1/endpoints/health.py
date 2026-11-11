@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Response, status
 
 from app.core.config import settings
 from app.core.database import ping_database
+from app.core.redis import ping_redis
 from app.schemas.health import HealthResponse, ReadinessResponse
 
 router = APIRouter(prefix="/health", tags=["health"])
@@ -35,9 +36,14 @@ async def liveness() -> HealthResponse:
 async def readiness(
     response: Response,
     database_ok: Annotated[bool, Depends(ping_database)],
+    redis_ok: Annotated[bool, Depends(ping_redis)],
 ) -> ReadinessResponse:
     """Returns 200 when every required dependency is reachable, otherwise 503."""
-    if not database_ok:
+    checks = {
+        "database": "ok" if database_ok else "unavailable",
+        "redis": "ok" if redis_ok else "unavailable",
+    }
+    if not (database_ok and redis_ok):
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
-        return ReadinessResponse(status="not_ready", checks={"database": "unavailable"})
-    return ReadinessResponse(status="ready", checks={"database": "ok"})
+        return ReadinessResponse(status="not_ready", checks=checks)
+    return ReadinessResponse(status="ready", checks=checks)

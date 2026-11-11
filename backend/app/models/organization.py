@@ -14,6 +14,20 @@ class OrgRole(enum.StrEnum):
     CUSTOMER = "customer"  # create tickets, view own conversations
 
 
+def org_role_type() -> Enum:
+    """Column type for OrgRole: VARCHAR + CHECK rather than a native PG enum, so
+    adding a role later is a plain migration instead of ALTER TYPE."""
+    return Enum(
+        OrgRole,
+        name="org_role",
+        native_enum=False,
+        create_constraint=True,
+        length=32,
+        values_callable=lambda roles: [role.value for role in roles],
+        validate_strings=True,
+    )
+
+
 class Organization(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "organizations"
 
@@ -31,19 +45,7 @@ class OrganizationMember(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
-    # Stored as VARCHAR + CHECK rather than a native PG enum: adding a role later is
-    # a plain migration instead of ALTER TYPE.
-    role: Mapped[OrgRole] = mapped_column(
-        Enum(
-            OrgRole,
-            name="org_role",
-            native_enum=False,
-            create_constraint=True,
-            length=32,
-            values_callable=lambda roles: [role.value for role in roles],
-            validate_strings=True,
-        )
-    )
+    role: Mapped[OrgRole] = mapped_column(org_role_type())
 
     # lazy="raise": async code must load relationships explicitly (joinedload /
     # selectinload); an accidental lazy load fails loudly instead of hanging.

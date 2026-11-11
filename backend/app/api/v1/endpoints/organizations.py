@@ -5,7 +5,6 @@ from fastapi import APIRouter, status
 from app.api.deps import CurrentUser, DbSession, OrgMembership, Pagination
 from app.schemas.common import Page, error_responses
 from app.schemas.organizations import (
-    MemberCreate,
     MemberRead,
     MemberUpdate,
     OrganizationCreate,
@@ -71,18 +70,6 @@ async def list_members(
         limit=page.limit,
         offset=page.offset,
     )
-
-
-@router.post(
-    "/{org_id}/members",
-    status_code=status.HTTP_201_CREATED,
-    summary="Add a registered user as a member (admin)",
-)
-async def add_member(
-    body: MemberCreate, membership: OrgMembership, session: DbSession
-) -> MemberRead:
-    member = await OrganizationService(session).add_member(membership, body)
-    return MemberRead.build(member)
 
 
 @router.patch("/{org_id}/members/{member_id}", summary="Change a member's role (admin)")

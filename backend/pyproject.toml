@@ -18,6 +18,9 @@ dependencies = [
     # --- Auth ---
     "pyjwt>=2.15.1",
     "pwdlib[argon2]>=0.3.1",
+    # --- Infrastructure ---
+    "redis>=8.1.0",       # rate limiting (later: cache, Celery broker)
+    "aiosmtplib>=5.1.3",  # outgoing email (invitations)
 ]
 
 [dependency-groups]

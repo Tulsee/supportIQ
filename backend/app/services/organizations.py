@@ -8,20 +8,14 @@ import uuid
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.database import rls_bypass, set_rls_context
 from app.core.exceptions import ConflictError, NotFoundError
 from app.models import Organization, OrganizationMember, OrgRole, User
 from app.repositories.organizations import OrganizationRepository
-from app.repositories.users import UserRepository
-from app.schemas.organizations import (
-    MemberCreate,
-    MemberUpdate,
-    OrganizationCreate,
-    OrganizationUpdate,
-)
+from app.schemas.organizations import MemberUpdate, OrganizationCreate, OrganizationUpdate
 from app.services.authorization import STAFF_ROLES, require_role
 
 SLUG_TAKEN = "Organization slug is already taken"
-ALREADY_MEMBER = "User is already a member of this organization"
 LAST_ADMIN = "An organization must keep at least one admin"
 
 
@@ -35,20 +29,22 @@ class OrganizationService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
         self.orgs = OrganizationRepository(session)
-        self.users = UserRepository(session)
 
     # --- Organizations ----------------------------------------------------------
 
     async def create(self, owner: User, data: OrganizationCreate) -> OrganizationMember:
         """Create an organization with ``owner`` as its first admin."""
         if data.slug is not None:
-            if await self.orgs.slug_exists(data.slug):
+            if await self._slug_taken(data.slug):
                 raise ConflictError(SLUG_TAKEN)
             slug = data.slug
         else:
             slug = await self._generate_unique_slug(data.name)
 
-        organization = Organization(name=data.name, slug=slug)
+        organization = Organization(id=uuid.uuid4(), name=data.name, slug=slug)
+        # Act as the new organization: RLS only lets a request write (and read back
+        # via RETURNING) rows of its current organization.
+        await set_rls_context(self.session, organization_id=organization.id)
         membership = OrganizationMember(
             organization=organization, user_id=owner.id, role=OrgRole.ADMIN
         )
@@ -75,21 +71,6 @@ class OrganizationService:
     ) -> tuple[list[OrganizationMember], int]:
         require_role(actor, *STAFF_ROLES)
         return await self.orgs.list_members(actor.organization_id, limit=limit, offset=offset)
-
-    async def add_member(self, actor: OrganizationMember, data: MemberCreate) -> OrganizationMember:
-        require_role(actor, OrgRole.ADMIN)
-        user = await self.users.get_by_email(data.email)
-        if user is None or not user.is_active:
-            raise NotFoundError("No active user is registered with this email")
-        if await self.orgs.get_membership(actor.organization_id, user.id) is not None:
-            raise ConflictError(ALREADY_MEMBER)
-
-        member = OrganizationMember(
-            organization_id=actor.organization_id, user=user, role=data.role
-        )
-        self.orgs.add(member)
-        await self._commit_or_conflict(ALREADY_MEMBER)
-        return member
 
     async def update_member(
         self, actor: OrganizationMember, member_id: uuid.UUID, data: MemberUpdate
@@ -124,11 +105,18 @@ class OrganizationService:
         if len(await self.orgs.lock_admin_ids(organization_id)) <= 1:
             raise ConflictError(LAST_ADMIN)
 
+    async def _slug_taken(self, slug: str) -> bool:
+        # Slugs are unique across all tenants, so this check must see every
+        # organization. It reveals only whether a slug exists, which a failed
+        # insert would reveal anyway.
+        async with rls_bypass(self.session):
+            return await self.orgs.slug_exists(slug)
+
     async def _generate_unique_slug(self, name: str) -> str:
         base = slugify(name)
         candidate = base
         for _ in range(5):
-            if len(candidate) >= 3 and not await self.orgs.slug_exists(candidate):
+            if len(candidate) >= 3 and not await self._slug_taken(candidate):
                 return candidate
             candidate = f"{base}-{secrets.token_hex(3)}"
         raise ConflictError("Could not generate a unique slug; please provide one")

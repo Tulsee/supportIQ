@@ -3,7 +3,7 @@ import uuid
 import httpx2
 import pytest
 
-from tests.factories import API, add_member, create_org, create_user
+from tests.factories import API, Outbox, add_member, create_org, create_user
 
 pytestmark = pytest.mark.anyio
 
@@ -22,13 +22,16 @@ async def test_creator_becomes_admin_and_sees_the_organization(api: httpx2.Async
     assert listing["items"][0]["id"] == org["id"]
 
 
-async def test_slugs_are_unique(api: httpx2.AsyncClient) -> None:
+async def test_slugs_are_unique_across_tenants(api: httpx2.AsyncClient) -> None:
     owner = await create_user(api)
+    other = await create_user(api)
     first = await create_org(api, owner, "Acme Support")
 
-    second = await create_org(api, owner, "Acme Support")
+    # Another user's org with the same name: the existing slug is invisible to them
+    # under RLS, yet the generated slug is still deduplicated.
+    second = await create_org(api, other, "Acme Support")
     explicit_duplicate = await api.post(
-        ORGS, json={"name": "Other", "slug": first["slug"]}, headers=owner.headers
+        ORGS, json={"name": "Other", "slug": first["slug"]}, headers=other.headers
     )
 
     assert second["slug"].startswith("acme-support-")
@@ -62,7 +65,8 @@ async def test_users_cannot_see_or_touch_other_organizations(api: httpx2.AsyncCl
         ("GET", bob_url, None),
         ("PATCH", bob_url, {"name": "Hijacked"}),
         ("GET", f"{bob_url}/members", None),
-        ("POST", f"{bob_url}/members", {"email": alice.email, "role": "admin"}),
+        ("GET", f"{bob_url}/invitations", None),
+        ("POST", f"{bob_url}/invitations", {"email": alice.email, "role": "admin"}),
     ]
     for method, url, body in attempts:
         response = await api.request(method, url, json=body, headers=alice.headers)
@@ -79,14 +83,14 @@ async def test_users_cannot_see_or_touch_other_organizations(api: httpx2.AsyncCl
 
 
 async def test_member_ids_from_another_organization_are_unreachable(
-    api: httpx2.AsyncClient,
+    api: httpx2.AsyncClient, outbox: Outbox
 ) -> None:
     alice = await create_user(api)
     bob = await create_user(api)
     carol = await create_user(api)
     alice_org = await create_org(api, alice, "Alice Co")
     bob_org = await create_org(api, bob, "Bob Co")
-    carol_in_bob_org = await add_member(api, bob, bob_org["id"], carol, "agent")
+    carol_in_bob_org = await add_member(api, outbox, bob, bob_org["id"], carol, "agent")
 
     # Alice is an admin, but of her own org: using it in the path doesn't reach Bob's member.
     foreign_member_url = f"{ORGS}/{alice_org['id']}/members/{carol_in_bob_org['id']}"
@@ -103,14 +107,15 @@ async def test_member_ids_from_another_organization_are_unreachable(
 # --- Roles within an organization -------------------------------------------------------
 
 
-async def test_roles_are_enforced_within_an_organization(api: httpx2.AsyncClient) -> None:
+async def test_roles_are_enforced_within_an_organization(
+    api: httpx2.AsyncClient, outbox: Outbox
+) -> None:
     admin = await create_user(api)
     agent = await create_user(api)
     customer = await create_user(api)
-    newcomer = await create_user(api)
     org = await create_org(api, admin)
-    await add_member(api, admin, org["id"], agent, "agent")
-    await add_member(api, admin, org["id"], customer, "customer")
+    await add_member(api, outbox, admin, org["id"], agent, "agent")
+    await add_member(api, outbox, admin, org["id"], customer, "customer")
     org_url = f"{ORGS}/{org['id']}"
 
     agent_view = await api.get(f"{org_url}/members", headers=agent.headers)
@@ -118,15 +123,9 @@ async def test_roles_are_enforced_within_an_organization(api: httpx2.AsyncClient
     assert agent_view.json()["total"] == 3
     assert (await api.get(f"{org_url}/members", headers=customer.headers)).status_code == 403
 
-    agent_adds = await api.post(
-        f"{org_url}/members",
-        json={"email": newcomer.email, "role": "agent"},
-        headers=agent.headers,
-    )
-    assert agent_adds.status_code == 403
-    assert agent_adds.json()["error"]["code"] == "forbidden"
     agent_renames = await api.patch(org_url, json={"name": "Renamed"}, headers=agent.headers)
     assert agent_renames.status_code == 403
+    assert agent_renames.json()["error"]["code"] == "forbidden"
 
     admin_renames = await api.patch(org_url, json={"name": "Renamed"}, headers=admin.headers)
     assert admin_renames.status_code == 200
@@ -135,23 +134,9 @@ async def test_roles_are_enforced_within_an_organization(api: httpx2.AsyncClient
     assert customer_view.json()["role"] == "customer"
 
 
-async def test_adding_members_validates_the_target(api: httpx2.AsyncClient) -> None:
-    admin = await create_user(api)
-    org = await create_org(api, admin)
-    members_url = f"{ORGS}/{org['id']}/members"
-
-    unknown = await api.post(
-        members_url, json={"email": "ghost@example.com", "role": "agent"}, headers=admin.headers
-    )
-    duplicate = await api.post(
-        members_url, json={"email": admin.email, "role": "agent"}, headers=admin.headers
-    )
-
-    assert unknown.status_code == 404
-    assert duplicate.status_code == 409
-
-
-async def test_last_admin_cannot_be_demoted_or_removed(api: httpx2.AsyncClient) -> None:
+async def test_last_admin_cannot_be_demoted_or_removed(
+    api: httpx2.AsyncClient, outbox: Outbox
+) -> None:
     admin = await create_user(api)
     org = await create_org(api, admin)
     members_url = f"{ORGS}/{org['id']}/members"
@@ -166,7 +151,7 @@ async def test_last_admin_cannot_be_demoted_or_removed(api: httpx2.AsyncClient) 
     assert remove.status_code == 409
 
     second_admin = await create_user(api)
-    await add_member(api, admin, org["id"], second_admin, "admin")
+    await add_member(api, outbox, admin, org["id"], second_admin, "admin")
     demote_again = await api.patch(
         f"{members_url}/{own_id}", json={"role": "agent"}, headers=admin.headers
     )
@@ -174,11 +159,11 @@ async def test_last_admin_cannot_be_demoted_or_removed(api: httpx2.AsyncClient) 
     assert demote_again.json()["role"] == "agent"
 
 
-async def test_removed_member_loses_access(api: httpx2.AsyncClient) -> None:
+async def test_removed_member_loses_access(api: httpx2.AsyncClient, outbox: Outbox) -> None:
     admin = await create_user(api)
     agent = await create_user(api)
     org = await create_org(api, admin)
-    membership = await add_member(api, admin, org["id"], agent, "agent")
+    membership = await add_member(api, outbox, admin, org["id"], agent, "agent")
 
     removed = await api.delete(
         f"{ORGS}/{org['id']}/members/{membership['id']}", headers=admin.headers

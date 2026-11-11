@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import exists, func, select
+from sqlalchemy import exists, func, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import contains_eager, joinedload
 
@@ -58,6 +58,48 @@ class OrganizationRepository:
             )
         )
         return await self.session.scalar(stmt)
+
+    async def get_membership_by_email(
+        self, organization_id: uuid.UUID, email: str
+    ) -> OrganizationMember | None:
+        stmt = (
+            select(OrganizationMember)
+            .join(OrganizationMember.user)
+            .where(
+                OrganizationMember.organization_id == organization_id,
+                User.email == email.lower(),
+            )
+        )
+        return await self.session.scalar(stmt)
+
+    async def list_all_with_member_counts(
+        self, *, search: str | None, limit: int, offset: int
+    ) -> tuple[list[tuple[Organization, int]], int]:
+        """Every organization on the platform (platform admin; requires RLS bypass)."""
+        condition = (
+            Organization.name.icontains(search, autoescape=True)
+            | Organization.slug.icontains(search, autoescape=True)
+            if search
+            else true()
+        )
+        member_count = (
+            select(func.count())
+            .where(OrganizationMember.organization_id == Organization.id)
+            .correlate(Organization)
+            .scalar_subquery()
+        )
+        stmt = (
+            select(Organization, member_count)
+            .where(condition)
+            .order_by(Organization.name, Organization.id)
+            .limit(limit)
+            .offset(offset)
+        )
+        rows = [(org, count) for org, count in (await self.session.execute(stmt)).all()]
+        total = await self.session.scalar(
+            select(func.count()).select_from(Organization).where(condition)
+        )
+        return rows, total or 0
 
     async def get_member(
         self, organization_id: uuid.UUID, member_id: uuid.UUID

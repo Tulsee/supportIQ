@@ -11,7 +11,7 @@ logged server-side and returned as a generic 500 with no internals exposed.
 
 import logging
 from http import HTTPStatus
-from typing import Any
+from typing import Any, ClassVar
 
 from fastapi import FastAPI, Request, status
 from fastapi.encoders import jsonable_encoder
@@ -29,18 +29,33 @@ class AppError(Exception):
 
     status_code: int = status.HTTP_400_BAD_REQUEST
     code: str = "bad_request"
-    headers: dict[str, str] | None = None
+    default_headers: ClassVar[dict[str, str]] = {}
 
-    def __init__(self, message: str, *, details: Any = None) -> None:
+    def __init__(
+        self,
+        message: str,
+        *,
+        code: str | None = None,
+        details: Any = None,
+        headers: dict[str, str] | None = None,
+    ) -> None:
         super().__init__(message)
         self.message = message
         self.details = details
+        if code is not None:
+            self.code = code  # a more specific code than the class default
+        self.headers = {**self.default_headers, **(headers or {})} or None
 
 
 class AuthenticationError(AppError):
     status_code = status.HTTP_401_UNAUTHORIZED
     code = "unauthorized"
-    headers = {"WWW-Authenticate": "Bearer"}  # noqa: RUF012 - read-only class constant
+    default_headers: ClassVar[dict[str, str]] = {"WWW-Authenticate": "Bearer"}
+
+
+class PermissionDeniedError(AppError):
+    status_code = status.HTTP_403_FORBIDDEN
+    code = "forbidden"
 
 
 class NotFoundError(AppError):
@@ -53,9 +68,17 @@ class ConflictError(AppError):
     code = "conflict"
 
 
-class PermissionDeniedError(AppError):
-    status_code = status.HTTP_403_FORBIDDEN
-    code = "forbidden"
+class GoneError(AppError):
+    status_code = status.HTTP_410_GONE
+    code = "gone"
+
+
+class TooManyRequestsError(AppError):
+    status_code = status.HTTP_429_TOO_MANY_REQUESTS
+    code = "rate_limited"
+
+    def __init__(self, message: str, *, retry_after: int) -> None:
+        super().__init__(message, headers={"Retry-After": str(retry_after)})
 
 
 def error_response(

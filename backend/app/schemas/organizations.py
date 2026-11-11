@@ -5,7 +5,6 @@ from typing import Annotated, Self
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 from app.models import Organization, OrganizationMember, OrgRole
-from app.schemas.users import NormalizedEmail
 
 OrgName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=200)]
 OrgSlug = Annotated[
@@ -67,11 +66,6 @@ class MemberRead(BaseModel):
             role=member.role,
             created_at=member.created_at,
         )
-
-
-class MemberCreate(BaseModel):
-    email: NormalizedEmail = Field(description="Email of an already registered user.")
-    role: OrgRole
 
 
 class MemberUpdate(BaseModel):

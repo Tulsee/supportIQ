@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import func, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import User
@@ -18,3 +18,12 @@ class UserRepository:
 
     def add(self, user: User) -> None:
         self.session.add(user)
+
+    async def list_all(
+        self, *, search: str | None, limit: int, offset: int
+    ) -> tuple[list[User], int]:
+        condition = User.email.contains(search.lower(), autoescape=True) if search else true()
+        stmt = select(User).where(condition).order_by(User.email).limit(limit).offset(offset)
+        users = list((await self.session.scalars(stmt)).all())
+        total = await self.session.scalar(select(func.count()).select_from(User).where(condition))
+        return users, total or 0

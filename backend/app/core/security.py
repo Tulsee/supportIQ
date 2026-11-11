@@ -4,9 +4,9 @@
 - Access tokens: short-lived HS256 JWTs carrying only the user id. Organization
   and role are resolved per request from the database, so membership changes
   take effect immediately instead of when the token expires.
-- Refresh tokens: random opaque strings. Only their SHA-256 hash is stored, so a
-  database leak does not yield usable tokens. (A fast hash is fine here: unlike
-  passwords, the tokens have 384 bits of entropy.)
+- Refresh and invitation tokens: random opaque strings. Only their SHA-256 hash
+  is stored, so a database leak does not yield usable tokens. (A fast hash is fine
+  here: unlike passwords, the tokens have 384 bits of entropy.)
 """
 
 import hashlib
@@ -88,12 +88,14 @@ def decode_access_token(token: str) -> uuid.UUID:
         raise InvalidTokenError(str(exc)) from exc
 
 
-# --- Refresh tokens (opaque) --------------------------------------------------------
+# --- Opaque tokens (refresh tokens, invitation tokens) ------------------------------
 
 
-def generate_refresh_token() -> str:
+def generate_token() -> str:
+    """384 bits of randomness, URL-safe (64 characters)."""
     return secrets.token_urlsafe(48)
 
 
-def hash_refresh_token(token: str) -> str:
+def hash_token(token: str) -> str:
+    """What gets stored. A fast hash is enough for high-entropy random tokens."""
     return hashlib.sha256(token.encode()).hexdigest()

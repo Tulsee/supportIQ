@@ -7,6 +7,8 @@ Run from the ``backend`` directory (uv creates/syncs the venv automatically)::
 Interactive API docs (disabled in production): http://127.0.0.1:8000/docs
 """
 
+import asyncio
+import contextlib
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -16,9 +18,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import api_router
 from app.core.config import settings
-from app.core.database import engine
+from app.core.database import SessionLocal, engine
 from app.core.exceptions import register_exception_handlers
 from app.core.logging import configure_logging
+from app.core.redis import close_redis
+from app.services.maintenance import maintenance_loop
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +32,17 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     logger.info(
         "Starting %s API v%s (%s)", settings.project_name, settings.version, settings.environment
     )
+    maintenance: asyncio.Task[None] | None = None
+    if settings.maintenance_interval_minutes > 0 and settings.environment != "test":
+        maintenance = asyncio.create_task(
+            maintenance_loop(SessionLocal, settings.maintenance_interval_minutes)
+        )
     yield
+    if maintenance is not None:
+        maintenance.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await maintenance
+    await close_redis()
     await engine.dispose()
     logger.info("Shutdown complete")
 

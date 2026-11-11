@@ -1,5 +1,6 @@
-"""Registration, login, and refresh-token rotation."""
+"""Registration, login (with rate limiting), and refresh-token rotation."""
 
+import hashlib
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -9,12 +10,13 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.core.exceptions import AuthenticationError, ConflictError
+from app.core.exceptions import AuthenticationError, ConflictError, TooManyRequestsError
+from app.core.rate_limit import RateLimiter
 from app.core.security import (
     create_access_token,
-    generate_refresh_token,
+    generate_token,
     hash_password,
-    hash_refresh_token,
+    hash_token,
     utcnow,
     verify_password,
 )
@@ -35,13 +37,25 @@ class IssuedTokens:
     refresh_expires_at: datetime
 
 
+def _account_key(email: str) -> str:
+    # Hash the email so the limiter's store never holds raw addresses.
+    return "login:account:" + hashlib.sha256(email.encode()).hexdigest()[:32]
+
+
 class AuthService:
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(self, session: AsyncSession, rate_limiter: RateLimiter) -> None:
         self.session = session
+        self.rate_limiter = rate_limiter
         self.users = UserRepository(session)
         self.refresh_tokens = RefreshTokenRepository(session)
 
-    async def register(self, data: RegisterRequest) -> User:
+    async def register(self, data: RegisterRequest, *, client_ip: str) -> User:
+        await self._throttle(
+            f"register:ip:{client_ip}",
+            limit=settings.register_ip_limit,
+            window_seconds=settings.register_ip_window_seconds,
+            message="Too many sign-up attempts from your network. Try again later.",
+        )
         if await self.users.get_by_email(data.email) is not None:
             raise ConflictError(EMAIL_TAKEN)
         # argon2 is deliberately CPU-heavy; keep it off the event loop.
@@ -55,14 +69,38 @@ class AuthService:
             raise ConflictError(EMAIL_TAKEN) from exc
         return user
 
-    async def login(self, email: str, password: str) -> IssuedTokens:
+    async def login(self, email: str, password: str, *, client_ip: str) -> IssuedTokens:
+        """Two limits: attempts per IP (slows broad credential stuffing) and failed
+        attempts per account (slows guessing one account from many IPs). Unknown
+        emails are counted exactly like real ones, so lockouts reveal nothing."""
+        await self._throttle(
+            f"login:ip:{client_ip}",
+            limit=settings.login_ip_limit,
+            window_seconds=settings.login_ip_window_seconds,
+            message="Too many sign-in attempts from your network. Try again later.",
+        )
+        account_key = _account_key(email)
+        account_limit = {
+            "limit": settings.login_account_failure_limit,
+            "window_seconds": settings.login_account_window_seconds,
+        }
+        lockout = await self.rate_limiter.check(account_key, **account_limit)
+        if not lockout.allowed:
+            raise TooManyRequestsError(
+                "Too many failed sign-in attempts for this account. Try again later.",
+                retry_after=lockout.retry_after,
+            )
+
         user = await self.users.get_by_email(email)
         password_ok = await to_thread.run_sync(
             verify_password, password, user.password_hash if user else None
         )
         # One message for every failure, so responses don't reveal which emails exist.
         if user is None or not password_ok or not user.is_active:
+            await self.rate_limiter.hit(account_key, **account_limit)
             raise AuthenticationError(INVALID_CREDENTIALS)
+
+        await self.rate_limiter.reset(account_key)
         tokens = self._issue_tokens(user.id, family_id=uuid.uuid4())
         await self.session.commit()
         return tokens
@@ -72,9 +110,7 @@ class AuthService:
         if not raw_token:
             raise AuthenticationError("Missing refresh token")
         now = utcnow()
-        record = await self.refresh_tokens.get_by_hash(
-            hash_refresh_token(raw_token), for_update=True
-        )
+        record = await self.refresh_tokens.get_by_hash(hash_token(raw_token), for_update=True)
         if record is None:
             raise AuthenticationError("Invalid refresh token")
         if record.revoked_at is not None:
@@ -98,19 +134,24 @@ class AuthService:
         """Revoke the login session the refresh token belongs to. Idempotent."""
         if not raw_token:
             return
-        record = await self.refresh_tokens.get_by_hash(hash_refresh_token(raw_token))
+        record = await self.refresh_tokens.get_by_hash(hash_token(raw_token))
         if record is not None:
             await self.refresh_tokens.revoke_family(record.family_id, utcnow())
             await self.session.commit()
 
+    async def _throttle(self, key: str, *, limit: int, window_seconds: int, message: str) -> None:
+        result = await self.rate_limiter.hit(key, limit=limit, window_seconds=window_seconds)
+        if not result.allowed:
+            raise TooManyRequestsError(message, retry_after=result.retry_after)
+
     def _issue_tokens(self, user_id: uuid.UUID, *, family_id: uuid.UUID) -> IssuedTokens:
-        raw_refresh = generate_refresh_token()
+        raw_refresh = generate_token()
         refresh_expires_at = utcnow() + timedelta(days=settings.refresh_token_expire_days)
         self.refresh_tokens.add(
             RefreshToken(
                 user_id=user_id,
                 family_id=family_id,
-                token_hash=hash_refresh_token(raw_refresh),
+                token_hash=hash_token(raw_refresh),
                 expires_at=refresh_expires_at,
             )
         )

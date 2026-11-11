@@ -9,7 +9,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Annotated, Literal, Self
 
-from pydantic import SecretStr, field_validator, model_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 BACKEND_DIR = Path(__file__).resolve().parents[2]
@@ -38,12 +38,49 @@ class Settings(BaseSettings):
     cors_origins: Annotated[list[str], NoDecode] = ["http://localhost:3000"]
 
     # --- Database -------------------------------------------------------------
-    # Default matches docker-compose.yml (host port 5433). Use 127.0.0.1, not
+    # Defaults match docker-compose.yml (host port 5433). Use 127.0.0.1, not
     # "localhost": on Windows, localhost tries IPv6 first and each new connection
     # stalls ~2s before falling back to the IPv4-only Docker port binding.
-    database_url: str = "postgresql+asyncpg://supportiq:supportiq@127.0.0.1:5433/supportiq"
+    #
+    # Runtime role: least privilege, owns nothing, subject to row-level security.
+    database_url: str = "postgresql+asyncpg://supportiq_app:supportiq_app@127.0.0.1:5433/supportiq"
+    # Owner role, used only by Alembic (DDL, grants, policies). Never by the API.
+    migration_database_url: str = (
+        "postgresql+asyncpg://supportiq:supportiq@127.0.0.1:5433/supportiq"
+    )
+    # The role migrations grant table privileges to: the user in DATABASE_URL.
+    database_app_role: Annotated[str, Field(pattern=r"^[a-z_][a-z0-9_]*$")] = "supportiq_app"
     database_echo: bool = False
-    database_health_timeout_seconds: float = 3.0
+    health_check_timeout_seconds: float = 3.0  # readiness probe, per dependency
+
+    # --- Redis ----------------------------------------------------------------
+    redis_url: str = "redis://127.0.0.1:6379/0"
+
+    # --- Rate limits (max attempts per window) ----------------------------------
+    login_ip_limit: int = 20
+    login_ip_window_seconds: int = 5 * 60
+    login_account_failure_limit: int = 5  # then the account is locked for the window
+    login_account_window_seconds: int = 15 * 60
+    register_ip_limit: int = 10
+    register_ip_window_seconds: int = 60 * 60
+
+    # --- Email ------------------------------------------------------------------
+    # "smtp" (dev: Mailpit, UI at http://127.0.0.1:8025) or "console" (log only).
+    email_backend: Literal["smtp", "console"] = "smtp"
+    email_from: str = "SupportIQ <no-reply@supportiq.local>"
+    smtp_host: str = "127.0.0.1"
+    smtp_port: int = 1025
+    smtp_username: str | None = None
+    smtp_password: SecretStr | None = None
+    smtp_starttls: bool = False
+
+    # --- Invitations ------------------------------------------------------------
+    frontend_url: str = "http://localhost:3000"  # base for links in emails
+    invitation_expire_days: int = 7
+
+    # --- Maintenance --------------------------------------------------------------
+    # Purge expired refresh tokens and stale invitations. 0 disables the loop.
+    maintenance_interval_minutes: int = 60
 
     # --- Auth -----------------------------------------------------------------
     jwt_secret_key: SecretStr = SecretStr(_DEV_JWT_SECRET)
@@ -60,6 +97,11 @@ class Settings(BaseSettings):
         if isinstance(value, str):
             return [origin.strip() for origin in value.split(",") if origin.strip()]
         return value
+
+    @field_validator("frontend_url")
+    @classmethod
+    def _strip_trailing_slash(cls, value: str) -> str:
+        return value.rstrip("/")
 
     @model_validator(mode="after")
     def _enforce_auth_safety(self) -> Self:
