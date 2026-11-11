@@ -27,6 +27,7 @@ from sqlalchemy.pool import NullPool
 from ai_engine.chunking.chunker import Chunk, ChunkingConfig, chunk_blocks
 from ai_engine.embeddings.embedder import Embedder
 from ai_engine.ingestion.extract import ExtractionError, extract
+from ai_engine.ingestion.ocr import OcrOptions
 from ai_engine.retrieval.vector_store import ChunkPoint, QdrantVectorStore
 from app.core.config import settings
 from app.core.database import rls_bypass
@@ -54,13 +55,27 @@ class IngestionLimits:
     max_pages: int
     max_characters: int
     chunking: ChunkingConfig
+    ocr: OcrOptions | None = None  # None: scanned pages are not read
 
     @classmethod
     def from_settings(cls) -> "IngestionLimits":
+        from app.core.knowledge import get_ocr_engine
+
+        ocr = (
+            OcrOptions(
+                engine=get_ocr_engine(),
+                min_text_chars=settings.ocr_min_text_chars,
+                max_pages=settings.ocr_max_pages,
+                dpi=settings.ocr_dpi,
+            )
+            if settings.ocr_enabled
+            else None
+        )
         return cls(
             max_pages=settings.max_document_pages,
             max_characters=settings.max_extracted_characters,
             chunking=ChunkingConfig(settings.chunk_size_tokens, settings.chunk_overlap_tokens),
+            ocr=ocr,
         )
 
 
@@ -156,6 +171,7 @@ class IngestionService:
                 content,
                 max_pages=self.limits.max_pages,
                 max_characters=self.limits.max_characters,
+                ocr=self.limits.ocr,
             )
         )
         counter = await to_thread.run_sync(self.embedder.token_counter)

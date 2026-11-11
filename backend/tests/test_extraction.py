@@ -4,6 +4,7 @@ import pytest
 
 from ai_engine.ingestion.extract import DocumentType, ExtractionError, detect_type, extract
 from ai_engine.ingestion.normalize import normalize_text
+from ai_engine.ingestion.ocr import OcrLine, OcrOptions
 from tests.samples import make_docx, make_pdf, make_zip_bomb_docx
 
 LIMITS = {"max_pages": 50, "max_characters": 100_000}
@@ -43,11 +44,58 @@ def test_pdf_keeps_page_numbers() -> None:
     ]
 
 
-def test_scanned_pdf_without_text_explains_ocr() -> None:
+def test_scanned_pdf_without_ocr_explains_it_is_off() -> None:
     pdf = make_pdf([[], []])
 
-    with pytest.raises(ExtractionError, match="OCR"):
+    with pytest.raises(ExtractionError, match="need OCR, which is turned off"):
         extract(DocumentType.PDF, pdf, **LIMITS)
+
+
+class FakeOcr:
+    """Returns the given lines for every page it is asked to read."""
+
+    name = "fake"
+
+    def __init__(self, lines: list[OcrLine]) -> None:
+        self.lines = lines
+        self.calls = 0
+
+    def read(self, image: object) -> list[OcrLine]:
+        self.calls += 1
+        return self.lines
+
+
+def test_only_pages_without_text_are_read_with_ocr() -> None:
+    pdf = make_pdf([["This page has a real text layer."], []])
+    engine = FakeOcr([OcrLine("Scanned warranty terms.", 0.98), OcrLine("noise", 0.2)])
+
+    document = extract(DocumentType.PDF, pdf, **LIMITS, ocr=OcrOptions(engine))
+
+    assert engine.calls == 1
+    assert [(b.page, b.text) for b in document.blocks] == [
+        (1, "This page has a real text layer."),
+        (2, "Scanned warranty terms."),  # the low-confidence line is dropped
+    ]
+    assert document.ocr_pages == 1
+    assert document.warnings == [
+        "1 scanned page was read with OCR; recognized text may contain errors."
+    ]
+
+
+def test_ocr_page_limit_is_reported() -> None:
+    pdf = make_pdf([[], [], []])
+    engine = FakeOcr([OcrLine("text", 0.9)])
+
+    document = extract(DocumentType.PDF, pdf, **LIMITS, ocr=OcrOptions(engine, max_pages=2))
+
+    assert engine.calls == 2
+    assert [b.page for b in document.blocks] == [1, 2]
+    assert "1 more scanned pages weren't read" in document.warnings[-1]
+
+
+def test_nothing_readable_even_with_ocr() -> None:
+    with pytest.raises(ExtractionError, match="even with OCR"):
+        extract(DocumentType.PDF, make_pdf([[]]), **LIMITS, ocr=OcrOptions(FakeOcr([])))
 
 
 def test_password_protected_pdf_is_refused() -> None:

@@ -1,8 +1,9 @@
 """Validate uploads and extract their text with provenance.
 
-Supported: PDF (text per page), DOCX (paragraphs, tables, heading styles), plain
-text, and Markdown (``#`` headings). The file type is decided by the extension
-*and* confirmed from the content, so a renamed executable is rejected.
+Supported: PDF (text per page; scanned pages via OCR), DOCX (paragraphs, tables,
+heading styles), plain text, and Markdown (``#`` headings). The file type is
+decided by the extension *and* confirmed from the content, so a renamed executable
+is rejected.
 
 Every limit that bounds work on untrusted input lives here: page count, extracted
 characters, and decompressed size for DOCX (a ZIP archive).
@@ -16,6 +17,7 @@ from enum import StrEnum
 from pathlib import PurePath
 
 from ai_engine.ingestion.normalize import normalize_text
+from ai_engine.ingestion.ocr import OcrOptions, render_page
 
 
 class DocumentType(StrEnum):
@@ -64,6 +66,7 @@ class ExtractedDocument:
     blocks: list[TextBlock]
     page_count: int | None = None
     warnings: list[str] = field(default_factory=list)
+    ocr_pages: int = 0  # pages whose text came from OCR
 
     @property
     def character_count(self) -> int:
@@ -116,11 +119,17 @@ def decode_text(content: bytes) -> str:
 
 
 def extract(
-    kind: DocumentType, content: bytes, *, max_pages: int, max_characters: int
+    kind: DocumentType,
+    content: bytes,
+    *,
+    max_pages: int,
+    max_characters: int,
+    ocr: OcrOptions | None = None,
 ) -> ExtractedDocument:
-    """Extract text blocks. Raises ExtractionError for unreadable or oversized files."""
+    """Extract text blocks. Raises ExtractionError for unreadable or oversized files.
+    With ``ocr``, PDF pages without a text layer (scans) are read with OCR."""
     if kind is DocumentType.PDF:
-        document = _extract_pdf(content, max_pages=max_pages)
+        document = _extract_pdf(content, max_pages=max_pages, ocr=ocr)
     elif kind is DocumentType.DOCX:
         document = _extract_docx(content)
     elif kind is DocumentType.MARKDOWN:
@@ -134,11 +143,13 @@ def extract(
             "which is above the processing limit."
         )
     if not any(block.text.strip() for block in document.blocks):
-        if kind is DocumentType.PDF:
+        if kind is DocumentType.PDF and ocr is None:
             raise ExtractionError(
                 "No text could be extracted. Scanned PDFs (images of pages) need OCR, "
-                "which isn't supported yet."
+                "which is turned off."
             )
+        if kind is DocumentType.PDF:
+            raise ExtractionError("No text could be extracted from this PDF, even with OCR.")
         raise ExtractionError("The document contains no text.")
     return document
 
@@ -153,7 +164,7 @@ def _paragraphs(
     ]
 
 
-def _extract_pdf(content: bytes, *, max_pages: int) -> ExtractedDocument:
+def _extract_pdf(content: bytes, *, max_pages: int, ocr: OcrOptions | None) -> ExtractedDocument:
     from pypdf import PdfReader
     from pypdf.errors import DependencyError, PdfReadError
 
@@ -173,18 +184,75 @@ def _extract_pdf(content: bytes, *, max_pages: int) -> ExtractedDocument:
     if page_count > max_pages:
         raise ExtractionError(f"This PDF has {page_count:,} pages; the limit is {max_pages:,}.")
 
-    blocks: list[TextBlock] = []
+    texts: list[str] = []
     warnings: list[str] = []
     for number, page in enumerate(reader.pages, start=1):
         try:
             raw = page.extract_text() or ""
         except Exception:  # one bad page shouldn't sink the document
             warnings.append(f"Page {number} couldn't be read and was skipped.")
-            continue
+            raw = ""
         # Words hyphenated across a line break: "configu-\nration" -> "configuration".
-        raw = re.sub(r"(\w)-\n(?=[a-z])", r"\1", raw)
-        blocks.extend(_paragraphs(raw, page=number))
-    return ExtractedDocument(blocks=blocks, page_count=page_count, warnings=warnings)
+        texts.append(re.sub(r"(\w)-\n(?=[a-z])", r"\1", raw))
+
+    ocr_pages = 0
+    if ocr is not None:
+        ocr_pages = _ocr_scanned_pages(content, texts, ocr, warnings)
+
+    blocks = [
+        block
+        for number, text in enumerate(texts, start=1)
+        for block in _paragraphs(text, page=number)
+    ]
+    return ExtractedDocument(
+        blocks=blocks, page_count=page_count, warnings=warnings, ocr_pages=ocr_pages
+    )
+
+
+def _ocr_scanned_pages(
+    content: bytes, texts: list[str], ocr: OcrOptions, warnings: list[str]
+) -> int:
+    """Replace the text of pages with (almost) none by what OCR reads on them.
+    Returns how many pages yielded text."""
+    import pypdfium2
+
+    scanned = [i for i, text in enumerate(texts) if len(text.strip()) < ocr.min_text_chars]
+    if not scanned:
+        return 0
+    try:
+        pdf = pypdfium2.PdfDocument(content)
+    except pypdfium2.PdfiumError:
+        warnings.append("Scanned pages couldn't be rendered for OCR.")
+        return 0
+    read = 0
+    try:
+        for index in scanned[: ocr.max_pages]:
+            try:
+                image = render_page(pdf, index, dpi=ocr.dpi)
+            except pypdfium2.PdfiumError:
+                warnings.append(f"Page {index + 1} couldn't be rendered for OCR.")
+                continue
+            lines = [
+                line.text
+                for line in ocr.engine.read(image)
+                if line.confidence >= ocr.min_confidence and line.text.strip()
+            ]
+            if lines:
+                texts[index] = "\n".join(lines)
+                read += 1
+    finally:
+        pdf.close()
+    if read:
+        pages = "page was" if read == 1 else "pages were"
+        warnings.append(
+            f"{read} scanned {pages} read with OCR; recognized text may contain errors."
+        )
+    if len(scanned) > ocr.max_pages:
+        warnings.append(
+            f"{len(scanned) - ocr.max_pages} more scanned pages weren't read "
+            f"(the OCR limit is {ocr.max_pages} pages per document)."
+        )
+    return read
 
 
 def _extract_docx(content: bytes) -> ExtractedDocument:

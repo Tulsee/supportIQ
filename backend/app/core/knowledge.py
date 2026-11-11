@@ -1,10 +1,11 @@
-"""Process-wide knowledge-base clients: the embedding model and Qdrant."""
+"""Process-wide knowledge-base clients: the embedding model, OCR, and Qdrant."""
 
 from functools import lru_cache
 
 from qdrant_client import AsyncQdrantClient
 
 from ai_engine.embeddings.embedder import Embedder, FastEmbedEmbedder
+from ai_engine.ingestion.ocr import OcrEngine, RapidOcrEngine
 from ai_engine.retrieval.vector_store import QdrantVectorStore, collection_name
 from app.core.config import settings
 
@@ -17,6 +18,12 @@ def get_embedder() -> Embedder:
         cache_dir=settings.model_cache_dir,
         query_prefix=settings.embedding_query_prefix,
     )
+
+
+@lru_cache
+def get_ocr_engine() -> OcrEngine:
+    """Loaded lazily on first scanned page (models ship with the package)."""
+    return RapidOcrEngine()
 
 
 def new_qdrant_client() -> AsyncQdrantClient:

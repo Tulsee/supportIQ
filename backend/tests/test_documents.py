@@ -1,4 +1,5 @@
 import uuid
+from dataclasses import replace
 from datetime import timedelta
 from typing import Any
 
@@ -9,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_engine.chunking.chunker import ChunkingConfig
 from ai_engine.embeddings.embedder import HashingEmbedder
+from ai_engine.ingestion.ocr import OcrLine, OcrOptions
 from ai_engine.retrieval.vector_store import QdrantVectorStore
 from app.core.config import settings
 from app.core.database import reset_rls_context, rls_bypass, set_rls_context
@@ -300,6 +302,35 @@ async def test_failed_ingestion_is_visible_and_retryable(
     assert retry.json()["status"] == "queued" and retry.json()["error"] is None
     assert len(ingestion_queue.jobs) == 2
     assert ingestion_queue.jobs[0][1] != ingestion_queue.jobs[1][1]  # a new attempt id
+
+
+async def test_scanned_pdf_is_indexed_with_ocr(
+    api: httpx2.AsyncClient,
+    ws: Workspace,
+    db_session: AsyncSession,
+    storage: LocalObjectStorage,
+    embedder: HashingEmbedder,
+    vector_store: QdrantVectorStore,
+    ingestion_queue: RecordingQueue,
+) -> None:
+    class OneLineOcr:
+        name = "fake"
+
+        def read(self, image: object) -> list[OcrLine]:
+            return [OcrLine("Invoice total is 120 euros, due in 30 days.", 0.97)]
+
+    doc = (await upload(api, ws, "scan.pdf", make_pdf([[]]))).json()
+    limits = replace(LIMITS, ocr=OcrOptions(OneLineOcr()))
+    service = IngestionService(db_session, storage, embedder, vector_store, limits)
+
+    outcome = await service.run(uuid.UUID(doc["id"]), ingestion_queue.jobs[-1][1])
+
+    assert outcome is Outcome.INDEXED
+    document = await get_doc(api, ws, doc["id"])
+    assert document["status"] == "indexed"
+    assert "read with OCR" in document["error"]  # shown as an indexing warning
+    [chunk] = await chunks_of(api, ws, doc["id"])
+    assert chunk["page_number"] == 1 and "120 euros" in chunk["content"]
 
 
 async def test_reindex_is_refused_while_indexing(api: httpx2.AsyncClient, ws: Workspace) -> None:

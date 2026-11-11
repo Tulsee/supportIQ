@@ -28,6 +28,8 @@ dependencies = [
     "python-docx>=1.2.0",    # DOCX text extraction
     "fastembed>=0.9.1",      # BGE embeddings on ONNX Runtime (no PyTorch)
     "qdrant-client>=1.20.0", # vector index
+    "rapidocr>=3.10.0",      # OCR for scanned PDF pages (models bundled, ONNX Runtime)
+    "pypdfium2>=5.15.2",     # renders PDF pages to images for OCR
 ]
 
 [dependency-groups]

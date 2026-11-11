@@ -59,6 +59,23 @@ def make_pdf(
     return encrypted.getvalue()
 
 
+def make_scanned_pdf(pages: list[list[str]]) -> bytes:
+    """Image-only pages (like a scan): the text exists only as pixels."""
+    from PIL import Image, ImageDraw, ImageFont
+
+    font = ImageFont.load_default(size=40)
+    images = []
+    for lines in pages:
+        image = Image.new("RGB", (1700, 2200), "white")
+        draw = ImageDraw.Draw(image)
+        for i, line in enumerate(lines):
+            draw.text((120, 150 + i * 90), line, fill="black", font=font)
+        images.append(image)
+    out = io.BytesIO()
+    images[0].save(out, "PDF", resolution=200, save_all=True, append_images=images[1:])
+    return out.getvalue()
+
+
 def make_docx(
     sections: list[tuple[str, list[str]]], *, table: list[list[str]] | None = None
 ) -> bytes:

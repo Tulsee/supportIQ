@@ -111,6 +111,12 @@ class Settings(BaseSettings):
     # silently truncated when embedded. Overlap keeps the plan's 15% ratio.
     chunk_size_tokens: Annotated[int, Field(ge=32, le=510)] = 480
     chunk_overlap_tokens: Annotated[int, Field(ge=0)] = 72
+    # OCR for scanned PDF pages: pages with fewer extractable characters than this
+    # are rendered and read with OCR (about 1-2 s per page), up to a page limit.
+    ocr_enabled: bool = True
+    ocr_min_text_chars: int = 20
+    ocr_max_pages: int = 200
+    ocr_dpi: Annotated[int, Field(ge=72, le=400)] = 200
     # Upload and processing limits.
     max_upload_bytes: int = 20 * 1024 * 1024
     max_document_pages: int = 2_000
