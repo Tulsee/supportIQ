@@ -1,0 +1,40 @@
+[project]
+name = "supportiq-backend"
+version = "0.1.0"
+description = "SupportIQ API: FastAPI backend for the uncertainty-aware AI support platform."
+requires-python = ">=3.12"
+# Lower bounds only; exact versions are pinned in uv.lock (commit it).
+dependencies = [
+    # --- Web framework ---
+    "fastapi>=0.162.4",
+    "uvicorn[standard]>=0.54.0",
+    "pydantic-settings>=2.16.2",
+    "python-multipart>=0.0.33", # form + file uploads (OAuth2 login form, document upload)
+    "email-validator>=2.3.0",   # pydantic EmailStr
+    # --- Database ---
+    "sqlalchemy[asyncio]>=2.1.8",
+    "asyncpg>=0.32.0",
+    "alembic>=1.20.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+    "httpx2>=2.16.0", # required by fastapi/starlette TestClient
+    "ruff>=0.17.4",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "UP", "SIM", "ASYNC", "RUF"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-ra --strict-markers"
