@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import datetime
+from typing import Any, ClassVar
 
 from sqlalchemy import DateTime, MetaData, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -19,6 +20,11 @@ NAMING_CONVENTION = {
 
 class Base(DeclarativeBase):
     metadata = MetaData(naming_convention=NAMING_CONVENTION)
+
+    # Fetch server-generated values (created_at, updated_at) with RETURNING on
+    # INSERT *and* UPDATE. Otherwise they are expired after flush and reading them
+    # triggers an implicit lazy load, which raises under asyncio.
+    __mapper_args__: ClassVar[dict[str, Any]] = {"eager_defaults": True}
 
 
 class UUIDPrimaryKeyMixin:

@@ -29,11 +29,18 @@ class AppError(Exception):
 
     status_code: int = status.HTTP_400_BAD_REQUEST
     code: str = "bad_request"
+    headers: dict[str, str] | None = None
 
     def __init__(self, message: str, *, details: Any = None) -> None:
         super().__init__(message)
         self.message = message
         self.details = details
+
+
+class AuthenticationError(AppError):
+    status_code = status.HTTP_401_UNAUTHORIZED
+    code = "unauthorized"
+    headers = {"WWW-Authenticate": "Bearer"}  # noqa: RUF012 - read-only class constant
 
 
 class NotFoundError(AppError):
@@ -74,7 +81,7 @@ def _status_code_slug(status_code: int) -> str:
 
 
 async def _handle_app_error(_: Request, exc: AppError) -> JSONResponse:
-    return error_response(exc.status_code, exc.code, exc.message, exc.details)
+    return error_response(exc.status_code, exc.code, exc.message, exc.details, exc.headers)
 
 
 async def _handle_http_exception(_: Request, exc: StarletteHTTPException) -> JSONResponse:

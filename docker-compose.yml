@@ -1,0 +1,29 @@
+# Local development infrastructure. Start with:  docker compose up -d
+# Services are bound to 127.0.0.1 only, so dev credentials are never exposed on the LAN.
+
+name: supportiq
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-supportiq}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-supportiq}
+      POSTGRES_DB: ${POSTGRES_DB:-supportiq}
+    ports:
+      # Host port 5433: 5432 is taken by a native PostgreSQL service on the dev machine.
+      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      # PostgreSQL 18+ images keep data under /var/lib/postgresql/<major>/docker.
+      - postgres_data:/var/lib/postgresql
+      # Runs once, on first initialization of an empty volume.
+      - ./infrastructure/docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres_data:
