@@ -1,14 +1,12 @@
 import uuid
-from datetime import datetime
-from typing import Annotated, Any, Self
+from typing import Annotated, Self
 
 from pydantic import BaseModel, Field, StringConstraints
 
 from ai_engine.reranking.cross_encoder import relevance
 from ai_engine.retrieval.engine import RequestedStrategy
-from app.models import AIRun, RetrievalResult
+from app.models import RetrievalResult
 from app.schemas.documents import ChunkRead, DocumentSummary
-from app.schemas.tickets import PersonSummary
 
 Query = Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=500)]
 
@@ -73,60 +71,4 @@ class RetrievedPassage(BaseModel):
                 else None
             ),
             chunk=ChunkRead.build(result.chunk) if result.chunk is not None else None,
-        )
-
-
-class RetrievalRunSummary(BaseModel):
-    id: uuid.UUID
-    query: str
-    query_type: str
-    requested_strategy: str
-    strategy: str
-    latency_ms: float
-    result_count: int
-    user: PersonSummary | None
-    created_at: datetime
-
-    @classmethod
-    def build(cls, run: AIRun) -> Self:
-        return cls(
-            id=run.id,
-            query=run.query,
-            query_type=run.query_type,
-            requested_strategy=run.requested_strategy,
-            strategy=run.strategy,
-            latency_ms=run.latency_ms,
-            result_count=run.result_count,
-            user=PersonSummary.build(run.user),
-            created_at=run.created_at,
-        )
-
-
-class RetrievalRunRead(RetrievalRunSummary):
-    reasons: list[str] = Field(description="Why the query analysis chose this strategy.")
-    config: dict[str, Any] = Field(
-        description="Models, top-k values, fusion weights, BM25 parameters: enough to "
-        "reproduce the run."
-    )
-    timings_ms: dict[str, float]
-    degraded: dict[str, str] = Field(
-        description="Retrievers that failed during the run (it continued without them)."
-    )
-    results: list[RetrievedPassage] = Field(description="The selected passages, best first.")
-    other_candidates: list[RetrievedPassage] = Field(
-        description="Candidates considered but not selected, by fused rank."
-    )
-
-    @classmethod
-    def build_with(cls, run: AIRun, results: list[RetrievalResult]) -> Self:
-        summary = RetrievalRunSummary.build(run).model_dump()
-        passages = [RetrievedPassage.build(result) for result in results]
-        return cls(
-            **summary,
-            reasons=run.config.get("reasons", []),
-            config=run.config,
-            timings_ms=run.timings,
-            degraded=run.config.get("degraded", {}),
-            results=[p for p in passages if p.final_rank is not None],
-            other_candidates=[p for p in passages if p.final_rank is None],
         )

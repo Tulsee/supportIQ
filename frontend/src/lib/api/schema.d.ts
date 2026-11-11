@@ -627,6 +627,52 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/ai/chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Answer a question from the knowledge base
+         * @description Retrieves passages as `POST /ai/retrieve` does, then has the language model
+         *     answer from those passages only, citing them by number. Citations always resolve
+         *     to retrieved passages (document, version, page, section); numbers the model
+         *     invents are removed. If the model is unavailable the run is still recorded,
+         *     with `answer.status = failed` and the reason in `answer.error`. A local model
+         *     can take a minute or more.
+         */
+        post: operations["chat_api_v1_ai_chat_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/model": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The answer model and whether it is ready
+         * @description Checks that the model can be reached (it is never run). For Claude, only
+         *     that an API key is configured; the key itself is checked by the first question.
+         */
+        get: operations["model_status_api_v1_ai_model_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/ai/runs": {
         parameters: {
             query?: never;
@@ -716,6 +762,106 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AIRunKind
+         * @enum {string}
+         */
+        AIRunKind: "retrieval" | "answer";
+        /** AIRunRead */
+        AIRunRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** @description `retrieval`: a search; `answer`: a search, then an answer. */
+            kind: components["schemas"]["AIRunKind"];
+            /** Query */
+            query: string;
+            /** Query Type */
+            query_type: string;
+            /** Requested Strategy */
+            requested_strategy: string;
+            /** Strategy */
+            strategy: string;
+            /** Latency Ms */
+            latency_ms: number;
+            /** Result Count */
+            result_count: number;
+            /** @description For `answer` runs. */
+            answer_status: components["schemas"]["AnswerStatus"] | null;
+            user: components["schemas"]["PersonSummary"] | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Reasons
+             * @description Why the query analysis chose this strategy.
+             */
+            reasons: string[];
+            /**
+             * Config
+             * @description Models, top-k values, fusion weights, BM25 parameters: enough to reproduce the run.
+             */
+            config: {
+                [key: string]: unknown;
+            };
+            /** Timings Ms */
+            timings_ms: {
+                [key: string]: number;
+            };
+            /**
+             * Degraded
+             * @description Retrievers that failed during the run (it continued without them).
+             */
+            degraded: {
+                [key: string]: string;
+            };
+            /**
+             * Results
+             * @description The selected passages, best first.
+             */
+            results: components["schemas"]["RetrievedPassage"][];
+            /**
+             * Other Candidates
+             * @description Candidates considered but not selected, by fused rank.
+             */
+            other_candidates: components["schemas"]["RetrievedPassage"][];
+            /** @description For `answer` runs: the answer, its citations, and the exact prompt and model settings. Null for searches, and for a run whose answer was never recorded (the server stopped while the model was working). */
+            answer: components["schemas"]["AnswerRead"] | null;
+        };
+        /** AIRunSummary */
+        AIRunSummary: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** @description `retrieval`: a search; `answer`: a search, then an answer. */
+            kind: components["schemas"]["AIRunKind"];
+            /** Query */
+            query: string;
+            /** Query Type */
+            query_type: string;
+            /** Requested Strategy */
+            requested_strategy: string;
+            /** Strategy */
+            strategy: string;
+            /** Latency Ms */
+            latency_ms: number;
+            /** Result Count */
+            result_count: number;
+            /** @description For `answer` runs. */
+            answer_status: components["schemas"]["AnswerStatus"] | null;
+            user: components["schemas"]["PersonSummary"] | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
         /** AdminOrganizationRead */
         AdminOrganizationRead: {
             /**
@@ -744,6 +890,113 @@ export interface components {
             is_active?: boolean | null;
             /** Is Superadmin */
             is_superadmin?: boolean | null;
+        };
+        /** AnswerRead */
+        AnswerRead: {
+            /** @description `answered`: cites the passages; `uncited`: answered without citing (unverified); `declined`: the model found no answer in the passages; `no_passages`: nothing was retrieved, the model wasn't asked; `failed`: see `error`. */
+            status: components["schemas"]["AnswerStatus"];
+            /**
+             * Text
+             * @description The answer, with [n] citation markers. Numbers the model invented are removed (see `invalid_citations`).
+             */
+            text: string | null;
+            /** Error */
+            error: string | null;
+            /**
+             * Citations
+             * @description In reading order.
+             */
+            citations: components["schemas"]["CitationRead"][];
+            /**
+             * Invalid Citations
+             * @description Passage numbers the model cited but was never given.
+             */
+            invalid_citations: number[];
+            /** Provider */
+            provider: string;
+            /**
+             * Model
+             * @description The model that answered, as the provider reported it.
+             */
+            model: string;
+            /**
+             * Model Version
+             * @description E.g. the Ollama model digest.
+             */
+            model_version: string | null;
+            /**
+             * Config
+             * @description Sampling, output and context settings.
+             */
+            config: {
+                [key: string]: unknown;
+            };
+            /** Prompt Version */
+            prompt_version: string;
+            /** System Prompt */
+            system_prompt: string;
+            /**
+             * User Prompt
+             * @description The question and the numbered passages.
+             */
+            user_prompt: string;
+            /**
+             * Raw Output
+             * @description Exactly what the model returned.
+             */
+            raw_output: string | null;
+            /**
+             * Passage Count
+             * @description Passages in the prompt (citable).
+             */
+            passage_count: number;
+            /**
+             * Omitted Passages
+             * @description Selected passages left out to fit the model's context window.
+             */
+            omitted_passages: number;
+            /**
+             * Stop Reason
+             * @description `stop`, `length` (hit the output limit), `refusal`, or the provider's.
+             */
+            stop_reason: string | null;
+            /** Input Tokens */
+            input_tokens: number | null;
+            /** Output Tokens */
+            output_tokens: number | null;
+            /** Timings Ms */
+            timings_ms: {
+                [key: string]: number;
+            };
+            /** Latency Ms */
+            latency_ms: number;
+        };
+        /**
+         * AnswerStatus
+         * @enum {string}
+         */
+        AnswerStatus: "answered" | "uncited" | "declined" | "no_passages" | "failed";
+        /** AskRequest */
+        AskRequest: {
+            /** Query */
+            query: string;
+            /**
+             * @description How to search for evidence.
+             * @default auto
+             */
+            strategy: components["schemas"]["RequestedStrategy"];
+            /**
+             * Rerank
+             * @description Reorder candidates with the cross-encoder.
+             * @default true
+             */
+            rerank: boolean;
+            /**
+             * Top K
+             * @description Passages to answer from.
+             * @default 5
+             */
+            top_k: number;
         };
         /** Body_upload_document_api_v1_documents_post */
         Body_upload_document_api_v1_documents_post: {
@@ -811,6 +1064,40 @@ export interface components {
             content: string;
             /** Embedding Model */
             embedding_model: string;
+        };
+        /** CitationRead */
+        CitationRead: {
+            /**
+             * Passage Number
+             * @description The [n] marker in the answer; also the passage's final rank in the run.
+             */
+            passage_number: number;
+            /**
+             * Answer Start
+             * @description The cited claim: a character range of `text`.
+             */
+            answer_start: number;
+            /** Answer End */
+            answer_end: number;
+            /** Document Id */
+            document_id: string | null;
+            /** @description Null if the document was deleted. */
+            document: components["schemas"]["DocumentSummary"] | null;
+            /** Document Version */
+            document_version: number;
+            /**
+             * Chunk Id
+             * @description Null if the passage was re-indexed away.
+             */
+            chunk_id: string | null;
+            /** Chunk Index */
+            chunk_index: number;
+            /** Page Number */
+            page_number: number | null;
+            /** Page End */
+            page_end: number | null;
+            /** Section Heading */
+            section_heading: string | null;
         };
         /** CustomerCreate */
         CustomerCreate: {
@@ -1175,6 +1462,21 @@ export interface components {
              */
             created_at: string;
         };
+        /** ModelStatusRead */
+        ModelStatusRead: {
+            /** Provider */
+            provider: string;
+            /** Model */
+            model: string;
+            /**
+             * Status
+             * @description `ready`: it can answer now. Otherwise questions fail until it is started, installed or configured.
+             * @enum {string}
+             */
+            status: "ready" | "unreachable" | "not_installed" | "not_configured";
+            /** Detail */
+            detail: string | null;
+        };
         /**
          * OrgRole
          * @enum {string}
@@ -1213,6 +1515,20 @@ export interface components {
             created_at: string;
             /** @description The current user's role in this organization. */
             role: components["schemas"]["OrgRole"];
+        };
+        /** Page[AIRunSummary] */
+        Page_AIRunSummary_: {
+            /** Items */
+            items: components["schemas"]["AIRunSummary"][];
+            /**
+             * Total
+             * @description Total matching items across all pages.
+             */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
         };
         /** Page[AdminOrganizationRead] */
         Page_AdminOrganizationRead_: {
@@ -1326,20 +1642,6 @@ export interface components {
             /** Offset */
             offset: number;
         };
-        /** Page[RetrievalRunSummary] */
-        Page_RetrievalRunSummary_: {
-            /** Items */
-            items: components["schemas"]["RetrievalRunSummary"][];
-            /**
-             * Total
-             * @description Total matching items across all pages.
-             */
-            total: number;
-            /** Limit */
-            limit: number;
-            /** Offset */
-            offset: number;
-        };
         /** Page[TicketRead] */
         Page_TicketRead_: {
             /** Items */
@@ -1407,91 +1709,6 @@ export interface components {
          * @enum {string}
          */
         RequestedStrategy: "auto" | "sparse" | "dense" | "hybrid";
-        /** RetrievalRunRead */
-        RetrievalRunRead: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** Query */
-            query: string;
-            /** Query Type */
-            query_type: string;
-            /** Requested Strategy */
-            requested_strategy: string;
-            /** Strategy */
-            strategy: string;
-            /** Latency Ms */
-            latency_ms: number;
-            /** Result Count */
-            result_count: number;
-            user: components["schemas"]["PersonSummary"] | null;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /**
-             * Reasons
-             * @description Why the query analysis chose this strategy.
-             */
-            reasons: string[];
-            /**
-             * Config
-             * @description Models, top-k values, fusion weights, BM25 parameters: enough to reproduce the run.
-             */
-            config: {
-                [key: string]: unknown;
-            };
-            /** Timings Ms */
-            timings_ms: {
-                [key: string]: number;
-            };
-            /**
-             * Degraded
-             * @description Retrievers that failed during the run (it continued without them).
-             */
-            degraded: {
-                [key: string]: string;
-            };
-            /**
-             * Results
-             * @description The selected passages, best first.
-             */
-            results: components["schemas"]["RetrievedPassage"][];
-            /**
-             * Other Candidates
-             * @description Candidates considered but not selected, by fused rank.
-             */
-            other_candidates: components["schemas"]["RetrievedPassage"][];
-        };
-        /** RetrievalRunSummary */
-        RetrievalRunSummary: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** Query */
-            query: string;
-            /** Query Type */
-            query_type: string;
-            /** Requested Strategy */
-            requested_strategy: string;
-            /** Strategy */
-            strategy: string;
-            /** Latency Ms */
-            latency_ms: number;
-            /** Result Count */
-            result_count: number;
-            user: components["schemas"]["PersonSummary"] | null;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-        };
         /** RetrieveRequest */
         RetrieveRequest: {
             /** Query */
@@ -4976,7 +5193,165 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RetrievalRunRead"];
+                    "application/json": components["schemas"]["AIRunRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    chat_api_v1_ai_chat_post: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AskRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AIRunRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    model_status_api_v1_ai_model_get: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelStatusRead"];
                 };
             };
             /** @description Unauthorized */
@@ -5038,6 +5413,8 @@ export interface operations {
     list_runs_api_v1_ai_runs_get: {
         parameters: {
             query?: {
+                /** @description Only searches, or only answers. */
+                kind?: components["schemas"]["AIRunKind"] | null;
                 /** @description Maximum items to return. */
                 limit?: number;
                 /** @description Number of items to skip. */
@@ -5058,7 +5435,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Page_RetrievalRunSummary_"];
+                    "application/json": components["schemas"]["Page_AIRunSummary_"];
                 };
             };
             /** @description Unauthorized */
@@ -5137,7 +5514,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RetrievalRunRead"];
+                    "application/json": components["schemas"]["AIRunRead"];
                 };
             };
             /** @description Unauthorized */

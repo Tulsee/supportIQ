@@ -5,6 +5,7 @@ import { ScanSearchIcon } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
+import { AnswerStatusBadge } from "@/components/answers/answer-details";
 import { PageHeader } from "@/components/page-header";
 import { Pager } from "@/components/pager";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -19,6 +20,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -35,18 +37,19 @@ import { formatDateTime, timeAgo } from "@/lib/tickets";
 
 const LIMIT = 25;
 
-/** Every retrieval run in the organization, newest first. */
+type KindFilter = "all" | "answer" | "retrieval";
+
+/** Every AI run in the organization (searches and answers), newest first. */
 export function RunsList() {
   const organization = useActiveOrganization();
   const [offset, setOffset] = useState(0);
-  const page = { limit: LIMIT, offset };
+  const [kind, setKind] = useState<KindFilter>("all");
+  const query = { limit: LIMIT, offset, ...(kind === "all" ? {} : { kind }) };
 
   const runs = useQuery({
-    queryKey: queryKeys.aiRuns(organization.id, page),
+    queryKey: queryKeys.aiRuns(organization.id, query),
     queryFn: () =>
-      unwrap(
-        api.GET("/api/v1/ai/runs", { params: { query: page, header: tenant(organization.id) } }),
-      ),
+      unwrap(api.GET("/api/v1/ai/runs", { params: { query, header: tenant(organization.id) } })),
     placeholderData: keepPreviousData,
   });
 
@@ -54,10 +57,23 @@ export function RunsList() {
     <>
       <PageHeader
         title="AI inspector"
-        description="Every retrieval run: what was asked, how it was searched, and what came back."
+        description="Every search and answer: what was asked, how it was searched, what the model was given, and what came back."
       />
       <Card>
         <CardContent className="space-y-4">
+          <Tabs
+            value={kind}
+            onValueChange={(value) => {
+              setKind(value as KindFilter);
+              setOffset(0);
+            }}
+          >
+            <TabsList>
+              <TabsTrigger value="all">All</TabsTrigger>
+              <TabsTrigger value="answer">Answers</TabsTrigger>
+              <TabsTrigger value="retrieval">Searches</TabsTrigger>
+            </TabsList>
+          </Tabs>
           {runs.isPending ? (
             <div className="space-y-2">
               <Skeleton className="h-10 w-full" />
@@ -75,10 +91,14 @@ export function RunsList() {
                 </EmptyMedia>
                 <EmptyTitle>No runs yet</EmptyTitle>
                 <EmptyDescription>
-                  Runs appear here when someone tests retrieval in the knowledge base.
+                  Runs appear here when someone asks the knowledge base a question or tests
+                  search in the knowledge base.
                 </EmptyDescription>
               </EmptyHeader>
-              <EmptyContent>
+              <EmptyContent className="flex-row justify-center gap-4">
+                <Link href="/ask" className="text-sm font-medium hover:underline">
+                  Ask a question
+                </Link>
                 <Link href="/knowledge-base" className="text-sm font-medium hover:underline">
                   Go to the knowledge base
                 </Link>
@@ -90,6 +110,7 @@ export function RunsList() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Query</TableHead>
+                    <TableHead>Type</TableHead>
                     <TableHead className="hidden md:table-cell">Strategy</TableHead>
                     <TableHead className="text-right">Results</TableHead>
                     <TableHead className="hidden text-right sm:table-cell">Latency</TableHead>
@@ -110,6 +131,17 @@ export function RunsList() {
                         <div className="truncate text-xs text-muted-foreground">
                           {QUERY_TYPE_LABELS[run.query_type] ?? run.query_type}
                         </div>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">
+                        {run.kind === "answer" ? (
+                          run.answer_status ? (
+                            <AnswerStatusBadge status={run.answer_status} />
+                          ) : (
+                            <Badge variant="outline">Answer</Badge>
+                          )
+                        ) : (
+                          <span className="text-sm text-muted-foreground">Search</span>
+                        )}
                       </TableCell>
                       <TableCell className="hidden md:table-cell">
                         <Badge variant="secondary" className="whitespace-nowrap">

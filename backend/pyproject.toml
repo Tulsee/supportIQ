@@ -30,12 +30,14 @@ dependencies = [
     "qdrant-client>=1.20.0", # vector index
     "rapidocr>=3.10.0",      # OCR for scanned PDF pages (models bundled, ONNX Runtime)
     "pypdfium2>=5.15.2",     # renders PDF pages to images for OCR
+    # --- Answer generation ---
+    "httpx2>=2.16.0",        # Ollama's HTTP API (local models); also FastAPI's TestClient
+    "anthropic>=2.8.0",      # Claude, when LLM_PROVIDER=anthropic
 ]
 
 [dependency-groups]
 dev = [
     "pytest>=9.2.0",
-    "httpx2>=2.16.0", # required by fastapi/starlette TestClient
     "ruff>=0.17.4",
 ]
 

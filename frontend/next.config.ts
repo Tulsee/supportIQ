@@ -10,6 +10,9 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   experimental: {
+    // The /api proxy below gives up on a request after 30 s by default. Answers from
+    // a local model can take minutes (the API's LLM_TIMEOUT_SECONDS stays below this).
+    proxyTimeout: 300_000,
     instantInsights: {
       // Validate instant navigation only where a segment opts in (`instant = true`).
       // The signed-in app renders behind a client-side session check (the access

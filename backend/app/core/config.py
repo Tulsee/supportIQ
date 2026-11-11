@@ -136,6 +136,26 @@ class Settings(BaseSettings):
     # Queued/processing longer than this means the worker died or the job was lost.
     ingestion_stale_minutes: int = 30
 
+    # --- Answer generation ------------------------------------------------------------
+    # "ollama": a local model (documents never leave the machine). "anthropic": Claude.
+    llm_provider: Literal["ollama", "anthropic"] = "ollama"
+    # Per question; the Next.js dev proxy allows 300 s, so keep this below that.
+    llm_timeout_seconds: Annotated[float, Field(gt=0, le=290)] = 240
+    ai_chat_limit: int = 20  # questions per user, per minute
+    ollama_url: str = "http://127.0.0.1:11434"
+    ollama_model: str = "qwen3.5:4b"
+    ollama_temperature: Annotated[float, Field(ge=0, le=2)] = 0.1
+    ollama_max_output_tokens: Annotated[int, Field(ge=64)] = 1024
+    # The model's context window (num_ctx): the prompt and the answer must fit in it.
+    # Larger windows use more memory.
+    ollama_context_tokens: Annotated[int, Field(ge=2048)] = 8192
+    ollama_think: bool = False  # let reasoning models think first (much slower on CPU)
+    ollama_keep_alive: str = "10m"  # how long Ollama keeps the model in memory when idle
+    anthropic_api_key: SecretStr | None = None
+    anthropic_model: str = "claude-opus-5-5"
+    anthropic_effort: Literal["low", "medium", "high", "xhigh", "max"] = "medium"
+    anthropic_max_output_tokens: Annotated[int, Field(ge=1024)] = 16_000
+
     # --- Auth -----------------------------------------------------------------
     jwt_secret_key: SecretStr = SecretStr(_DEV_JWT_SECRET)
     access_token_expire_minutes: int = 15
@@ -161,6 +181,15 @@ class Settings(BaseSettings):
     def _check_chunking(self) -> Self:
         if self.chunk_overlap_tokens >= self.chunk_size_tokens // 2:
             raise ValueError("CHUNK_OVERLAP_TOKENS must be less than half of CHUNK_SIZE_TOKENS")
+        return self
+
+    @model_validator(mode="after")
+    def _check_llm_context(self) -> Self:
+        if self.ollama_context_tokens < self.ollama_max_output_tokens + 1024:
+            raise ValueError(
+                "OLLAMA_CONTEXT_TOKENS must leave at least 1024 tokens for the prompt "
+                "after OLLAMA_MAX_OUTPUT_TOKENS"
+            )
         return self
 
     @model_validator(mode="after")

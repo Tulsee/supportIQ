@@ -2,12 +2,14 @@
 
 import re
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
 import httpx2
 
 from ai_engine.chunking.chunker import ChunkingConfig
+from ai_engine.generation.llm import Completion, LLMError, ModelState, ModelStatus, Prompt
 from app.core.email import EmailMessage
 from app.services.ingestion import IngestionLimits
 
@@ -63,6 +65,43 @@ class StaticWorkerRegistry:
 
     async def live_workers(self) -> int | None:
         return self.count
+
+
+@dataclass
+class ScriptedLLM:
+    """Stand-in language model: replies with ``reply`` (text, or a function of the
+    prompt) or raises ``error``, and keeps every prompt it was given."""
+
+    reply: str | Callable[[Prompt], str] = "Replace the fan module [1]."
+    error: LLMError | None = None
+    state: ModelState = "ready"
+    prompt_token_budget: int | None = None
+    prompts: list[Prompt] = field(default_factory=list)
+
+    provider = "test"
+    model = "test/scripted"
+
+    @property
+    def config(self) -> dict[str, Any]:
+        return {"temperature": 0.0}
+
+    async def complete(self, prompt: Prompt) -> Completion:
+        self.prompts.append(prompt)
+        if self.error is not None:
+            raise self.error
+        text = self.reply(prompt) if callable(self.reply) else self.reply
+        return Completion(
+            text=text,
+            model="test/scripted@v1",
+            stop_reason="stop",
+            input_tokens=321,
+            output_tokens=12,
+            model_version="sha256:test",
+            timings_ms={"prompt": 3.0, "output": 2.0, "total": 5.0},
+        )
+
+    async def status(self) -> ModelStatus:
+        return ModelStatus(self.state, None if self.state == "ready" else "not running")
 
 
 @dataclass(frozen=True)

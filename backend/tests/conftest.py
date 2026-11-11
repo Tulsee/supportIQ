@@ -42,6 +42,7 @@ from app.api.deps import (
     get_embedder_dep,
     get_event_broker,
     get_ingestion_queue,
+    get_llm_client_dep,
     get_rate_limiter,
     get_reranker_dep,
     get_vector_store,
@@ -59,6 +60,7 @@ from tests.factories import (
     TEST_INGESTION_LIMITS,
     Outbox,
     RecordingQueue,
+    ScriptedLLM,
     StaticWorkerRegistry,
     Workspace,
     add_member,
@@ -200,6 +202,12 @@ def reranker() -> OverlapReranker:
 
 
 @pytest.fixture
+def llm() -> ScriptedLLM:
+    """Language-model stand-in: scripted replies, recorded prompts."""
+    return ScriptedLLM()
+
+
+@pytest.fixture
 def ingest(
     db_session: AsyncSession,
     storage: LocalObjectStorage,
@@ -236,10 +244,12 @@ def make_client(
     ingestion_queue: RecordingQueue,
     worker_registry: StaticWorkerRegistry,
     reranker: OverlapReranker,
+    llm: ScriptedLLM,
 ) -> ClientFactory:
     """Factory for HTTP clients against ``target_app`` (default: the real app), all
     sharing the test's rolled-back session and in-process stand-ins (rate limiter,
-    outbox, event broker, storage, embedder, vector store, job queue). The
+    outbox, event broker, storage, embedder, vector store, job queue, language
+    model). The
     overrides also apply to WebSocket connections (tests/ws.py)."""
 
     @asynccontextmanager
@@ -261,6 +271,7 @@ def make_client(
             get_ingestion_queue: lambda: ingestion_queue,
             get_worker_registry: lambda: worker_registry,
             get_reranker_dep: lambda: reranker,
+            get_llm_client_dep: lambda: llm,
         }
         target_app.dependency_overrides.update(overrides)
         try:

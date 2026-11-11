@@ -4,13 +4,15 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowLeftIcon } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useId } from "react";
 
+import { AnswerCard, PromptCard } from "@/components/answers/answer-details";
 import { PassageCard } from "@/components/retrieval/passage-card";
 import { RunSummary } from "@/components/retrieval/run-summary";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ApiError, api, errorMessage, tenant, unwrap, type RetrievalRun } from "@/lib/api/client";
+import { ApiError, api, errorMessage, tenant, unwrap, type AIRun } from "@/lib/api/client";
 import { useActiveOrganization } from "@/lib/org/org-provider";
 import { queryKeys } from "@/lib/query-keys";
 import { REQUESTED_STRATEGY_LABELS, type RequestedStrategy, formatMs } from "@/lib/retrieval";
@@ -26,7 +28,7 @@ function Setting({ label, children }: { label: string; children: React.ReactNode
 }
 
 /** The settings a run used: enough to reproduce it. */
-function RunConfig({ run }: { run: RetrievalRun }) {
+function RunConfig({ run }: { run: AIRun }) {
   const config = run.config as {
     top_k?: number;
     sparse_top_k?: number;
@@ -46,7 +48,7 @@ function RunConfig({ run }: { run: RetrievalRun }) {
         <CardTitle>
           <h2>Configuration</h2>
         </CardTitle>
-        <CardDescription>The settings this run used.</CardDescription>
+        <CardDescription>The retrieval settings this run used.</CardDescription>
       </CardHeader>
       <CardContent>
         <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
@@ -84,6 +86,9 @@ function RunConfig({ run }: { run: RetrievalRun }) {
 export function RunDetail() {
   const { id } = useParams<{ id: string }>();
   const organization = useActiveOrganization();
+  // Per instance: a hidden, still-mounted copy of this page must not share anchors.
+  const prefix = useId();
+  const passageId = (rank: number) => `${prefix}-passage-${rank}`;
 
   const run = useQuery({
     queryKey: queryKeys.aiRun(organization.id, id),
@@ -145,6 +150,16 @@ export function RunDetail() {
         </p>
       </div>
 
+      {data.answer ? <AnswerCard answer={data.answer} passageId={passageId} /> : null}
+      {data.kind === "answer" && !data.answer ? (
+        <Alert>
+          <AlertTitle>No answer was recorded</AlertTitle>
+          <AlertDescription>
+            The server stopped while the model was writing it. The search below was recorded.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
       <Card>
         <CardHeader>
           <CardTitle>
@@ -162,7 +177,11 @@ export function RunDetail() {
           <CardTitle>
             <h2>Selected passages ({data.results.length})</h2>
           </CardTitle>
-          <CardDescription>What the AI assistant would read, best first.</CardDescription>
+          <CardDescription>
+            {data.kind === "answer"
+              ? "What the model was given, best first. Passage numbers are the citation numbers."
+              : "What the AI assistant would read, best first."}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {data.results.length === 0 ? (
@@ -172,7 +191,11 @@ export function RunDetail() {
           ) : (
             <ol className="space-y-3" aria-label="Selected passages">
               {data.results.map((passage) => (
-                <PassageCard key={passage.fused_rank} passage={passage} />
+                <PassageCard
+                  key={passage.fused_rank}
+                  passage={passage}
+                  id={passage.final_rank ? passageId(passage.final_rank) : undefined}
+                />
               ))}
             </ol>
           )}
@@ -196,6 +219,8 @@ export function RunDetail() {
           </CardContent>
         </Card>
       ) : null}
+
+      {data.answer ? <PromptCard answer={data.answer} /> : null}
 
       <RunConfig run={data} />
     </div>

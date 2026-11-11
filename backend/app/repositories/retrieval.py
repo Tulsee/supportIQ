@@ -6,10 +6,17 @@ from collections.abc import Sequence
 
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, load_only, selectinload
 
 from ai_engine.retrieval.fusion import RankedChunk
-from app.models import AIRun, DocumentChunk, RetrievalResult
+from app.models import (
+    AIAnswer,
+    AIRun,
+    AIRunKind,
+    Citation,
+    DocumentChunk,
+    RetrievalResult,
+)
 
 # Okapi BM25, computed per organization (its own corpus statistics, so tenants
 # never influence each other's scores):
@@ -122,11 +129,23 @@ class RunRepository:
         await self.session.flush()  # the run row first: results reference it
         self.session.add_all(results)
 
+    async def add_answer(self, answer: AIAnswer, citations: Sequence[Citation]) -> None:
+        self.session.add(answer)
+        await self.session.flush()  # citations reference the answer
+        self.session.add_all(citations)
+
     async def get(self, organization_id: uuid.UUID, run_id: uuid.UUID) -> AIRun | None:
+        """The run with its user, and its answer and citations if it has one."""
         return await self.session.scalar(
             select(AIRun)
-            .options(joinedload(AIRun.user))
+            .options(
+                joinedload(AIRun.user),
+                selectinload(AIRun.answer)
+                .selectinload(AIAnswer.citations)
+                .joinedload(Citation.document),
+            )
             .where(AIRun.id == run_id, AIRun.organization_id == organization_id)
+            .execution_options(populate_existing=True)
         )
 
     async def results(self, run_id: uuid.UUID) -> list[RetrievalResult]:
@@ -143,12 +162,23 @@ class RunRepository:
         return list(rows.all())
 
     async def find(
-        self, organization_id: uuid.UUID, *, limit: int, offset: int
+        self,
+        organization_id: uuid.UUID,
+        *,
+        kind: AIRunKind | None = None,
+        limit: int,
+        offset: int,
     ) -> tuple[list[AIRun], int]:
         condition = AIRun.organization_id == organization_id
+        if kind is not None:
+            condition &= AIRun.kind == kind
         runs = await self.session.scalars(
             select(AIRun)
-            .options(joinedload(AIRun.user))
+            .options(
+                joinedload(AIRun.user),
+                # Only the status for the list, not the prompts and texts.
+                joinedload(AIRun.answer).options(load_only(AIAnswer.status)),
+            )
             .where(condition)
             .order_by(AIRun.created_at.desc(), AIRun.id)
             .limit(limit)

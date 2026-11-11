@@ -23,12 +23,14 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_engine.embeddings.embedder import Embedder
+from ai_engine.generation.llm import LLMClient
 from ai_engine.reranking.cross_encoder import Reranker
 from ai_engine.retrieval.vector_store import QdrantVectorStore
 from app.core.database import get_db_session, set_rls_context
 from app.core.email import EmailSender, get_email_sender
 from app.core.exceptions import AuthenticationError, NotFoundError, PermissionDeniedError
 from app.core.knowledge import get_embedder, get_qdrant_client, get_reranker, vector_store_for
+from app.core.llm import get_llm_client
 from app.core.rate_limit import RateLimiter, RedisRateLimiter
 from app.core.redis import get_redis
 from app.core.security import InvalidTokenError, decode_access_token
@@ -73,6 +75,10 @@ def get_reranker_dep() -> Reranker:
     return get_reranker()
 
 
+def get_llm_client_dep() -> LLMClient:
+    return get_llm_client()
+
+
 def get_vector_store(embedder: Annotated[Embedder, Depends(get_embedder_dep)]) -> QdrantVectorStore:
     return vector_store_for(get_qdrant_client(), embedder)
 
@@ -85,6 +91,7 @@ WorkerRegistryDep = Annotated[WorkerRegistry, Depends(get_worker_registry)]
 EmbedderDep = Annotated[Embedder, Depends(get_embedder_dep)]
 RerankerDep = Annotated[Reranker, Depends(get_reranker_dep)]
 VectorStoreDep = Annotated[QdrantVectorStore, Depends(get_vector_store)]
+LLMClientDep = Annotated[LLMClient, Depends(get_llm_client_dep)]
 EmailSenderDep = Annotated[EmailSender, Depends(get_email_sender)]
 ClientIp = Annotated[str, Depends(get_client_ip)]
 

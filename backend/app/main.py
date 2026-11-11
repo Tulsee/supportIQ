@@ -21,6 +21,7 @@ from app.core.config import settings
 from app.core.database import SessionLocal, engine
 from app.core.exceptions import register_exception_handlers
 from app.core.knowledge import close_qdrant_client
+from app.core.llm import close_llm_client
 from app.core.logging import configure_logging
 from app.core.redis import close_redis
 from app.services.maintenance import maintenance_loop
@@ -45,6 +46,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
             await maintenance
     await close_redis()
     await close_qdrant_client()
+    await close_llm_client()
     await engine.dispose()
     logger.info("Shutdown complete")
 

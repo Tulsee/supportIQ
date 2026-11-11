@@ -18,10 +18,25 @@ function Score({ label, title, children }: { label: string; title: string; child
 }
 
 /** One retrieved passage with its score at every stage. */
-export function PassageCard({ passage, dimmed = false }: { passage: RetrievedPassage; dimmed?: boolean }) {
+export function PassageCard({
+  passage,
+  dimmed = false,
+  id,
+}: {
+  passage: RetrievedPassage;
+  dimmed?: boolean;
+  /** Anchor for citations that point here. */
+  id?: string;
+}) {
   const page = passage.chunk ? pageLabel(passage.chunk) : null;
   return (
-    <li className={cn("rounded-lg border p-3", dimmed && "bg-muted/30")}>
+    <li
+      id={id}
+      className={cn(
+        "scroll-mt-24 rounded-lg border p-3 target:ring-2 target:ring-primary/40",
+        dimmed && "bg-muted/30",
+      )}
+    >
       <div className="mb-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
         {passage.final_rank ? (
           <span className="font-semibold text-foreground">#{passage.final_rank}</span>

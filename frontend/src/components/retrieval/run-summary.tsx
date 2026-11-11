@@ -2,7 +2,7 @@ import { TriangleAlertIcon } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import type { RetrievalRun } from "@/lib/api/client";
+import type { AIRun } from "@/lib/api/client";
 import {
   QUERY_TYPE_LABELS,
   STAGE_LABELS,
@@ -12,7 +12,7 @@ import {
 } from "@/lib/retrieval";
 
 /** How a run was planned and how long each stage took. */
-export function RunSummary({ run }: { run: RetrievalRun }) {
+export function RunSummary({ run }: { run: AIRun }) {
   const weights = run.config.weights as { sparse: number; dense: number } | undefined;
   return (
     <div className="space-y-3">

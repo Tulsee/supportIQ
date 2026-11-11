@@ -6,6 +6,7 @@ import {
   BuildingIcon,
   ChartLineIcon,
   LayoutDashboardIcon,
+  MessageSquareTextIcon,
   ScanSearchIcon,
   TicketIcon,
   UserCogIcon,
@@ -50,6 +51,7 @@ const WORKSPACE: NavItem[] = [
   { title: "Tickets", icon: TicketIcon, href: "/tickets", matchNested: true },
   { title: "Customers", icon: UsersIcon, href: "/customers", matchNested: true },
   { title: "Knowledge base", icon: BookOpenIcon, href: "/knowledge-base", matchNested: true },
+  { title: "Ask AI", icon: MessageSquareTextIcon, href: "/ask" },
   { title: "AI inspector", icon: ScanSearchIcon, href: "/ai-inspector", matchNested: true },
   { title: "Analytics", icon: ChartLineIcon },
 ];

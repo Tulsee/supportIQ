@@ -9,6 +9,7 @@ from ai_engine.embeddings.embedder import Embedder
 from ai_engine.reranking.cross_encoder import Reranker
 from ai_engine.retrieval.engine import (
     DenseRetriever,
+    RequestedStrategy,
     RetrievalConfig,
     RetrievalEngine,
     RetrievalOutcome,
@@ -50,15 +51,35 @@ class RetrievalService:
     ) -> tuple[AIRun, list[RetrievalResult]]:
         require_role(member, *STAFF_ROLES)
         await self._throttle(user)
+        outcome = await self.search(
+            member.organization_id,
+            request.query,
+            strategy=request.strategy,
+            rerank=request.rerank,
+            top_k=request.top_k,
+        )
+        run = await self.record(member, user, outcome, kind=AIRunKind.RETRIEVAL)
+        await self.session.commit()
+        return run, await self.runs.results(run.id)
+
+    async def search(
+        self,
+        organization_id: uuid.UUID,
+        query: str,
+        *,
+        strategy: RequestedStrategy,
+        rerank: bool,
+        top_k: int,
+    ) -> RetrievalOutcome:
+        """Run the retrieval pipeline (no access checks, nothing recorded)."""
         assert self.embedder is not None and self.vectors is not None
-        organization_id = member.organization_id
         config = RetrievalConfig(
             sparse_top_k=settings.retrieval_sparse_top_k,
             dense_top_k=settings.retrieval_dense_top_k,
             rrf_k=settings.retrieval_rrf_k,
-            rerank=request.rerank,
-            rerank_candidates=max(settings.retrieval_rerank_candidates, request.top_k),
-            top_k=request.top_k,
+            rerank=rerank,
+            rerank_candidates=max(settings.retrieval_rerank_candidates, top_k),
+            top_k=top_k,
         )
         engine = RetrievalEngine(
             sparse=BM25Retriever(
@@ -66,18 +87,14 @@ class RetrievalService:
             ),
             dense=DenseRetriever(self.embedder, self.vectors, organization_id),
             passages=ChunkPassages(self.session, organization_id),
-            reranker=self.reranker if request.rerank else None,
+            reranker=self.reranker if rerank else None,
             config=config,
         )
         try:
-            outcome = await engine.retrieve(request.query, request.strategy)
+            return await engine.retrieve(query, strategy)
         except RetrievalUnavailableError as exc:
             logger.warning("Retrieval failed: %s", exc)
             raise ServiceUnavailableError("Search is temporarily unavailable.") from exc
-
-        run = await self._record(member, user, outcome)
-        await self.session.commit()
-        return run, await self.runs.results(run.id)
 
     async def get_run(
         self, member: OrganizationMember, run_id: uuid.UUID
@@ -89,14 +106,20 @@ class RetrievalService:
         return run, await self.runs.results(run.id)
 
     async def list_runs(
-        self, member: OrganizationMember, *, limit: int, offset: int
+        self,
+        member: OrganizationMember,
+        *,
+        kind: AIRunKind | None = None,
+        limit: int,
+        offset: int,
     ) -> tuple[list[AIRun], int]:
         require_role(member, *STAFF_ROLES)
-        return await self.runs.find(member.organization_id, limit=limit, offset=offset)
+        return await self.runs.find(member.organization_id, kind=kind, limit=limit, offset=offset)
 
-    async def _record(
-        self, member: OrganizationMember, user: User, outcome: RetrievalOutcome
+    async def record(
+        self, member: OrganizationMember, user: User, outcome: RetrievalOutcome, *, kind: AIRunKind
     ) -> AIRun:
+        """Add the run and every candidate's scores to the session (not committed)."""
         assert self.embedder is not None
         chunks = await self.documents.chunks_by_id(
             member.organization_id, [c.chunk_id for c in outcome.candidates]
@@ -105,7 +128,7 @@ class RetrievalService:
             id=uuid.uuid4(),
             organization_id=member.organization_id,
             user_id=user.id,
-            kind=AIRunKind.RETRIEVAL,
+            kind=kind,
             query=outcome.query,
             query_type=outcome.analysis.query_type.value,
             requested_strategy=outcome.requested.value,
@@ -132,6 +155,7 @@ class RetrievalService:
             result_count=len(outcome.selected),
         )
         run.user = user
+        run.answer = None  # an answer run gets its answer once the model replies
         results = [
             RetrievalResult(
                 organization_id=member.organization_id,
