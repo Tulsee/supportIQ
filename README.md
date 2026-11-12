@@ -38,6 +38,9 @@ a labelled benchmark measures how well it works.
   and score at every stage, the exact prompt, the raw model output and the assessment.
 - **Analytics.** Ticket volume and response times; AI outcomes and their reasons,
   latency, ratings, and the questions the assistant couldn't answer.
+- **Notifications and audit log.** A live notification bell (assignments, customer
+  replies, AI escalations, and replies to customers), optional email per kind, and an
+  append-only log of administrative changes.
 - **Evaluation.** A labelled benchmark, a command that runs it through the real
   pipeline, and a [report](experiments/reports/quillon-v1-evaluation.md) comparing six
   configurations.
@@ -156,7 +159,9 @@ docker compose up -d                       # PostgreSQL, Redis, Qdrant, storage,
 cd backend
 uv sync
 uv run alembic upgrade head
-uv run uvicorn app.main:app --reload       # API on http://127.0.0.1:8000 (docs at /docs)
+# API on http://127.0.0.1:8000 (docs at /docs). The timeout keeps a reload from
+# waiting forever on the app's open WebSocket connections.
+uv run uvicorn app.main:app --reload --timeout-graceful-shutdown 3
 uv run celery -A app.workers.celery_app worker --loglevel=info --pool=solo   # second terminal
 
 cd frontend
@@ -253,7 +258,7 @@ docs/             Architecture notes and screenshots
 
 ## Roadmap
 
-Next: notifications and an audit log, then
+Next:
 [SLA management and automated ticket routing](docs/features/sla-and-automated-routing.md),
 AI ticket triage that abstains when unsure, a customer self-service assistant, and a
 knowledge-base contradiction scanner. The full plan is in section 15 of

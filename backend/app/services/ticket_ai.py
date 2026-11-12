@@ -36,6 +36,7 @@ from app.models import (
     AIRunKind,
     AnswerStatus,
     MessageAuthorType,
+    NotificationKind,
     OrganizationMember,
     RetrievalResult,
     Ticket,
@@ -48,6 +49,7 @@ from app.repositories.tickets import TicketRepository
 from app.schemas.answers import AskRequest
 from app.services.answering import AnswerService, log_run
 from app.services.authorization import STAFF_ROLES, require_role
+from app.services.notifications import NewNotification, NotificationService
 from app.services.retrieval import RetrievalService
 
 logger = logging.getLogger(__name__)
@@ -64,8 +66,10 @@ class TicketAIService:
         retrieval: RetrievalService | None = None,
         nli: NliModel | None = None,
         rate_limiter: RateLimiter | None = None,
+        notifications: NotificationService | None = None,
     ) -> None:
         self.session = session
+        self.notifications = notifications
         self.llm = llm
         self.retrieval = retrieval
         self.nli = nli
@@ -142,7 +146,25 @@ class TicketAIService:
         )
         event.ticket = fresh
         self.tickets.add(event)
+        if self.notifications is not None and fresh.assignee_id is not None:
+            await self.notifications.add(
+                fresh.organization_id,
+                [
+                    NewNotification(
+                        user_id=fresh.assignee_id,
+                        kind=NotificationKind.AI_ESCALATED,
+                        title=f"The AI couldn't draft a reply for #{fresh.number}",
+                        body=fresh.subject,
+                        ticket_id=fresh.id,
+                        data={"run_id": str(run.id)},
+                        dedupe_key=f"ai_escalated:{run.id}",
+                    )
+                ],
+                actor_id=user.id,
+            )
         await self.session.commit()
+        if self.notifications is not None:
+            await self.notifications.flush()
 
     # --- Summarize ---------------------------------------------------------------------------
 

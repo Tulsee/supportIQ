@@ -45,9 +45,15 @@ from app.core.storage import ObjectStorage, get_object_storage
 from app.models import OrganizationMember, User
 from app.repositories.organizations import OrganizationRepository
 from app.repositories.users import UserRepository
+from app.services.notifications import NotificationService
 from app.websocket.broker import EventBroker, RedisEventBroker
 from app.workers.heartbeat import RedisWorkerRegistry, WorkerRegistry
-from app.workers.queue import CeleryIngestionQueue, IngestionQueue
+from app.workers.queue import (
+    CeleryIngestionQueue,
+    CeleryNotificationMailer,
+    IngestionQueue,
+    NotificationMailer,
+)
 
 DbSession = Annotated[AsyncSession, Depends(get_db_session)]
 
@@ -68,6 +74,10 @@ def get_event_broker() -> EventBroker:
 
 def get_ingestion_queue() -> IngestionQueue:
     return CeleryIngestionQueue()
+
+
+def get_notification_mailer() -> NotificationMailer:
+    return CeleryNotificationMailer()
 
 
 def get_worker_registry() -> WorkerRegistry:
@@ -98,6 +108,7 @@ RateLimiterDep = Annotated[RateLimiter, Depends(get_rate_limiter)]
 EventBrokerDep = Annotated[EventBroker, Depends(get_event_broker)]
 StorageDep = Annotated[ObjectStorage, Depends(get_object_storage)]
 IngestionQueueDep = Annotated[IngestionQueue, Depends(get_ingestion_queue)]
+NotificationMailerDep = Annotated[NotificationMailer, Depends(get_notification_mailer)]
 WorkerRegistryDep = Annotated[WorkerRegistry, Depends(get_worker_registry)]
 EmbedderDep = Annotated[Embedder, Depends(get_embedder_dep)]
 RerankerDep = Annotated[Reranker, Depends(get_reranker_dep)]
@@ -180,3 +191,13 @@ class PageParams:
 
 
 Pagination = Annotated[PageParams, Depends()]
+
+
+def get_notification_service(
+    session: DbSession, events: EventBrokerDep, mailer: NotificationMailerDep
+) -> NotificationService:
+    """Writes notifications with a change; pings and emails after the commit."""
+    return NotificationService(session, events=events, mailer=mailer)
+
+
+NotificationsDep = Annotated[NotificationService, Depends(get_notification_service)]

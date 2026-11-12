@@ -18,6 +18,7 @@ Protocol:
 
 Staff receive every event of the organization. Customers receive only events on
 their own tickets, and never staff-only ones (internal notes, assignment changes).
+``notification.created`` goes only to its recipient, on the organization-wide socket.
 """
 
 import asyncio
@@ -64,6 +65,8 @@ class Subscriber:
     expires_at: datetime
 
     def wants(self, event: TicketEvent) -> bool:
+        if event.recipient_user_id is not None:
+            return self.ticket_id is None and event.recipient_user_id == str(self.user_id)
         if self.ticket_id is not None and event.ticket_id != str(self.ticket_id):
             return False
         if self.staff:

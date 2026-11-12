@@ -1899,6 +1899,9 @@ routing; then 12 and 13; P2 modules as time allows.
 
 ## 15.3 Module 9 - Notifications and audit log
 
+**Status:** implemented (12 November 2026), as specified below. Email preferences use
+one setting per kind (off, in the app, or in the app and by email).
+
 **Why:** SLA warnings, routing failures, assignments and AI escalations need to reach
 people, and settings changes need an accountable history. Neither exists yet (only
 invitation emails and the ticket timeline).

@@ -85,6 +85,25 @@ export function RequireStaff({ children }: { children: ReactNode }) {
   return children;
 }
 
+/** Pages for an organization's admins. A UX guard: the API checks too. */
+export function RequireAdmin({ children }: { children: ReactNode }) {
+  const organization = useActiveOrganization();
+  if (organization.role !== "admin") {
+    return (
+      <div className="mx-auto max-w-md p-6">
+        <Alert>
+          <ShieldAlertIcon aria-hidden />
+          <AlertTitle>Admins only</AlertTitle>
+          <AlertDescription>
+            Only admins of {organization.name} can see this page.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+  return children;
+}
+
 /** Platform administration pages. A UX guard: the API requires super admin too. */
 export function RequireSuperAdmin({ children }: { children: ReactNode }) {
   const user = useCurrentUser();

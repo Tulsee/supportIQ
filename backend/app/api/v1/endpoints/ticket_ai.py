@@ -16,6 +16,7 @@ from app.api.deps import (
     EmbedderDep,
     LLMClientDep,
     NliModelDep,
+    NotificationsDep,
     RateLimiterDep,
     RerankerDep,
     TenantMembership,
@@ -46,6 +47,7 @@ async def suggest_reply(
     llm: LLMClientDep,
     nli: NliModelDep,
     limiter: RateLimiterDep,
+    notifications: NotificationsDep,
 ) -> AIRunRead:
     """Answers the customer's latest message from the knowledge base, as a draft
     reply with citations, or explains why it can't (`answer.status`: clarify,
@@ -53,7 +55,14 @@ async def suggest_reply(
     retrieval = RetrievalService(
         session, embedder=embedder, vector_store=vector_store, reranker=reranker
     )
-    service = TicketAIService(session, llm=llm, retrieval=retrieval, nli=nli, rate_limiter=limiter)
+    service = TicketAIService(
+        session,
+        llm=llm,
+        retrieval=retrieval,
+        nli=nli,
+        rate_limiter=limiter,
+        notifications=notifications,
+    )
     run, results = await service.suggest_reply(member, user, ticket_id)
     return AIRunRead.build_with(run, results)
 

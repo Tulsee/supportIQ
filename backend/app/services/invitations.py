@@ -22,6 +22,7 @@ from app.repositories.invitations import InvitationRepository
 from app.repositories.organizations import OrganizationRepository
 from app.repositories.users import UserRepository
 from app.schemas.invitations import InvitationCreate
+from app.services import audit
 from app.services.authorization import require_role
 
 ALREADY_MEMBER = "This person is already a member of the organization"
@@ -91,6 +92,16 @@ class InvitationService:
             expires_at=now + timedelta(days=settings.invitation_expire_days),
         )
         self.invitations.add(invitation)
+        await audit.record(
+            self.session,
+            organization_id=actor.organization_id,
+            actor_id=actor.user_id,
+            entity_type="invitation",
+            entity_id=data.email,
+            action="invitation.created",
+            summary=f"Invited {data.email} as {data.role}",
+            changes={"role": {"from": None, "to": data.role.value}},
+        )
         email = build_invitation_email(
             invitation, actor.organization.name, inviter.full_name, raw_token
         )
@@ -116,6 +127,15 @@ class InvitationService:
             raise ConflictError("The invitation was already accepted", code="invitation_accepted")
         if invitation.revoked_at is None:
             invitation.revoked_at = utcnow()
+            await audit.record(
+                self.session,
+                organization_id=actor.organization_id,
+                actor_id=actor.user_id,
+                entity_type="invitation",
+                entity_id=invitation.email,
+                action="invitation.revoked",
+                summary=f"Revoked the invitation for {invitation.email}",
+            )
             await self.session.commit()
 
     # --- Invitee side (the token is the credential) -------------------------------------

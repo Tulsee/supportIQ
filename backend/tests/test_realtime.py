@@ -117,6 +117,11 @@ async def test_customers_hear_only_their_own_customer_visible_changes(
 
         await reply(api, ws, mine, ws.agent)
         assert await socket.receive_json() == {"type": "message.created", "ticket_id": mine["id"]}
+        # ...and their own notification about it ("New reply on your request").
+        assert await socket.receive_json() == {
+            "type": "notification.created",
+            "ticket_id": mine["id"],
+        }
         # Assigning an open ticket also changes its status, which they do see.
         await api.patch(
             f"{API}/tickets/{mine['id']}",

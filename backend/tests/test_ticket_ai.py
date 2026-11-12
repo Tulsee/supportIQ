@@ -108,6 +108,32 @@ async def test_no_supported_reply_escalates_the_ticket_to_staff(
     assert "ai_escalated" not in [e["type"] for e in customer_events]
 
 
+async def test_an_escalation_notifies_the_tickets_assignee(
+    api: httpx2.AsyncClient, ws: Workspace, ticket: dict, llm: ScriptedLLM
+) -> None:
+    assigned = await api.patch(
+        f"{API}/tickets/{ticket['id']}",
+        json={"assignee_id": ws.admin.id},
+        headers=in_org(ws.agent, ws.org_id),
+    )
+    assert assigned.status_code == 200, assigned.text
+    llm.reply = structured("not_found")
+
+    run = (
+        await api.post(
+            f"{API}/tickets/{ticket['id']}/ai/suggestion", headers=in_org(ws.agent, ws.org_id)
+        )
+    ).json()
+
+    items = (await api.get(f"{API}/notifications", headers=in_org(ws.admin, ws.org_id))).json()[
+        "items"
+    ]
+    escalations = [i for i in items if i["kind"] == "ai_escalated"]
+    assert len(escalations) == 1
+    assert escalations[0]["data"] == {"run_id": run["id"]}
+    assert escalations[0]["title"] == f"The AI couldn't draft a reply for #{ticket['number']}"
+
+
 async def test_a_ticket_is_summarized_with_internal_notes(
     api: httpx2.AsyncClient, ws: Workspace, ticket: dict, llm: ScriptedLLM
 ) -> None:

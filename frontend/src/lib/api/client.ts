@@ -33,6 +33,10 @@ export type Answer = Schemas["AnswerRead"];
 export type AnswerStatus = Answer["status"];
 export type AnswerCitation = Schemas["CitationRead"];
 export type ModelStatus = Schemas["ModelStatusRead"];
+export type AppNotification = Schemas["NotificationRead"];
+export type NotificationKind = Schemas["NotificationKind"];
+export type NotificationDelivery = Schemas["NotificationDelivery"];
+export type AuditEntry = Schemas["AuditEntryRead"];
 
 /**
  * The tenant header for organization-scoped endpoints (customers, tickets, ...).

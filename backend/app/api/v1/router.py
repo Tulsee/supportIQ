@@ -11,6 +11,7 @@ from app.api.v1.endpoints import (
     documents,
     health,
     invitations,
+    notifications,
     organizations,
     realtime,
     ticket_ai,
@@ -31,5 +32,7 @@ api_router.include_router(ticket_ai.router)
 api_router.include_router(documents.router)
 api_router.include_router(ai.router)
 api_router.include_router(analytics.router)
+api_router.include_router(notifications.router)
+api_router.include_router(notifications.audit_router)
 api_router.include_router(realtime.router)
 api_router.include_router(admin.router)

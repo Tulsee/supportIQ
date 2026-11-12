@@ -9,7 +9,14 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, Query, status
 
-from app.api.deps import CurrentUser, DbSession, EventBrokerDep, Pagination, TenantMembership
+from app.api.deps import (
+    CurrentUser,
+    DbSession,
+    EventBrokerDep,
+    NotificationsDep,
+    Pagination,
+    TenantMembership,
+)
 from app.models import TicketPriority, TicketStatus
 from app.repositories.tickets import TicketFilters, TicketSortKey
 from app.schemas.common import Page, error_responses
@@ -93,10 +100,11 @@ async def create_ticket(
     user: CurrentUser,
     session: DbSession,
     events: EventBrokerDep,
+    notifications: NotificationsDep,
 ) -> TicketRead:
     """Staff open tickets for a customer (`customer_id` required) and may set the
     priority and assignee. Customers open tickets for themselves."""
-    ticket = await TicketService(session, events).create(member, user, body)
+    ticket = await TicketService(session, events, notifications).create(member, user, body)
     return TicketRead.build(ticket, allowed_statuses(member, ticket))
 
 
@@ -116,10 +124,13 @@ async def update_ticket(
     user: CurrentUser,
     session: DbSession,
     events: EventBrokerDep,
+    notifications: NotificationsDep,
 ) -> TicketRead:
     """409 `invalid_status_transition` if the status change isn't allowed by the
     lifecycle; `details.allowed` lists the valid next statuses."""
-    ticket = await TicketService(session, events).update(member, user, ticket_id, body)
+    ticket = await TicketService(session, events, notifications).update(
+        member, user, ticket_id, body
+    )
     return TicketRead.build(ticket, allowed_statuses(member, ticket))
 
 
@@ -153,11 +164,14 @@ async def add_message(
     user: CurrentUser,
     session: DbSession,
     events: EventBrokerDep,
+    notifications: NotificationsDep,
 ) -> MessageRead:
     """Internal notes are staff only. A customer's reply moves a ticket that is
     waiting for them, or resolved, back to in progress. Closed tickets take no
     messages (409 `ticket_closed`)."""
-    message = await TicketService(session, events).add_message(member, user, ticket_id, body)
+    message = await TicketService(session, events, notifications).add_message(
+        member, user, ticket_id, body
+    )
     return MessageRead.build(message)
 
 

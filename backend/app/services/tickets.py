@@ -24,6 +24,7 @@ from app.core.security import utcnow
 from app.models import (
     CUSTOMER_VISIBLE_EVENTS,
     MessageAuthorType,
+    NotificationKind,
     OrganizationMember,
     Ticket,
     TicketEvent,
@@ -39,6 +40,7 @@ from app.repositories.tickets import TicketFilters, TicketRepository
 from app.schemas.tickets import MessageCreate, TicketCreate, TicketUpdate
 from app.services.authorization import STAFF_ROLES, require_role
 from app.services.customers import CustomerService
+from app.services.notifications import NewNotification, NotificationService
 from app.websocket.broker import EventBroker, EventType
 from app.websocket.broker import TicketEvent as RealtimeEvent
 
@@ -79,9 +81,16 @@ def allowed_statuses(member: OrganizationMember, ticket: Ticket) -> list[TicketS
 
 
 class TicketService:
-    def __init__(self, session: AsyncSession, events: EventBroker | None = None) -> None:
+    def __init__(
+        self,
+        session: AsyncSession,
+        events: EventBroker | None = None,
+        notifications: NotificationService | None = None,
+    ) -> None:
         self.session = session
         self.events = events  # real-time notifications, published after each commit
+        # People to tell (the bell, email): written with the change, sent after commit.
+        self.notifications = notifications
         self.tickets = TicketRepository(session)
         self.customers = CustomerRepository(session)
         self.orgs = OrganizationRepository(session)
@@ -199,6 +208,7 @@ class TicketService:
             await self._assign(ticket, user.id, data.assignee_id)
         await self.session.commit()
         await self._notify("ticket.created", ticket)
+        await self._send_notifications()
         return ticket
 
     async def update(
@@ -238,6 +248,7 @@ class TicketService:
         # Customers see status and subject; priority and assignment are staff-only.
         customer_visible = (ticket.status, ticket.subject) != before
         await self._notify("ticket.updated", ticket, staff_only=not customer_visible)
+        await self._send_notifications()
         return ticket
 
     async def add_message(
@@ -251,6 +262,7 @@ class TicketService:
             raise ConflictError(TICKET_CLOSED, code="ticket_closed")
 
         message = TicketMessage(
+            id=uuid.uuid4(),
             organization_id=member.organization_id,
             author_id=user.id,
             author_type=MessageAuthorType.AGENT if staff else MessageAuthorType.CUSTOMER,
@@ -260,6 +272,7 @@ class TicketService:
         message.ticket = ticket
         message.author = user
         self.tickets.add(message)
+        await self._notify_reply(ticket, message, user)
         if not staff and ticket.status in _REOPENED_BY_CUSTOMER_REPLY:
             self._set_status(ticket, user.id, S.IN_PROGRESS)
         # New activity sorts the ticket to the top. clock_timestamp(), not now():
@@ -268,6 +281,7 @@ class TicketService:
         await self.session.commit()
         # An internal note must not even signal its existence to the customer.
         await self._notify("message.created", ticket, staff_only=data.is_internal)
+        await self._send_notifications()
         return message
 
     async def unassign_member(self, actor: OrganizationMember, user_id: uuid.UUID) -> int:
@@ -279,6 +293,39 @@ class TicketService:
         return len(tickets)
 
     # --- Helpers --------------------------------------------------------------------
+
+    async def _notify_reply(self, ticket: Ticket, message: TicketMessage, author: User) -> None:
+        """A customer reply tells the assignee; a public staff reply tells the
+        customer (if they have an account). Internal notes tell nobody."""
+        if self.notifications is None or message.is_internal:
+            return
+        if message.author_type == MessageAuthorType.CUSTOMER:
+            if ticket.assignee_id is None:
+                return
+            item = NewNotification(
+                user_id=ticket.assignee_id,
+                kind=NotificationKind.CUSTOMER_REPLIED,
+                title=f"{ticket.customer.name} replied on #{ticket.number}",
+                body=message.body[:300],
+                ticket_id=ticket.id,
+                dedupe_key=f"customer_replied:{message.id}",
+            )
+        else:
+            if ticket.customer.user_id is None:
+                return
+            item = NewNotification(
+                user_id=ticket.customer.user_id,
+                kind=NotificationKind.AGENT_REPLIED,
+                title=f"New reply on your request #{ticket.number}",
+                body=ticket.subject,
+                ticket_id=ticket.id,
+                dedupe_key=f"agent_replied:{message.id}",
+            )
+        await self.notifications.add(ticket.organization_id, [item], actor_id=author.id)
+
+    async def _send_notifications(self) -> None:
+        if self.notifications is not None:
+            await self.notifications.flush()
 
     async def _assign(
         self, ticket: Ticket, actor_id: uuid.UUID | None, assignee_id: uuid.UUID | None
@@ -305,6 +352,22 @@ class TicketService:
             TicketEventType.ASSIGNED,
             {"from": _person(previous), "to": _person(membership.user)},
         )
+        if self.notifications is not None:
+            await self.notifications.add(
+                ticket.organization_id,
+                [
+                    NewNotification(
+                        user_id=membership.user.id,
+                        kind=NotificationKind.TICKET_ASSIGNED,
+                        title=f"#{ticket.number} was assigned to you",
+                        body=ticket.subject,
+                        ticket_id=ticket.id,
+                        # Every assignment is news, even back to the same person.
+                        dedupe_key=f"ticket_assigned:{ticket.id}:{uuid.uuid4()}",
+                    )
+                ],
+                actor_id=actor_id,
+            )
         if ticket.status == S.OPEN:
             self._set_status(ticket, actor_id, S.ASSIGNED)
 

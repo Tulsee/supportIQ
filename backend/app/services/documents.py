@@ -39,6 +39,7 @@ from app.models import (
     User,
 )
 from app.repositories.documents import DocumentRepository
+from app.services import audit
 from app.services.authorization import STAFF_ROLES, require_role
 from app.services.ingestion import storage_prefix
 from app.workers.queue import IngestionQueue, QueueUnavailableError
@@ -227,6 +228,16 @@ class DocumentService:
         require_role(member, OrgRole.ADMIN)
         document = await self._get_for_update(member, document_id)
         prefix = storage_prefix(document)
+        await audit.record(
+            self.session,
+            organization_id=member.organization_id,
+            actor_id=member.user_id,
+            entity_type="document",
+            entity_id=document.id,
+            action="document.deleted",
+            summary=f"Deleted the document {document.title} ({document.filename})",
+            changes={"version": {"from": document.version, "to": None}},
+        )
         await self.documents.delete(document)  # chunk rows cascade
         await self.session.commit()
         # Unreachable through search already (no chunk rows); clean up best effort.

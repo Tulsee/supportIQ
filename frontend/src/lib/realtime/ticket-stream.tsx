@@ -70,6 +70,13 @@ export function useTicketStream(): void {
           attempts = 0;
           return;
         }
+        if (message.type === "notification.created") {
+          void queryClient.invalidateQueries({
+            queryKey: queryKeys.notifications(orgId),
+            refetchType: "all",
+          });
+          return;
+        }
         void refetchTickets();
         if (message.type === "ticket.created") {
           void queryClient.invalidateQueries({ queryKey: queryKeys.customers(orgId) });

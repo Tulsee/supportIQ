@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 
 import { AppSidebar } from "@/components/app-shell/app-sidebar";
+import { NotificationBell } from "@/components/app-shell/notification-bell";
 import { AuthGuard } from "@/components/guards";
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -15,6 +16,11 @@ function TopBar() {
       <SidebarTrigger className="-ml-1" />
       <Separator orientation="vertical" className="mr-1 h-4" />
       <span className="truncate text-sm text-muted-foreground">{activeOrganization?.name}</span>
+      {activeOrganization ? (
+        <div className="ml-auto">
+          <NotificationBell organization={activeOrganization} />
+        </div>
+      ) : null}
     </header>
   );
 }

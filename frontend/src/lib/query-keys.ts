@@ -58,6 +58,16 @@ export const queryKeys = {
   analytics: (orgId: string, report: string, days: number) =>
     ["organizations", orgId, "analytics", report, days] as const,
 
+  notifications: (orgId: string, filters?: object) =>
+    filters
+      ? (["organizations", orgId, "notifications", "list", filters] as const)
+      : (["organizations", orgId, "notifications"] as const),
+  notificationPreferences: (orgId: string) =>
+    ["organizations", orgId, "notifications", "preferences"] as const,
+  auditLog: (orgId: string, filters?: object) =>
+    filters
+      ? (["organizations", orgId, "audit-log", filters] as const)
+      : (["organizations", orgId, "audit-log"] as const),
   adminUsers: (page?: SearchPage) =>
     page ? (["admin", "users", page] as const) : (["admin", "users"] as const),
   adminOrganizations: (page?: SearchPage) =>

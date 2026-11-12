@@ -26,7 +26,7 @@ from redis.exceptions import RedisError
 
 logger = logging.getLogger(__name__)
 
-EventType = Literal["ticket.created", "ticket.updated", "message.created"]
+EventType = Literal["ticket.created", "ticket.updated", "message.created", "notification.created"]
 CHANNEL_PREFIX = "supportiq:tickets:"
 
 
@@ -39,6 +39,9 @@ class TicketEvent:
     customer_user_id: str | None
     # Internal notes and staff-only changes: never signalled to customers.
     staff_only: bool = False
+    # Personal events (a new notification): only this user is told, on any socket
+    # of the organization that isn't scoped to one ticket.
+    recipient_user_id: str | None = None
 
     @classmethod
     def build(
@@ -49,6 +52,7 @@ class TicketEvent:
         ticket_id: uuid.UUID,
         customer_user_id: uuid.UUID | None,
         staff_only: bool = False,
+        recipient_user_id: uuid.UUID | None = None,
     ) -> "TicketEvent":
         return cls(
             type=type_,
@@ -56,6 +60,7 @@ class TicketEvent:
             ticket_id=str(ticket_id),
             customer_user_id=str(customer_user_id) if customer_user_id else None,
             staff_only=staff_only,
+            recipient_user_id=str(recipient_user_id) if recipient_user_id else None,
         )
 
     def to_json(self) -> str:

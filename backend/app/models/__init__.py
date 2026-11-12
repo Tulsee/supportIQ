@@ -20,6 +20,13 @@ from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 from app.models.customer import Customer
 from app.models.document import ACTIVE_INGESTION, Document, DocumentChunk, DocumentStatus
 from app.models.invitation import OrganizationInvitation
+from app.models.notification import (
+    AuditLogEntry,
+    Notification,
+    NotificationDelivery,
+    NotificationKind,
+    NotificationPreference,
+)
 from app.models.organization import Organization, OrganizationMember, OrgRole
 from app.models.refresh_token import RefreshToken
 from app.models.ticket import (
@@ -44,6 +51,7 @@ __all__ = [
     "AIRun",
     "AIRunKind",
     "AnswerStatus",
+    "AuditLogEntry",
     "Base",
     "Citation",
     "Customer",
@@ -53,6 +61,10 @@ __all__ = [
     "EvidenceAssessment",
     "FeedbackRating",
     "MessageAuthorType",
+    "Notification",
+    "NotificationDelivery",
+    "NotificationKind",
+    "NotificationPreference",
     "OrgRole",
     "Organization",
     "OrganizationInvitation",

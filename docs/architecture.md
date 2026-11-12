@@ -59,6 +59,21 @@ commit and pushed to connected browsers over WebSockets (`/api/v1/ws/tickets`). 
 event only says which ticket changed; the browser refetches through the REST API, so
 a socket can never reveal more than an API call would.
 
+## Notifications and audit log
+
+- **Notifications** (`notifications`) are readable only by their recipient. Writing one
+  for someone else (the assignee hears about a customer reply) is a small, explicit
+  system operation under the RLS bypass. A `dedupe_key` per recipient makes delivery
+  idempotent. Rows are written in the transaction that makes the change; after the
+  commit, the recipient's open app gets a `notification.created` ping on the same
+  WebSocket (only that user receives it), and a Celery task sends any emails, with
+  retries. Each person chooses per kind: off, in the app, or in the app and by email.
+- **The audit log** (`audit_log`) records administrative changes (organization name,
+  member roles and removals, invitations, document deletions) with the actor and a
+  minimal before/after, in the same transaction as the change. The API role has no
+  UPDATE or DELETE privilege on it, so entries can't be altered even by a bug in the
+  application. Admins read it under Settings.
+
 ## Knowledge base ingestion
 
 ```mermaid
@@ -140,6 +155,7 @@ The main tables, all scoped to an organization:
 | Support | `customers`, `tickets`, `ticket_messages`, `ticket_events`, `ticket_counters` |
 | Knowledge base | `documents`, `document_chunks` (text, metadata, full-text vector; embeddings in Qdrant) |
 | AI | `ai_runs`, `retrieval_results`, `ai_answers`, `citations`, `evidence_assessments`, `ai_feedback` |
+| Notifications and audit | `notifications`, `notification_preferences`, `audit_log` |
 
 Enumerations are stored as text with CHECK constraints, and every schema change is an
 Alembic migration (`backend/migrations/`). CI applies all migrations, checks they match

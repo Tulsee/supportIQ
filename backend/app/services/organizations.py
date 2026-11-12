@@ -13,6 +13,7 @@ from app.core.exceptions import ConflictError, NotFoundError
 from app.models import Organization, OrganizationMember, OrgRole, User
 from app.repositories.organizations import OrganizationRepository
 from app.schemas.organizations import MemberUpdate, OrganizationCreate, OrganizationUpdate
+from app.services import audit
 from app.services.authorization import STAFF_ROLES, require_role
 from app.services.tickets import TicketService
 
@@ -61,6 +62,17 @@ class OrganizationService:
     async def update(self, actor: OrganizationMember, data: OrganizationUpdate) -> Organization:
         require_role(actor, OrgRole.ADMIN)
         organization = actor.organization
+        if data.name != organization.name:
+            await audit.record(
+                self.session,
+                organization_id=organization.id,
+                actor_id=actor.user_id,
+                entity_type="organization",
+                entity_id=organization.id,
+                action="organization.renamed",
+                summary=f"Renamed the organization to {data.name}",
+                changes={"name": {"from": organization.name, "to": data.name}},
+            )
         organization.name = data.name
         await self.session.commit()
         return organization
@@ -83,6 +95,17 @@ class OrganizationService:
         if member.role in STAFF_ROLES and data.role not in STAFF_ROLES:
             # Only staff can own tickets.
             await TicketService(self.session).unassign_member(actor, member.user_id)
+        if member.role != data.role:
+            await audit.record(
+                self.session,
+                organization_id=actor.organization_id,
+                actor_id=actor.user_id,
+                entity_type="member",
+                entity_id=member.user_id,
+                action="member.role_changed",
+                summary=f"Changed {member.user.full_name}'s role from {member.role} to {data.role}",
+                changes={"role": {"from": member.role.value, "to": data.role.value}},
+            )
         member.role = data.role
         await self.session.commit()
         return member
@@ -95,6 +118,16 @@ class OrganizationService:
         # Before the membership goes: the actor may be removing themselves, and
         # only staff may update tickets.
         await TicketService(self.session).unassign_member(actor, member.user_id)
+        await audit.record(
+            self.session,
+            organization_id=actor.organization_id,
+            actor_id=actor.user_id,
+            entity_type="member",
+            entity_id=member.user_id,
+            action="member.removed",
+            summary=f"Removed {member.user.full_name} ({member.role})",
+            changes={"role": {"from": member.role.value, "to": None}},
+        )
         await self.orgs.delete(member)
         await self.session.commit()
 

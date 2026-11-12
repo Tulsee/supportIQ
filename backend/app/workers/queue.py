@@ -1,6 +1,7 @@
-"""Handing ingestion jobs to the background workers."""
+"""Handing jobs (document ingestion, notification emails) to the background workers."""
 
 import uuid
+from collections.abc import Sequence
 from typing import Protocol
 
 from anyio import to_thread
@@ -24,6 +25,29 @@ class CeleryIngestionQueue:
             ingest_document.apply_async(
                 args=[str(document_id), str(ingestion_id)],
                 # Fail fast instead of hanging the request when Redis is down.
+                retry=True,
+                retry_policy={"max_retries": 2, "interval_start": 0.2, "interval_step": 0.5},
+            )
+
+        try:
+            await to_thread.run_sync(_send)
+        except (OperationalError, OSError) as exc:
+            raise QueueUnavailableError(str(exc)) from exc
+
+
+class NotificationMailer(Protocol):
+    async def enqueue(self, notification_ids: Sequence[uuid.UUID]) -> None: ...
+
+
+class CeleryNotificationMailer:
+    async def enqueue(self, notification_ids: Sequence[uuid.UUID]) -> None:
+        from kombu.exceptions import OperationalError
+
+        from app.workers.tasks import email_notifications
+
+        def _send() -> None:
+            email_notifications.apply_async(
+                args=[[str(i) for i in notification_ids]],
                 retry=True,
                 retry_policy={"max_retries": 2, "interval_start": 0.2, "interval_step": 0.5},
             )

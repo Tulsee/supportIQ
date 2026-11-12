@@ -45,6 +45,7 @@ from app.api.deps import (
     get_ingestion_queue,
     get_llm_client_dep,
     get_nli_model_dep,
+    get_notification_mailer,
     get_rate_limiter,
     get_reranker_dep,
     get_vector_store,
@@ -61,6 +62,7 @@ from app.websocket.broker import InMemoryEventBroker
 from tests.factories import (
     TEST_INGESTION_LIMITS,
     Outbox,
+    RecordingMailer,
     RecordingQueue,
     ScriptedLLM,
     StaticWorkerRegistry,
@@ -193,6 +195,11 @@ def ingestion_queue() -> RecordingQueue:
 
 
 @pytest.fixture
+def mailer() -> RecordingMailer:
+    return RecordingMailer()
+
+
+@pytest.fixture
 def worker_registry() -> StaticWorkerRegistry:
     return StaticWorkerRegistry(count=1)
 
@@ -250,6 +257,7 @@ def make_client(
     embedder: HashingEmbedder,
     vector_store: QdrantVectorStore,
     ingestion_queue: RecordingQueue,
+    mailer: RecordingMailer,
     worker_registry: StaticWorkerRegistry,
     reranker: OverlapReranker,
     llm: ScriptedLLM,
@@ -278,6 +286,7 @@ def make_client(
             get_embedder_dep: lambda: embedder,
             get_vector_store: lambda: vector_store,
             get_ingestion_queue: lambda: ingestion_queue,
+            get_notification_mailer: lambda: mailer,
             get_worker_registry: lambda: worker_registry,
             get_reranker_dep: lambda: reranker,
             get_llm_client_dep: lambda: llm,

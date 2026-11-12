@@ -2,7 +2,7 @@
 
 import re
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -38,6 +38,16 @@ class Outbox:
         match = _TOKEN_IN_LINK.search(self.last_to(email).text)
         assert match, "no invitation link in email"
         return match.group(1)
+
+
+@dataclass
+class RecordingMailer:
+    """Test notification mailer: records the notification ids it was asked to email."""
+
+    ids: list[uuid.UUID] = field(default_factory=list)
+
+    async def enqueue(self, notification_ids: Sequence[uuid.UUID]) -> None:
+        self.ids.extend(notification_ids)
 
 
 @dataclass

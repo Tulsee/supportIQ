@@ -6,6 +6,7 @@ import uuid
 from celery import Task
 
 from app.services.ingestion import TransientIngestionError, run_ingestion_job
+from app.services.notifications import run_email_job
 from app.workers.celery_app import celery_app
 
 MAX_RETRIES = 3
@@ -28,3 +29,17 @@ def ingest_document(self: Task, document_id: str, ingestion_id: str) -> str:
         )
     )
     return outcome.value
+
+
+@celery_app.task(
+    name="notifications.email",
+    # SMTP and network failures: retry with backoff. Notifications already sent are
+    # marked, so a retry only sends the rest.
+    autoretry_for=(OSError, ConnectionError, TimeoutError),
+    max_retries=5,
+    retry_backoff=30,
+    retry_backoff_max=900,
+    retry_jitter=True,
+)
+def email_notifications(notification_ids: list[str]) -> int:
+    return asyncio.run(run_email_job([uuid.UUID(i) for i in notification_ids]))

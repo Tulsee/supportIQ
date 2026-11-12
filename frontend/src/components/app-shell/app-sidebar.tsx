@@ -8,6 +8,7 @@ import {
   LayoutDashboardIcon,
   MessageSquareTextIcon,
   ScanSearchIcon,
+  ScrollTextIcon,
   TicketIcon,
   UserCogIcon,
   UsersIcon,
@@ -65,6 +66,11 @@ const PORTAL: NavItem[] = [
 const SETTINGS: NavItem[] = [
   { title: "Organization", icon: Building2Icon, href: "/settings" },
   { title: "Members", icon: UserCogIcon, href: "/settings/members" },
+];
+
+const ADMIN_SETTINGS: NavItem[] = [
+  ...SETTINGS,
+  { title: "Audit log", icon: ScrollTextIcon, href: "/settings/audit-log" },
 ];
 
 const PLATFORM: NavItem[] = [
@@ -132,7 +138,11 @@ function NavGroups({ pathname }: { pathname: string | null }) {
       ) : activeOrganization ? (
         <>
           <NavGroup label="Workspace" items={WORKSPACE} pathname={pathname} />
-          <NavGroup label="Settings" items={SETTINGS} pathname={pathname} />
+          <NavGroup
+            label="Settings"
+            items={activeOrganization.role === "admin" ? ADMIN_SETTINGS : SETTINGS}
+            pathname={pathname}
+          />
         </>
       ) : null}
       {user.is_superadmin ? (
