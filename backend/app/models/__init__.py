@@ -29,6 +29,7 @@ from app.models.notification import (
 )
 from app.models.organization import Organization, OrganizationMember, OrgRole
 from app.models.refresh_token import RefreshToken
+from app.models.sla import BusinessCalendar, BusinessHoliday, BusinessHours, SlaPolicy
 from app.models.ticket import (
     CUSTOMER_VISIBLE_EVENTS,
     MessageAuthorType,
@@ -54,6 +55,9 @@ __all__ = [
     "AnswerStatus",
     "AuditLogEntry",
     "Base",
+    "BusinessCalendar",
+    "BusinessHoliday",
+    "BusinessHours",
     "Citation",
     "Customer",
     "Document",
@@ -72,6 +76,7 @@ __all__ = [
     "OrganizationMember",
     "RefreshToken",
     "RetrievalResult",
+    "SlaPolicy",
     "Ticket",
     "TicketCategory",
     "TicketCounter",

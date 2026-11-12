@@ -33,6 +33,7 @@ dependencies = [
     # --- Answer generation ---
     "httpx2>=2.16.0",        # Ollama's HTTP API (local models); also FastAPI's TestClient
     "anthropic>=2.8.0",      # Claude, when LLM_PROVIDER=anthropic
+    "tzdata>=2026.6",        # IANA time zones for SLA calendars (Windows has no system copy)
 ]
 
 [dependency-groups]

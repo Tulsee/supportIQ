@@ -40,6 +40,9 @@ a labelled benchmark measures how well it works.
   and score at every stage, the exact prompt, the raw model output and the assessment.
 - **Analytics.** Ticket volume and response times; AI outcomes and their reasons,
   latency, ratings, and the questions the assistant couldn't answer.
+- **Service levels.** Business hours in the organization's time zone, holidays,
+  and first-response and resolution targets per priority, counted in business time
+  (ticket clocks and breach alerts come next).
 - **Notifications and audit log.** A live notification bell (assignments, customer
   replies, AI escalations, and replies to customers), optional email per kind, and an
   append-only log of administrative changes.

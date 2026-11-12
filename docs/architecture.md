@@ -91,6 +91,19 @@ stateDiagram-v2
   invisible to customers (RLS), and deactivated rather than deleted. Routing rules
   (Module 10) will match on them.
 
+## Service levels
+
+- `app/domain/business_time.py` is a pure calculator: deadlines, warning times and
+  durations in business minutes for a calendar (IANA time zone, intervals per weekday,
+  holidays). Interval boundaries are converted to real instants, so daylight-saving
+  changes count the time that actually elapsed. It is tested with Kathmandu's
+  UTC+05:45 offset, London's clock changes, holidays, breaks and interval edges.
+- Each organization has one business calendar (`business_calendars`, `business_hours`,
+  `business_holidays`) and SLA policies per priority, with an optional default
+  (`sla_policies`, versioned when a target changes). All staff-only under RLS; admins
+  edit them under Settings → Service levels, starting from a one-click default setup.
+  `GET /sla/preview` shows when a ticket of a priority would be due.
+
 ## Notifications and audit log
 
 - **Notifications** (`notifications`) are readable only by their recipient. Writing one
@@ -188,6 +201,7 @@ The main tables, all scoped to an organization:
 | Knowledge base | `documents`, `document_chunks` (text, metadata, full-text vector; embeddings in Qdrant) |
 | AI | `ai_runs`, `retrieval_results`, `ai_answers`, `citations`, `evidence_assessments`, `ai_feedback` |
 | Notifications and audit | `notifications`, `notification_preferences`, `audit_log` |
+| Service levels | `business_calendars`, `business_hours`, `business_holidays`, `sla_policies` |
 
 Enumerations are stored as text with CHECK constraints, and every schema change is an
 Alembic migration (`backend/migrations/`). CI applies all migrations, checks they match

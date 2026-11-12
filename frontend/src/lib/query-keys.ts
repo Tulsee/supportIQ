@@ -58,6 +58,7 @@ export const queryKeys = {
   analytics: (orgId: string, report: string, days: number) =>
     ["organizations", orgId, "analytics", report, days] as const,
 
+  sla: (orgId: string) => ["organizations", orgId, "sla"] as const,
   categories: (orgId: string, filters?: object) =>
     filters
       ? (["organizations", orgId, "categories", filters] as const)

@@ -10,6 +10,7 @@ import {
   ScanSearchIcon,
   ScrollTextIcon,
   TagsIcon,
+  TimerIcon,
   TicketIcon,
   UserCogIcon,
   UsersIcon,
@@ -72,6 +73,7 @@ const SETTINGS: NavItem[] = [
 const ADMIN_SETTINGS: NavItem[] = [
   ...SETTINGS,
   { title: "Categories", icon: TagsIcon, href: "/settings/categories" },
+  { title: "Service levels", icon: TimerIcon, href: "/settings/sla" },
   { title: "Audit log", icon: ScrollTextIcon, href: "/settings/audit-log" },
 ];
 
