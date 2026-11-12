@@ -52,8 +52,11 @@ _RESPONSE_TIMES = text(
       count(first_reply) AS replied
     FROM (
       SELECT t.created_at,
+        -- The first public staff message after the opening one: when staff log a
+        -- ticket for a customer, the opening message is theirs but isn't a reply.
         (SELECT min(m.created_at) FROM ticket_messages m
-          WHERE m.ticket_id = t.id AND m.author_type = 'agent' AND NOT m.is_internal)
+          WHERE m.ticket_id = t.id AND m.author_type = 'agent' AND NOT m.is_internal
+            AND m.seq > (SELECT min(o.seq) FROM ticket_messages o WHERE o.ticket_id = t.id))
           AS first_reply
       FROM tickets t WHERE t.organization_id = :org AND t.created_at >= :since
     ) x

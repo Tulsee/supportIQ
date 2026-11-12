@@ -11,6 +11,7 @@ from tests.factories import (
     API,
     ScriptedLLM,
     Workspace,
+    create_customer,
     create_org,
     create_ticket,
     create_user,
@@ -52,6 +53,35 @@ async def test_overview_counts_tickets_and_response_times(
     assert len(data["daily"]) == 30
     assert sum(d["created"] for d in data["daily"]) == 2
     assert data["customers"] >= 1
+
+
+async def test_opening_message_of_a_staff_logged_ticket_is_not_a_first_response(
+    api: httpx2.AsyncClient, ws: Workspace
+) -> None:
+    # A staff member logs the customer's request: the opening message is written by an
+    # agent, but nobody has answered the customer yet.
+    customer = await create_customer(api, ws.agent, ws.org_id, name="Phone Caller")
+    ticket = await create_ticket(
+        api, ws.agent, ws.org_id, subject="Called about a refund", customer_id=customer["id"]
+    )
+
+    async def overview() -> dict:
+        response = await api.get(f"{API}/analytics/overview", headers=in_org(ws.admin, ws.org_id))
+        assert response.status_code == 200, response.text
+        return response.json()
+
+    before = await overview()
+    assert before["tickets_replied"] == 0
+    assert before["median_first_response_minutes"] is None
+
+    await api.post(
+        f"{API}/tickets/{ticket['id']}/messages",
+        json={"body": "We've started your refund."},
+        headers=in_org(ws.agent, ws.org_id),
+    )
+    after = await overview()
+    assert after["tickets_replied"] == 1
+    assert after["median_first_response_minutes"] is not None
 
 
 async def test_ai_performance_reports_outcomes_feedback_and_gaps(
