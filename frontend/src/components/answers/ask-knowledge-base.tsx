@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/empty";
 import { Textarea } from "@/components/ui/textarea";
 import { api, errorMessage, tenant, unwrap, type AIRun } from "@/lib/api/client";
-import { ANSWER_STATUS, DECISION_REASONS, formatSeconds, modelLabel } from "@/lib/answers";
+import { ANSWER_STATUS, answeredBy, DECISION_REASONS, formatSeconds, modelLabel } from "@/lib/answers";
 import { useActiveOrganization } from "@/lib/org/org-provider";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
@@ -125,7 +125,7 @@ function AnswerReply({ run }: { run: AIRun }) {
         </>
       )}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-        <span>{answer.model}</span>
+        <span>{answeredBy(answer)}</span>
         <span className="tabular-nums">{formatSeconds(run.latency_ms)}</span>
         <FeedbackButtons runId={run.id} />
         <Link

@@ -145,12 +145,12 @@ export function RunDetail() {
       <div className="space-y-3">
         {backLink}
         <h1 className="text-2xl font-semibold tracking-tight break-words">“{data.query}”</h1>
-        <p className="text-sm text-muted-foreground">
+        <div className="text-sm text-muted-foreground">
           {data.user?.full_name ?? "Deleted user"} ·{" "}
           <time dateTime={data.created_at}>{formatDateTime(data.created_at)}</time> ·{" "}
           {formatMs(data.latency_ms)}
           {data.answer ? <FeedbackButtons runId={data.id} className="ml-2 align-middle" /> : null}
-        </p>
+        </div>
       </div>
 
       {data.answer ? <AnswerCard answer={data.answer} passageId={passageId} /> : null}

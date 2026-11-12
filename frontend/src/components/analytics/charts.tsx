@@ -155,7 +155,8 @@ function Axes({
             key={String(row.day)}
             x={x(i)}
             y={HEIGHT - 6}
-            textAnchor="middle"
+            // A label centred on the last point would be cut off at the right edge.
+            textAnchor={x(i) + 18 > width ? "end" : "middle"}
             className="fill-muted-foreground text-[10px]"
           >
             {shortDay(String(row.day))}

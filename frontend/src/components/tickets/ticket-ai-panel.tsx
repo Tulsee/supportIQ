@@ -19,7 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { api, errorMessage, tenant, unwrap, type AIRun, type Ticket } from "@/lib/api/client";
-import { ANSWER_STATUS, DECISION_REASONS, formatSeconds } from "@/lib/answers";
+import { ANSWER_STATUS, answeredBy, DECISION_REASONS, formatSeconds } from "@/lib/answers";
 import { useActiveOrganization } from "@/lib/org/org-provider";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -44,7 +44,7 @@ function useElapsed(startedAt: number | null): number {
 function RunFooter({ run }: { run: AIRun }) {
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-      <span>{run.answer?.model}</span>
+      {run.answer ? <span>{answeredBy(run.answer)}</span> : null}
       <span className="tabular-nums">{formatSeconds(run.latency_ms)}</span>
       <FeedbackButtons runId={run.id} />
       <Link

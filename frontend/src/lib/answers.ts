@@ -113,3 +113,8 @@ export function modelLabel(model: Pick<ModelStatus, "provider" | "model">): stri
 export function formatSeconds(ms: number): string {
   return ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toFixed(1)} s`;
 }
+
+/** The model's name, or a note when the policy decided before asking it. */
+export function answeredBy(answer: { model: string; output_tokens: number | null; status: string }): string {
+  return answer.output_tokens != null || answer.status === "failed" ? answer.model : "Model not asked";
+}

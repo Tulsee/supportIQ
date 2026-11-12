@@ -361,11 +361,15 @@ class AnswerService:
             answer.timings = {"total": answer.latency_ms}
             return self._finish(answer, verdict, signals, None, None, selected, started)
 
+        model_started = time.perf_counter()
         completion = await self._complete(answer, built)
+        model_ms = _elapsed_ms(model_started)
         if completion is None:
             answer.latency_ms = _elapsed_ms(started)
             failed = Verdict(Decision.ABSTAIN, "model_error", "after")
-            return self._finish(answer, failed, signals, None, None, selected, started)
+            return self._finish(
+                answer, failed, signals, None, None, selected, started, model_ms=model_ms
+            )
 
         parsed = parse_structured(completion.text)
         checked = check_answer(parsed.answer, len(built.passages)) if parsed.answer else None
@@ -396,7 +400,9 @@ class AnswerService:
         if verdict is None:  # observe mode keeps a decision made before generation
             verdict = decide_after(signals, self.thresholds)
         answer.latency_ms = _elapsed_ms(started)
-        return self._finish(answer, verdict, signals, parsed, checked, selected, started, grounding)
+        return self._finish(
+            answer, verdict, signals, parsed, checked, selected, started, grounding, model_ms
+        )
 
     @staticmethod
     def _model_status(parsed: StructuredAnswer, checked: CheckedAnswer | None) -> str:
@@ -417,7 +423,9 @@ class AnswerService:
         selected: list[RetrievalResult],
         started: float,
         grounding: Grounding | None = None,
+        model_ms: float = 0.0,
     ) -> _Outcome:
+        """`model_ms` (the model call) is left out of the assessment's own time."""
         citations: list[Citation] = []
         if answer.status != AnswerStatus.FAILED:
             if verdict.decision is Decision.ANSWER and checked is not None:
@@ -469,7 +477,7 @@ class AnswerService:
                 for c in (grounding.claims if grounding else [])
             ],
             nli_model=self.nli.model_name if self.nli is not None and grounding else None,
-            latency_ms=_elapsed_ms(started),
+            latency_ms=round(max(0.0, _elapsed_ms(started) - model_ms), 2),
         )
         return _Outcome(answer, citations, assessment)
 

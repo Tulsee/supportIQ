@@ -141,7 +141,9 @@ export function AssessmentCard({ assessment }: { assessment: Assessment }) {
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-muted-foreground">Assessment time</dt>
+            <dt className="text-xs text-muted-foreground" title="Signals, citation and claim checks; the model's own time is not included">
+              Checks took
+            </dt>
             <dd className="tabular-nums">{formatSeconds(assessment.latency_ms)}</dd>
           </div>
         </dl>
