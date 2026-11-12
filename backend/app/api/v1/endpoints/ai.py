@@ -16,6 +16,7 @@ from app.api.deps import (
     DbSession,
     EmbedderDep,
     LLMClientDep,
+    NliModelDep,
     Pagination,
     RateLimiterDep,
     RerankerDep,
@@ -24,10 +25,11 @@ from app.api.deps import (
 )
 from app.models import AIRunKind
 from app.schemas.ai_runs import AIRunRead, AIRunSummary
-from app.schemas.answers import AskRequest, ModelStatusRead
+from app.schemas.answers import AskRequest, FeedbackCreate, FeedbackSummary, ModelStatusRead
 from app.schemas.common import Page, error_responses
 from app.schemas.retrieval import RetrieveRequest
 from app.services.answering import AnswerService
+from app.services.feedback import FeedbackService
 from app.services.retrieval import RetrievalService
 
 router = APIRouter(
@@ -70,18 +72,20 @@ async def chat(
     vector_store: VectorStoreDep,
     reranker: RerankerDep,
     llm: LLMClientDep,
+    nli: NliModelDep,
     limiter: RateLimiterDep,
 ) -> AIRunRead:
-    """Retrieves passages as `POST /ai/retrieve` does, then has the language model
-    answer from those passages only, citing them by number. Citations always resolve
-    to retrieved passages (document, version, page, section); numbers the model
-    invents are removed. If the model is unavailable the run is still recorded,
-    with `answer.status = failed` and the reason in `answer.error`. A local model
-    can take a minute or more."""
+    """Retrieves passages as `POST /ai/retrieve` does, assesses the evidence, and then
+    answers from those passages only, asks a clarifying question, escalates (the
+    sources disagree) or abstains (`answer.status`; the signals and the reason are in
+    `assessment`). Citations always resolve to retrieved passages (document, version,
+    page, section); numbers the model invents are removed. If the model is
+    unavailable the run is still recorded, with `answer.status = failed`. A local
+    model can take a minute or more."""
     retrieval = RetrievalService(
         session, embedder=embedder, vector_store=vector_store, reranker=reranker
     )
-    service = AnswerService(session, retrieval=retrieval, llm=llm, rate_limiter=limiter)
+    service = AnswerService(session, retrieval=retrieval, llm=llm, nli=nli, rate_limiter=limiter)
     run, results = await service.answer(member, user, body)
     return AIRunRead.build_with(run, results)
 
@@ -119,3 +123,23 @@ async def list_runs(
 async def get_run(run_id: uuid.UUID, member: TenantMembership, session: DbSession) -> AIRunRead:
     run, results = await RetrievalService(session).get_run(member, run_id)
     return AIRunRead.build_with(run, results)
+
+
+@router.get("/runs/{run_id}/feedback", summary="Ratings of an AI run")
+async def get_feedback(
+    run_id: uuid.UUID, member: TenantMembership, user: CurrentUser, session: DbSession
+) -> FeedbackSummary:
+    return FeedbackSummary(**await FeedbackService(session).summary(member, user, run_id))
+
+
+@router.put("/runs/{run_id}/feedback", summary="Rate an AI run")
+async def rate_run(
+    run_id: uuid.UUID,
+    body: FeedbackCreate,
+    member: TenantMembership,
+    user: CurrentUser,
+    session: DbSession,
+) -> FeedbackSummary:
+    """Helpful or not, with an optional comment; rating again replaces your rating."""
+    summary = await FeedbackService(session).rate(member, user, run_id, body.rating, body.comment)
+    return FeedbackSummary(**summary)

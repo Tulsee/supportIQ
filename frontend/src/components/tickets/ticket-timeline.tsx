@@ -37,6 +37,10 @@ function describe(event: TicketEvent, audience: "staff" | "customer", byMe: bool
       const from = data.from as Person;
       return from ? `unassigned ${from.name}` : "unassigned the ticket";
     }
+    case "ai_escalated":
+      return data.reason === "conflicting_sources"
+        ? "asked the AI for a reply; the documents disagree, so a person should answer"
+        : "asked the AI for a reply; it couldn't find a supported answer";
   }
 }
 

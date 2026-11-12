@@ -36,6 +36,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import NullPool
 
 from ai_engine.embeddings.embedder import HashingEmbedder
+from ai_engine.evidence.nli import OverlapNli
 from ai_engine.reranking.cross_encoder import OverlapReranker
 from ai_engine.retrieval.vector_store import QdrantVectorStore
 from app.api.deps import (
@@ -43,6 +44,7 @@ from app.api.deps import (
     get_event_broker,
     get_ingestion_queue,
     get_llm_client_dep,
+    get_nli_model_dep,
     get_rate_limiter,
     get_reranker_dep,
     get_vector_store,
@@ -202,6 +204,12 @@ def reranker() -> OverlapReranker:
 
 
 @pytest.fixture
+def nli() -> OverlapNli:
+    """Model-free NLI stand-in (word overlap; unknown numbers contradict)."""
+    return OverlapNli()
+
+
+@pytest.fixture
 def llm() -> ScriptedLLM:
     """Language-model stand-in: scripted replies, recorded prompts."""
     return ScriptedLLM()
@@ -245,6 +253,7 @@ def make_client(
     worker_registry: StaticWorkerRegistry,
     reranker: OverlapReranker,
     llm: ScriptedLLM,
+    nli: OverlapNli,
 ) -> ClientFactory:
     """Factory for HTTP clients against ``target_app`` (default: the real app), all
     sharing the test's rolled-back session and in-process stand-ins (rate limiter,
@@ -272,6 +281,7 @@ def make_client(
             get_worker_registry: lambda: worker_registry,
             get_reranker_dep: lambda: reranker,
             get_llm_client_dep: lambda: llm,
+            get_nli_model_dep: lambda: nli,
         }
         target_app.dependency_overrides.update(overrides)
         try:

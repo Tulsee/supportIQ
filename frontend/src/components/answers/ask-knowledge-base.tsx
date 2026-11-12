@@ -12,6 +12,7 @@ import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 
 import { AnswerSources, AnswerText } from "@/components/answers/answer-text";
+import { FeedbackButtons } from "@/components/answers/feedback-buttons";
 import { ModelStatusAlert, useModelStatus } from "@/components/answers/model-status";
 import { PageHeader } from "@/components/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -26,12 +27,14 @@ import {
 } from "@/components/ui/empty";
 import { Textarea } from "@/components/ui/textarea";
 import { api, errorMessage, tenant, unwrap, type AIRun } from "@/lib/api/client";
-import { ANSWER_STATUS, formatSeconds, modelLabel } from "@/lib/answers";
+import { ANSWER_STATUS, DECISION_REASONS, formatSeconds, modelLabel } from "@/lib/answers";
 import { useActiveOrganization } from "@/lib/org/org-provider";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 
 const MAX_QUESTION = 500; // the API's limit
+
+type HistoryTurn = { question: string; answer: string };
 
 type Exchange = {
   id: string;
@@ -88,12 +91,26 @@ function AnswerReply({ run }: { run: AIRun }) {
         </Alert>
       ) : (
         <>
-          {answer.status !== "answered" ? (
+          {answer.status === "escalated" ? (
+            <Alert>
+              <CircleAlertIcon aria-hidden />
+              <AlertTitle>The documents disagree</AlertTitle>
+              <AlertDescription>
+                Here is what each source says. A team member should confirm which is right.
+              </AlertDescription>
+            </Alert>
+          ) : answer.status !== "answered" ? (
             <Badge variant={status.tone === "warn" ? "destructive" : "secondary"} title={status.description}>
               {status.label}
             </Badge>
           ) : null}
           <AnswerText answer={answer} sourceId={sourceId} />
+          {run.assessment && run.assessment.decision !== "answer" && answer.status !== "escalated" ? (
+            <p className="text-xs text-muted-foreground">
+              {DECISION_REASONS[run.assessment.reason] ?? run.assessment.reason}
+              {answer.status === "clarify" ? " Ask again with more detail below." : ""}
+            </p>
+          ) : null}
           {answer.status === "uncited" ? (
             <p className="text-xs text-muted-foreground">{status.description}</p>
           ) : null}
@@ -110,6 +127,7 @@ function AnswerReply({ run }: { run: AIRun }) {
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
         <span>{answer.model}</span>
         <span className="tabular-nums">{formatSeconds(run.latency_ms)}</span>
+        <FeedbackButtons runId={run.id} />
         <Link
           href={`/ai-inspector/${run.id}`}
           className="ml-auto inline-flex items-center gap-0.5 font-medium text-foreground hover:underline"
@@ -160,11 +178,11 @@ export function AskKnowledgeBase() {
   const endRef = useRef<HTMLDivElement>(null);
 
   const ask = useMutation({
-    mutationFn: (query: string) =>
+    mutationFn: ({ query, history }: { query: string; history: HistoryTurn[] }) =>
       unwrap(
         api.POST("/api/v1/ai/chat", {
           params: { header: tenant(organization.id) },
-          body: { query, strategy: "auto", rerank: true, top_k: 5 },
+          body: { query, strategy: "auto", rerank: true, top_k: 5, history },
         }),
       ),
   });
@@ -182,10 +200,15 @@ export function AskKnowledgeBase() {
   async function submit() {
     if (!canAsk) return;
     const id = crypto.randomUUID();
+    // The last few turns, so a follow-up ("and for the camera?") is understood.
+    const history = exchanges
+      .filter((e) => e.run?.answer?.text)
+      .slice(-3)
+      .map((e) => ({ question: e.question, answer: e.run?.answer?.text ?? "" }));
     setExchanges((previous) => [...previous, { id, question, startedAt: Date.now() }]);
     setDraft("");
     try {
-      update(id, { run: await ask.mutateAsync(question) });
+      update(id, { run: await ask.mutateAsync({ query: question, history }) });
       // Every answer is recorded; the inspector list may be mounted but hidden.
       void queryClient.invalidateQueries({
         queryKey: queryKeys.aiRuns(organization.id),
@@ -206,8 +229,8 @@ export function AskKnowledgeBase() {
         title="Ask the knowledge base"
         description={
           <>
-            Answers come only from your documents and cite the passages they use. Each question is
-            answered on its own.
+            Answers come only from your documents and cite the passages they use. Follow-up
+            questions are understood in context.
             {model.data ? (
               <span className="mt-1 block text-xs">Answered by {modelLabel(model.data)}</span>
             ) : null}

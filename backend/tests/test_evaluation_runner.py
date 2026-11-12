@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ai_engine.embeddings.embedder import HashingEmbedder
 from ai_engine.evaluation.dataset import load_dataset
 from ai_engine.evaluation.metrics import summarize
+from ai_engine.evidence.policy import Thresholds
 from ai_engine.generation.llm import Prompt
 from ai_engine.generation.prompt import NOT_FOUND_ANSWER
 from ai_engine.reranking.cross_encoder import OverlapReranker
@@ -18,6 +19,7 @@ from ai_engine.retrieval.vector_store import QdrantVectorStore
 from app.core.storage import LocalObjectStorage
 from app.evaluation.report import build_report, markdown, write_report
 from app.evaluation.runner import EvaluationRunner, RunOptions
+from app.evaluation.tuning import tune
 from tests.factories import API, TEST_INGESTION_LIMITS, ScriptedLLM, create_user, in_org
 
 pytestmark = pytest.mark.anyio
@@ -165,7 +167,7 @@ async def test_runs_questions_and_scores_them(
     assert json.loads(json_path.read_text(encoding="utf-8"))["metrics"]["overall"]["questions"] == 3
     text = md_path.read_text(encoding="utf-8")
     assert "## Headline" in text and "## By category" in text
-    assert "`c1` (conflicting)" in text and "answered; expected escalate" in text
+    assert "`c1` (conflicting)" in text and "answer (supported); expected escalate" in text
     assert "`a1`" not in text.split("## To review")[1]
     assert report["pipeline"]["llm"]["model_versions"] == ["sha256:test"]
     assert markdown(report) == text
@@ -205,3 +207,39 @@ def load_dataset_from(rows: list[dict], folder: Path) -> list:
     path = folder / "subset.jsonl"
     path.write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
     return load_dataset(path).questions
+
+
+async def test_an_observe_run_can_be_tuned(
+    runner: EvaluationRunner, corpus: Path, dataset_file: Path, tmp_path: Path
+) -> None:
+    dataset = load_dataset(dataset_file)
+    workspace = await runner.prepare(corpus)
+    started = datetime.now(UTC)
+    options = RunOptions(top_k=3, policy="observe")
+
+    outcomes = await runner.run(workspace, dataset.questions, options)
+
+    assert all(o.signals is not None and o.signals["generated"] for o in outcomes)
+    assert all(o.decision is not None for o in outcomes)
+    report = build_report(
+        name="observe",
+        dataset=dataset,
+        questions=dataset.questions,
+        selection={"split": "all"},
+        outcomes=outcomes,
+        options=options,
+        workspace=workspace,
+        corpus=corpus,
+        llm=runner.llm,
+        started_at=started,
+        finished_at=datetime.now(UTC),
+    )
+    result = tune(report, split="all")
+
+    assert result["questions"] == 3
+    assert 0 <= result["best"]["accuracy"] <= 1
+    assert result["best"]["accuracy"] >= result["defaults"]["accuracy"]
+    assert set(result["best"]["thresholds"]) == set(Thresholds().as_dict())
+    assert report["pipeline"]["policy"] == "observe"
+    with pytest.raises(ValueError, match="observe run"):
+        tune({**report, "pipeline": {**report["pipeline"], "policy": "assessed"}})

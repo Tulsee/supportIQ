@@ -1,5 +1,6 @@
-"""Answers from the knowledge base end to end: retrieval, the prompt, the model
-(scripted), citation checks, and the recorded run."""
+"""Answers from the knowledge base end to end under the baseline policy (always
+answer): retrieval, the prompt, the model (scripted), citation checks, and the
+recorded run. The evidence policy is tested in test_assessment.py."""
 
 import uuid
 from collections.abc import Awaitable, Callable
@@ -27,6 +28,12 @@ from tests.factories import (
 from tests.test_retrieval import MANUAL, upload_and_index
 
 pytestmark = pytest.mark.anyio
+
+
+@pytest.fixture(autouse=True)
+def baseline_policy(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, "ai_decision_policy", "baseline")
+
 
 Ingest = Callable[..., Awaitable[Outcome]]
 

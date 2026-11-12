@@ -29,6 +29,45 @@ export const ANSWER_STATUS: Record<AnswerStatus, { label: string; description: s
     description: "The model produced no answer.",
     tone: "error",
   },
+  clarify: {
+    label: "Needs clarification",
+    description: "The question could mean several things, so the assistant asked which one.",
+    tone: "muted",
+  },
+  escalated: {
+    label: "Escalated",
+    description: "The documents disagree about this, so a person should confirm the answer.",
+    tone: "warn",
+  },
+  abstained: {
+    label: "Not answered",
+    description: "The evidence didn't support a reliable answer, so the assistant held back.",
+    tone: "muted",
+  },
+};
+
+/** Why the evidence policy decided what it did (assessment.reason). */
+export const DECISION_REASONS: Record<string, string> = {
+  no_passages: "No passages matched the question.",
+  low_relevance: "The best passage was only weakly related to the question.",
+  vague_question: "The question has no specific subject, so it was clarified before asking the model.",
+  low_coverage: "Too few of the question's words appear in the passages.",
+  model_ambiguous: "The model found that the question could mean several things.",
+  conflicting_sources: "The model found that the passages give different answers.",
+  model_not_found: "The model found no answer in the passages.",
+  incomplete_evidence: "The passages answer only part of the question.",
+  no_citations: "The answer didn't cite any passage.",
+  contradicted_by_source: "A claim in the answer is contradicted by the passage it cites.",
+  weak_grounding: "The cited passages don't clearly state the answer's claims.",
+  model_error: "The model produced no answer.",
+  supported: "The evidence is relevant and every claim cites a passage.",
+};
+
+export const DECISION_LABELS: Record<string, string> = {
+  answer: "Answer",
+  clarify: "Clarify",
+  escalate: "Escalate",
+  abstain: "Abstain",
 };
 
 export const PROVIDER_LABELS: Record<string, string> = {

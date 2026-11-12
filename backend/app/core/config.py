@@ -127,6 +127,11 @@ class Settings(BaseSettings):
     ocr_min_text_chars: int = 20
     ocr_max_pages: int = 200
     ocr_dpi: Annotated[int, Field(ge=72, le=400)] = 200
+    # "devanagari": Nepali/Hindi and English (downloads ~18 MB once). "default": the
+    # bundled model (Chinese, Japanese, English, Latin scripts; no Devanagari).
+    ocr_script: Literal["devanagari", "default"] = "devanagari"
+    # Lines read with lower confidence are dropped (handwriting scores low).
+    ocr_min_confidence: Annotated[float, Field(ge=0, le=1)] = 0.8
     # Upload and processing limits.
     max_upload_bytes: int = 20 * 1024 * 1024
     max_document_pages: int = 2_000
@@ -156,6 +161,24 @@ class Settings(BaseSettings):
     anthropic_model: str = "claude-opus-5-5"
     anthropic_effort: Literal["low", "medium", "high", "xhigh", "max"] = "medium"
     anthropic_max_output_tokens: Annotated[int, Field(ge=1024)] = 16_000
+
+    # --- Evidence assessment (Module 5) ---------------------------------------------
+    # "assessed": answer, ask a clarifying question, escalate or abstain depending on
+    # the evidence. "baseline": always answer from the passages (the RAG baseline).
+    ai_decision_policy: Literal["assessed", "baseline"] = "assessed"
+    # Checks each cited claim against its source (downloaded once, ~90 MB).
+    nli_enabled: bool = True
+    nli_model: str = "cross-encoder/nli-deberta-v3-xsmall"
+    nli_onnx_file: str = "onnx/model_quint8_avx2.onnx"
+    # Decision thresholds, tuned on the dev split (`app.cli tune-policy`; see
+    # experiments/results/*-observe-dev-tuned-dev.json). The NLI thresholds are off
+    # (1.01, 0): on the dev split they changed no decision for the better.
+    policy_min_relevance: Annotated[float, Field(ge=0, le=1)] = 0.0
+    policy_clarify_vague: bool = True
+    policy_min_coverage: Annotated[float, Field(ge=0, le=1)] = 0.3
+    policy_abstain_on_partial: bool = False
+    policy_max_contradiction: Annotated[float, Field(ge=0, le=1.01)] = 1.01
+    policy_min_grounding: Annotated[float, Field(ge=0, le=1)] = 0.0
 
     # --- Auth -----------------------------------------------------------------
     jwt_secret_key: SecretStr = SecretStr(_DEV_JWT_SECRET)

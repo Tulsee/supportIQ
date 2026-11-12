@@ -15,11 +15,29 @@ import { cn } from "@/lib/utils";
 
 type Mode = "reply" | "note";
 
-export function ReplyBox({ ticket, audience }: { ticket: Ticket; audience: "staff" | "customer" }) {
+/** Text to put in the reply box (e.g. an AI suggestion); a new `key` applies it again. */
+export type ReplyDraft = { text: string; key: number };
+
+export function ReplyBox({
+  ticket,
+  audience,
+  draft,
+}: {
+  ticket: Ticket;
+  audience: "staff" | "customer";
+  draft?: ReplyDraft | null;
+}) {
   const organization = useActiveOrganization();
   const queryClient = useQueryClient();
   const [mode, setMode] = useState<Mode>("reply");
   const [body, setBody] = useState("");
+  const [appliedDraft, setAppliedDraft] = useState<number | null>(null);
+  if (draft && draft.key !== appliedDraft) {
+    // A new draft replaces the text (adjusting state during render, not in an effect).
+    setAppliedDraft(draft.key);
+    setMode("reply");
+    setBody(draft.text);
+  }
   const isNote = audience === "staff" && mode === "note";
 
   const send = useMutation({

@@ -96,6 +96,16 @@ function StaffDashboard() {
       ),
   });
 
+  const askedAI = useQuery({
+    queryKey: queryKeys.aiRuns(organization.id, { kind: "answer", limit: 1 }),
+    queryFn: () =>
+      unwrap(
+        api.GET("/api/v1/ai/runs", {
+          params: { query: { kind: "answer", limit: 1 }, header: tenant(organization.id) },
+        }),
+      ),
+  });
+
   const byStatus = counts.data?.by_status;
   const active = byStatus ? ACTIVE_STATUSES.reduce((sum, s) => sum + byStatus[s], 0) : undefined;
   const total = byStatus ? Object.values(byStatus).reduce((sum, n) => sum + n, 0) : 0;
@@ -113,7 +123,11 @@ function StaffDashboard() {
       done: (indexedDocuments.data?.total ?? 0) > 0,
       href: "/knowledge-base",
     },
-    { title: "Answer customer questions with cited AI", done: false, note: "Coming soon" },
+    {
+      title: "Ask the knowledge base a question with cited AI",
+      done: (askedAI.data?.total ?? 0) > 0,
+      href: "/ask",
+    },
   ];
 
   return (

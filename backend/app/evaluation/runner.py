@@ -23,7 +23,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ai_engine.embeddings.embedder import Embedder
 from ai_engine.evaluation.dataset import Question, document_files
 from ai_engine.evaluation.metrics import QuestionOutcome
+from ai_engine.evidence.nli import NliModel
+from ai_engine.evidence.policy import Thresholds
+from ai_engine.generation.citations import check_answer
 from ai_engine.generation.llm import LLMClient
+from ai_engine.generation.structured import parse_structured
 from ai_engine.reranking.cross_encoder import Reranker
 from ai_engine.retrieval.engine import RequestedStrategy
 from ai_engine.retrieval.vector_store import QdrantVectorStore
@@ -46,7 +50,7 @@ from app.repositories.users import UserRepository
 from app.schemas.answers import AskRequest
 from app.schemas.organizations import OrganizationCreate
 from app.schemas.retrieval import RetrieveRequest
-from app.services.answering import AnswerService
+from app.services.answering import AnswerService, Policy
 from app.services.documents import DocumentService
 from app.services.ingestion import IngestionLimits, IngestionService, Outcome
 from app.services.organizations import OrganizationService
@@ -68,6 +72,10 @@ class RunOptions:
     rerank: bool = True
     top_k: int = 5
     retrieval_only: bool = False
+    # baseline: always answer; assessed: the evidence policy; observe: the policy, but
+    # the model is always asked so every signal is recorded (for tuning).
+    policy: Policy = "assessed"
+    thresholds: Thresholds | None = None  # None: the configured thresholds
 
 
 @dataclass(frozen=True)
@@ -112,6 +120,7 @@ class EvaluationRunner:
         reranker: Reranker,
         llm: LLMClient,
         limits: IngestionLimits,
+        nli: NliModel | None = None,
     ) -> None:
         self.session = session
         self.storage = storage
@@ -119,6 +128,7 @@ class EvaluationRunner:
         self.vectors = vector_store
         self.reranker = reranker
         self.llm = llm
+        self.nli = nli
         self.limits = limits
 
     # --- Workspace -------------------------------------------------------------------------
@@ -272,7 +282,12 @@ class EvaluationRunner:
             )
         else:
             run, results = await AnswerService(
-                self.session, retrieval=retrieval, llm=self.llm
+                self.session,
+                retrieval=retrieval,
+                llm=self.llm,
+                nli=self.nli,
+                policy=options.policy,
+                thresholds=options.thresholds,
             ).answer(
                 workspace.member,
                 workspace.user,
@@ -308,4 +323,13 @@ class EvaluationRunner:
             outcome.error = answer.error
             outcome.model = answer.model
             outcome.model_version = answer.model_version
+            if answer.raw_output:
+                draft = parse_structured(answer.raw_output).answer
+                outcome.draft = check_answer(draft, answer.passage_count).text if draft else ""
+        assessment = run.assessment
+        if assessment is not None:
+            outcome.decision = assessment.decision.value
+            outcome.reason = assessment.reason
+            outcome.signals = assessment.signals
+            outcome.score = assessment.score
         return outcome

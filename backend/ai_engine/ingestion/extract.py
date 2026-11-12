@@ -225,6 +225,7 @@ def _ocr_scanned_pages(
         warnings.append("Scanned pages couldn't be rendered for OCR.")
         return 0
     read = 0
+    unreadable: list[int] = []
     try:
         for index in scanned[: ocr.max_pages]:
             try:
@@ -232,11 +233,15 @@ def _ocr_scanned_pages(
             except pypdfium2.PdfiumError:
                 warnings.append(f"Page {index + 1} couldn't be rendered for OCR.")
                 continue
+            detected = [line for line in ocr.engine.read(image) if line.text.strip()]
             lines = [
-                line.text
-                for line in ocr.engine.read(image)
-                if line.confidence >= ocr.min_confidence and line.text.strip()
+                line.text.strip()
+                for line in detected
+                if line.confidence >= ocr.min_confidence
+                and sum(c.isalnum() for c in line.text) >= 2
             ]
+            if detected and len(detected) - len(lines) >= ocr.unreadable_share * len(detected):
+                unreadable.append(index + 1)
             if lines:
                 texts[index] = "\n".join(lines)
                 read += 1
@@ -246,6 +251,12 @@ def _ocr_scanned_pages(
         pages = "page was" if read == 1 else "pages were"
         warnings.append(
             f"{read} scanned {pages} read with OCR; recognized text may contain errors."
+        )
+    if unreadable:
+        listed = ", ".join(str(n) for n in unreadable)
+        warnings.append(
+            f"Most of the text on page{'s' if len(unreadable) > 1 else ''} {listed} couldn't "
+            "be read (handwriting or a poor scan); only clearly recognized lines were kept."
         )
     if len(scanned) > ocr.max_pages:
         warnings.append(

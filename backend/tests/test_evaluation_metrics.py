@@ -1,11 +1,15 @@
 """Evaluation metrics on hand-made outcomes."""
 
+import math
+
 import pytest
 
 from ai_engine.evaluation.dataset import EXPECTED_ACTION, Evidence, Question
 from ai_engine.evaluation.metrics import (
     QuestionOutcome,
     answer_metrics,
+    calibration,
+    ndcg,
     percentile,
     retrieval_metrics,
     wilson,
@@ -113,3 +117,66 @@ def test_percentiles() -> None:
     assert percentile([], 50) is None
     assert percentile([5.0], 95) == 5.0
     assert percentile([float(v) for v in range(1, 101)], 50) == pytest.approx(50.5, abs=0.5)
+
+
+def test_ndcg_credits_each_quote_once() -> None:
+    q = question(
+        evidence=[Evidence("a.md", "The cooling fan has stopped"), Evidence("b.md", "5 to 7")]
+    )
+
+    perfect = outcome(q, [FAN, REFUND, OTHER])
+    swapped = outcome(q, [OTHER, FAN, REFUND])
+    repeated = outcome(q, [FAN, FAN, OTHER])
+
+    assert ndcg(perfect, 10) == pytest.approx(1.0)
+    assert ndcg(swapped, 10) == pytest.approx(
+        (1 / math.log2(3) + 1 / math.log2(4)) / (1 + 1 / math.log2(3))
+    )
+    assert ndcg(repeated, 10) == pytest.approx(1 / (1 + 1 / math.log2(3)))
+
+
+def test_calibration() -> None:
+    assert calibration([]) == {"n": 0, "brier": None, "ece": None}
+    perfect = calibration([(1.0, True), (0.0, False)])
+    assert perfect == {"n": 2, "brier": 0.0, "ece": 0.0}
+    overconfident = calibration([(0.9, False), (0.9, False), (0.9, True)])
+    assert overconfident["brier"] == pytest.approx((0.81 * 2 + 0.01) / 3, abs=1e-4)
+    assert overconfident["ece"] == pytest.approx(0.9 - 1 / 3, abs=1e-4)
+
+
+def test_compare_puts_runs_side_by_side(tmp_path) -> None:
+    import json
+
+    from app.evaluation.compare import compare
+
+    def report(name: str, sha: str, hit: float) -> dict:
+        return {
+            "name": name,
+            "started_at": "2026-11-12T00:00:00+00:00",
+            "dataset": {"sha256": sha},
+            "pipeline": {"mode": "retrieval", "strategy": "auto", "top_k": 5, "rerank": True},
+            "metrics": {
+                "overall": {
+                    "questions": 4,
+                    "retrieval": {
+                        "hit@5": {"value": hit, "successes": 2, "n": 4, "ci95": [0.1, 0.9]}
+                    },
+                    "latency": {"p50_ms": 1500.0},
+                },
+                "by_split": {},
+            },
+        }
+
+    paths = []
+    for r in (report("e1", "aaa", 0.5), report("e4", "aaa", 0.75), report("x", "bbb", 1.0)):
+        path = tmp_path / f"{r['name']}.json"
+        path.write_text(json.dumps(r), encoding="utf-8")
+        paths.append(path)
+
+    same = compare(paths[:2])
+    different = compare(paths)
+
+    assert "| Evidence hit@k | 50% (2/4; 10%-90%) | 75% (2/4; 10%-90%) |" in same
+    assert "| Latency p50 | 1.5 s | 1.5 s |" in same
+    assert "MRR@10" not in same  # rows nobody has are left out
+    assert "different datasets" in different

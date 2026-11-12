@@ -4,13 +4,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeftIcon, CircleCheckIcon, LockIcon } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useId } from "react";
+import { useId, useState } from "react";
 import { toast } from "sonner";
 
 import { Conversation } from "@/components/tickets/conversation";
 import { LIVE_QUERY, refreshTickets, useAssignableMembers } from "@/components/tickets/hooks";
 import { NewRequestDialog } from "@/components/tickets/new-request-dialog";
-import { ReplyBox } from "@/components/tickets/reply-box";
+import { ReplyBox, type ReplyDraft } from "@/components/tickets/reply-box";
+import { TicketAIPanel } from "@/components/tickets/ticket-ai-panel";
 import { PriorityLabel, StatusBadge } from "@/components/tickets/ticket-badges";
 import { TicketTimeline } from "@/components/tickets/ticket-timeline";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -180,6 +181,7 @@ export function TicketDetail() {
   const user = useCurrentUser();
   const audience = organization.role === "customer" ? "customer" : "staff";
   const header = tenant(organization.id);
+  const [draft, setDraft] = useState<ReplyDraft | null>(null);
 
   const ticket = useQuery({
     queryKey: queryKeys.ticket(organization.id, id),
@@ -314,7 +316,13 @@ export function TicketDetail() {
                   </AlertDescription>
                 </Alert>
               ) : null}
-              <ReplyBox ticket={data} audience={audience} />
+              {audience === "staff" ? (
+                <TicketAIPanel
+                  ticket={data}
+                  onUseReply={(text) => setDraft({ text, key: Date.now() })}
+                />
+              ) : null}
+              <ReplyBox ticket={data} audience={audience} draft={draft} />
             </>
           )}
         </section>

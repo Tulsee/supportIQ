@@ -1,10 +1,12 @@
-"""Process-wide knowledge-base clients: the embedding model, OCR, and Qdrant."""
+"""Process-wide knowledge-base clients: embeddings, reranking, OCR, NLI and Qdrant."""
 
 from functools import lru_cache
 
 from qdrant_client import AsyncQdrantClient
 
 from ai_engine.embeddings.embedder import Embedder, FastEmbedEmbedder
+from ai_engine.evidence.nli import NliModel, OnnxNliModel
+from ai_engine.evidence.policy import Thresholds
 from ai_engine.ingestion.ocr import OcrEngine, RapidOcrEngine
 from ai_engine.reranking.cross_encoder import FastEmbedReranker, Reranker
 from ai_engine.retrieval.vector_store import QdrantVectorStore, collection_name
@@ -29,8 +31,8 @@ def get_reranker() -> Reranker:
 
 @lru_cache
 def get_ocr_engine() -> OcrEngine:
-    """Loaded lazily on first scanned page (models ship with the package)."""
-    return RapidOcrEngine()
+    """Loaded lazily on the first scanned page (Devanagari models are downloaded then)."""
+    return RapidOcrEngine(settings.ocr_script, model_dir=settings.model_cache_dir / "rapidocr")
 
 
 def new_qdrant_client() -> AsyncQdrantClient:
@@ -53,3 +55,24 @@ async def close_qdrant_client() -> None:
 def vector_store_for(client: AsyncQdrantClient, embedder: Embedder) -> QdrantVectorStore:
     collection = collection_name(settings.qdrant_collection_prefix, embedder.model_name)
     return QdrantVectorStore(client, collection, embedder.dimensions)
+
+
+@lru_cache
+def get_nli_model() -> NliModel | None:
+    """Loaded lazily on the first claim check (downloaded then); None when disabled."""
+    if not settings.nli_enabled:
+        return None
+    return OnnxNliModel(
+        settings.nli_model, onnx_file=settings.nli_onnx_file, cache_dir=settings.model_cache_dir
+    )
+
+
+def policy_thresholds() -> Thresholds:
+    return Thresholds(
+        min_relevance=settings.policy_min_relevance,
+        clarify_vague=settings.policy_clarify_vague,
+        min_coverage=settings.policy_min_coverage,
+        abstain_on_partial=settings.policy_abstain_on_partial,
+        max_contradiction=settings.policy_max_contradiction,
+        min_grounding=settings.policy_min_grounding,
+    )

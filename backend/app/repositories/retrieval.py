@@ -143,6 +143,7 @@ class RunRepository:
                 selectinload(AIRun.answer)
                 .selectinload(AIAnswer.citations)
                 .joinedload(Citation.document),
+                selectinload(AIRun.assessment),
             )
             .where(AIRun.id == run_id, AIRun.organization_id == organization_id)
             .execution_options(populate_existing=True)

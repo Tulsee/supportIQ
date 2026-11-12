@@ -130,3 +130,19 @@
     @apply font-sans;
   }
 }
+
+/* Chart series colors (dataviz reference palette, slots 1-4: validated for adjacent
+   pairs, which covers lines and stacked bars). Dark steps are selected for the dark
+   surface, not inverted. Slots 3-4 are under 3:1 on light: charts ship a table view. */
+:root {
+  --viz-1: #2a78d6;
+  --viz-2: #eb6834;
+  --viz-3: #1baf7a;
+  --viz-4: #eda100;
+}
+.dark {
+  --viz-1: #3987e5;
+  --viz-2: #d95926;
+  --viz-3: #199e70;
+  --viz-4: #c98500;
+}

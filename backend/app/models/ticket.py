@@ -57,6 +57,7 @@ class TicketEventType(enum.StrEnum):
     SUBJECT_CHANGED = "subject_changed"
     ASSIGNED = "assigned"
     UNASSIGNED = "unassigned"
+    AI_ESCALATED = "ai_escalated"  # the AI couldn't draft a supported reply (staff only)
 
 
 # Events a customer may see on their own tickets (also enforced by RLS).

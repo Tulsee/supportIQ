@@ -53,7 +53,7 @@ const WORKSPACE: NavItem[] = [
   { title: "Knowledge base", icon: BookOpenIcon, href: "/knowledge-base", matchNested: true },
   { title: "Ask AI", icon: MessageSquareTextIcon, href: "/ask" },
   { title: "AI inspector", icon: ScanSearchIcon, href: "/ai-inspector", matchNested: true },
-  { title: "Analytics", icon: ChartLineIcon },
+  { title: "Analytics", icon: ChartLineIcon, href: "/analytics" },
 ];
 
 // Customer members only use the portal.

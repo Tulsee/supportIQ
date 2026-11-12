@@ -14,8 +14,9 @@ from typing import Any
 from ai_engine.evaluation.dataset import Dataset, Question
 from ai_engine.evaluation.metrics import QuestionOutcome, by_group, summarize
 from ai_engine.generation.llm import LLMClient
-from ai_engine.generation.prompt import PROMPT_VERSION
+from ai_engine.generation.prompt import PROMPT_VERSION, STRUCTURED_PROMPT_VERSION
 from app.core.config import REPO_ROOT, settings
+from app.core.knowledge import policy_thresholds
 from app.evaluation.runner import RunOptions, Workspace
 
 _PACKAGES = ("fastembed", "onnxruntime", "qdrant-client", "anthropic", "httpx2", "sqlalchemy")
@@ -86,6 +87,13 @@ def _question_record(outcome: QuestionOutcome) -> dict[str, Any]:
             "invalid_citations": outcome.invalid_citations,
             "generation_ms": outcome.generation_ms,
             "error": outcome.error,
+            "decision": outcome.decision,
+            "reason": outcome.reason,
+            "score": outcome.score,
+            "signals": outcome.signals,
+            "draft_correct": not outcome.draft_missing_facts
+            if q.answerable and outcome.draft is not None
+            else None,
         }
     return record
 
@@ -128,6 +136,10 @@ def build_report(
         },
         "pipeline": {
             "mode": "answer" if answers else "retrieval",
+            "policy": options.policy if answers else None,
+            "thresholds": (options.thresholds or policy_thresholds()).as_dict()
+            if answers and options.policy != "baseline"
+            else None,
             "strategy": options.strategy.value,
             "rerank": options.rerank,
             "top_k": k,
@@ -149,7 +161,9 @@ def build_report(
                 "model": llm.model,
                 "model_versions": versions,
                 "config": llm.config,
-                "prompt_version": PROMPT_VERSION,
+                "prompt_version": PROMPT_VERSION
+                if options.policy == "baseline"
+                else STRUCTURED_PROMPT_VERSION,
             }
             if answers
             else None,
@@ -205,6 +219,7 @@ def _headline_rows(report: dict[str, Any]) -> list[tuple[str, str]]:
             ("Answers without citations", _rate(answers["uncited_answers"])),
             ("Invented citations removed", str(answers["invalid_citations"])),
             ("Model failures", str(answers["failures"])),
+            ("Decision accuracy: did what the label expects", _rate(answers["decision_accuracy"])),
         ]
     rows += [
         (f"Evidence hit@{k}", _rate(retrieval[f"hit@{k}"])),
@@ -229,10 +244,9 @@ def _review(report: dict[str, Any]) -> list[str]:
         reason = None
         if q["status"] == "failed":
             reason = f"failed: {q['error']}"
-        elif q["expected_action"] != "answer" and q["action"] == "answer":
-            reason = f"answered; expected {q['expected_action']}"
-        elif q["expected_action"] == "answer" and q["action"] != "answer":
-            reason = f"{q['status']}; expected an answer"
+        elif q["action"] != q["expected_action"]:
+            why = f" ({q['reason']})" if q.get("reason") else ""
+            reason = f"{q['action']}{why}; expected {q['expected_action']}"
         elif q["missing_facts"]:
             reason = "missing " + ", ".join(f"'{f}'" for f in q["missing_facts"])
         if reason:
@@ -268,6 +282,8 @@ def markdown(report: dict[str, Any]) -> str:
         f"- Retrieval: {pipeline['strategy']}, top {pipeline['top_k']}, "
         f"{'reranked' if pipeline['rerank'] else 'not reranked'}, {pipeline['embedding_model']}",
         f"- Model: {model}",
+        f"- Decision policy: {pipeline.get('policy') or 'n/a'}"
+        + (f", thresholds {pipeline['thresholds']}" if pipeline.get("thresholds") else ""),
         f"- Code: {code}",
         "",
         "## Headline",
@@ -282,8 +298,9 @@ def markdown(report: dict[str, Any]) -> str:
         lines += [
             "## By category",
             "",
-            "| Category | Questions | Expected | Answered | Abstained | Failed | Correct |",
-            "| --- | --- | --- | --- | --- | --- | --- |",
+            "| Category | Questions | Expected | Answered | Clarified | Escalated | Abstained "
+            "| Failed | Correct |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
         ]
         expected = {q["category"]: q["expected_action"] for q in report["questions"]}
         for category, summary in by_category.items():
@@ -291,7 +308,8 @@ def markdown(report: dict[str, Any]) -> str:
             correct = summary["answers"]["correctness"]
             lines.append(
                 f"| {category} | {summary['questions']} | {expected[category]} "
-                f"| {actions.get('answer', 0)} | {actions.get('abstain', 0)} "
+                f"| {actions.get('answer', 0)} | {actions.get('clarify', 0)} "
+                f"| {actions.get('escalate', 0)} | {actions.get('abstain', 0)} "
                 f"| {actions.get('error', 0)} "
                 f"| {correct['successes']}/{correct['n'] if correct['n'] else 0} |"
             )

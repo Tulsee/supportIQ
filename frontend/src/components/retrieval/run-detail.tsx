@@ -7,6 +7,8 @@ import { useParams } from "next/navigation";
 import { useId } from "react";
 
 import { AnswerCard, PromptCard } from "@/components/answers/answer-details";
+import { AssessmentCard } from "@/components/answers/assessment-card";
+import { FeedbackButtons } from "@/components/answers/feedback-buttons";
 import { PassageCard } from "@/components/retrieval/passage-card";
 import { RunSummary } from "@/components/retrieval/run-summary";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -147,10 +149,12 @@ export function RunDetail() {
           {data.user?.full_name ?? "Deleted user"} ·{" "}
           <time dateTime={data.created_at}>{formatDateTime(data.created_at)}</time> ·{" "}
           {formatMs(data.latency_ms)}
+          {data.answer ? <FeedbackButtons runId={data.id} className="ml-2 align-middle" /> : null}
         </p>
       </div>
 
       {data.answer ? <AnswerCard answer={data.answer} passageId={passageId} /> : null}
+      {data.assessment ? <AssessmentCard assessment={data.assessment} /> : null}
       {data.kind === "answer" && !data.answer ? (
         <Alert>
           <AlertTitle>No answer was recorded</AlertTitle>

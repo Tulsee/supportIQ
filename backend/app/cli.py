@@ -5,6 +5,8 @@
     uv run python -m app.cli purge-expired
     uv run python -m app.cli export-openapi --output openapi.json
     uv run python -m app.cli evaluate --name baseline
+    uv run python -m app.cli tune-policy --report experiments/results/<observe run>.json
+    uv run python -m app.cli compare experiments/results/a.json experiments/results/b.json
 
 Super admin can only be bootstrapped here (there is no API to grant it from
 scratch); afterwards super admins can manage each other via /api/v1/admin.
@@ -65,7 +67,13 @@ async def _evaluate(args: argparse.Namespace) -> int:
     from ai_engine.evaluation.metrics import QuestionOutcome
     from ai_engine.retrieval.engine import RequestedStrategy
     from app.core.config import settings
-    from app.core.knowledge import get_embedder, get_reranker, new_qdrant_client, vector_store_for
+    from app.core.knowledge import (
+        get_embedder,
+        get_nli_model,
+        get_reranker,
+        new_qdrant_client,
+        vector_store_for,
+    )
     from app.core.llm import build_llm_client
     from app.core.storage import get_object_storage
     from app.evaluation.report import build_report, write_report
@@ -87,6 +95,7 @@ async def _evaluate(args: argparse.Namespace) -> int:
         rerank=not args.no_rerank,
         top_k=args.top_k,
         retrieval_only=args.retrieval_only,
+        policy=args.policy,
     )
     llm = build_llm_client(settings.model_copy(update={"ollama_seed": args.seed}))
     if not options.retrieval_only:
@@ -123,6 +132,7 @@ async def _evaluate(args: argparse.Namespace) -> int:
                 reranker=get_reranker(),
                 llm=llm,
                 limits=IngestionLimits.from_settings(),
+                nli=get_nli_model() if args.policy != "baseline" else None,
             )
             try:
                 workspace = await runner.prepare(args.documents, share_with=args.share_with)
@@ -159,8 +169,53 @@ async def _evaluate(args: argparse.Namespace) -> int:
     return 0
 
 
+def _compare(args: argparse.Namespace) -> int:
+    from app.evaluation.compare import compare
+
+    try:
+        table = compare(args.reports, args.split)
+    except (OSError, ValueError, KeyError) as exc:
+        print(f"Can't compare: {exc}", file=sys.stderr)
+        return 1
+    if args.output:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(table, encoding="utf-8")
+        print(f"Written: {args.output}")
+    else:
+        sys.stdout.write(table)
+    return 0
+
+
+def _tune_policy(args: argparse.Namespace) -> int:
+    from app.evaluation.tuning import env_lines, tune_file
+
+    try:
+        result = tune_file(args.report, args.split)
+    except (OSError, ValueError, KeyError) as exc:
+        print(f"Can't tune from {args.report}: {exc}", file=sys.stderr)
+        return 1
+    best, default = result["best"], result["defaults"]
+    print(f"{result['questions']} {result['split']} questions from {result['source_run']}")
+    for label, r in (("defaults", default), ("best", best)):
+        print(
+            f"{label:<9} accuracy {r['accuracy']:.0%}, {r['answered']} answered "
+            f"({r['answered_correct']} correct and warranted), {r['unsupported']} unsupported, "
+            f"{r['skipped_generations']} decided without the model"
+        )
+    print(f"({result['equally_good']} settings tie; shown: fewest model calls, then loosest)")
+    print("\n".join(env_lines(best["thresholds"])))
+    output = args.report.with_name(args.report.stem + f"-tuned-{args.split}.json")
+    output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+    print(f"Written: {output}")
+    return 0
+
+
 async def _run(args: argparse.Namespace) -> int:
     try:
+        if args.command == "tune-policy":
+            return _tune_policy(args)
+        if args.command == "compare":
+            return _compare(args)
         if args.command == "evaluate":
             return await _evaluate(args)
         if args.command == "grant-superadmin":
@@ -207,6 +262,13 @@ def _add_evaluate(commands: "argparse._SubParsersAction[argparse.ArgumentParser]
     )
     evaluate.add_argument("--top-k", type=int, default=5, choices=range(1, 11), metavar="1-10")
     evaluate.add_argument("--no-rerank", action="store_true", help="Skip the cross-encoder")
+    evaluate.add_argument(
+        "--policy",
+        choices=["assessed", "baseline", "observe"],
+        default="assessed",
+        help="assessed: the evidence policy; baseline: always answer; observe: the "
+        "policy, but always ask the model (records every signal, for tune-policy)",
+    )
     evaluate.add_argument("--seed", type=int, default=42, help="Ollama sampling seed")
     evaluate.add_argument(
         "--share-with",
@@ -232,6 +294,21 @@ def main(argv: list[str] | None = None) -> int:
     export = commands.add_parser("export-openapi", help="Write the OpenAPI document as JSON")
     export.add_argument("--output", type=Path, help="File to write (default: stdout)")
     _add_evaluate(commands)
+    tune = commands.add_parser(
+        "tune-policy",
+        help="Choose evidence-policy thresholds from an observe run",
+        description="Replay the decision policy over the signals recorded by "
+        "`evaluate --policy observe` under a grid of thresholds and report the best on "
+        "the chosen split (no model calls).",
+    )
+    tune.add_argument("--report", type=Path, required=True, help="An observe run's JSON")
+    tune.add_argument("--split", choices=["dev", "test", "all"], default="dev")
+    comparison = commands.add_parser(
+        "compare", help="Compare evaluation runs side by side (Markdown table)"
+    )
+    comparison.add_argument("reports", type=Path, nargs="+", help="Run JSON files")
+    comparison.add_argument("--split", choices=["all", "dev", "test"], default="all")
+    comparison.add_argument("--output", type=Path, help="File to write (default: stdout)")
     args = parser.parse_args(argv)
     if args.command == "export-openapi":
         return _export_openapi(args.output)

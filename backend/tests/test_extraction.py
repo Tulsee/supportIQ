@@ -67,19 +67,49 @@ class FakeOcr:
 
 def test_only_pages_without_text_are_read_with_ocr() -> None:
     pdf = make_pdf([["This page has a real text layer."], []])
-    engine = FakeOcr([OcrLine("Scanned warranty terms.", 0.98), OcrLine("noise", 0.2)])
+    engine = FakeOcr(
+        [
+            OcrLine("Scanned warranty terms.", 0.98),
+            OcrLine("Claims within 14 days.", 0.95),
+            OcrLine("noise", 0.2),
+        ]
+    )
 
     document = extract(DocumentType.PDF, pdf, **LIMITS, ocr=OcrOptions(engine))
 
     assert engine.calls == 1
     assert [(b.page, b.text) for b in document.blocks] == [
         (1, "This page has a real text layer."),
-        (2, "Scanned warranty terms."),  # the low-confidence line is dropped
+        (2, "Scanned warranty terms.\nClaims within 14 days."),  # the noise line is dropped
     ]
     assert document.ocr_pages == 1
     assert document.warnings == [
         "1 scanned page was read with OCR; recognized text may contain errors."
     ]
+
+
+def test_mostly_unreadable_pages_keep_only_clear_lines_and_are_reported() -> None:
+    # Handwriting: a printed letterhead read well, the rest low-confidence noise.
+    engine = FakeOcr(
+        [
+            OcrLine("H & H BUILDERS PVT. LTD.", 0.99),
+            OcrLine("Website: www.example.com", 0.99),
+            OcrLine("6cC|93", 0.69),
+            OcrLine("0-S-Q-0", 0.78),
+            OcrLine("g-nia. 359", 0.56),
+            OcrLine("2", 0.94),  # confident, but a lone character
+        ]
+    )
+
+    document = extract(DocumentType.PDF, make_pdf([[], []]), **LIMITS, ocr=OcrOptions(engine))
+
+    assert [b.text for b in document.blocks] == [
+        "H & H BUILDERS PVT. LTD.\nWebsite: www.example.com",
+    ] * 2
+    assert document.warnings[-1] == (
+        "Most of the text on pages 1, 2 couldn't be read (handwriting or a poor scan); "
+        "only clearly recognized lines were kept."
+    )
 
 
 def test_ocr_page_limit_is_reported() -> None:

@@ -51,6 +51,12 @@ export const queryKeys = {
   aiRun: (orgId: string, runId: string) =>
     ["organizations", orgId, "ai-runs", "detail", runId] as const,
   aiModel: (orgId: string) => ["organizations", orgId, "ai-model"] as const,
+  aiFeedback: (orgId: string, runId: string) =>
+    ["organizations", orgId, "ai-runs", "detail", runId, "feedback"] as const,
+  ticketAI: (orgId: string, ticketId: string) =>
+    ["organizations", orgId, "tickets", "detail", ticketId, "ai"] as const,
+  analytics: (orgId: string, report: string, days: number) =>
+    ["organizations", orgId, "analytics", report, days] as const,
 
   adminUsers: (page?: SearchPage) =>
     page ? (["admin", "users", page] as const) : (["admin", "users"] as const),

@@ -117,7 +117,13 @@ class RetrievalService:
         return await self.runs.find(member.organization_id, kind=kind, limit=limit, offset=offset)
 
     async def record(
-        self, member: OrganizationMember, user: User, outcome: RetrievalOutcome, *, kind: AIRunKind
+        self,
+        member: OrganizationMember,
+        user: User,
+        outcome: RetrievalOutcome,
+        *,
+        kind: AIRunKind,
+        ticket_id: uuid.UUID | None = None,
     ) -> AIRun:
         """Add the run and every candidate's scores to the session (not committed)."""
         assert self.embedder is not None
@@ -129,6 +135,7 @@ class RetrievalService:
             organization_id=member.organization_id,
             user_id=user.id,
             kind=kind,
+            ticket_id=ticket_id,
             query=outcome.query,
             query_type=outcome.analysis.query_type.value,
             requested_strategy=outcome.requested.value,
@@ -156,6 +163,7 @@ class RetrievalService:
         )
         run.user = user
         run.answer = None  # an answer run gets its answer once the model replies
+        run.assessment = None
         results = [
             RetrievalResult(
                 organization_id=member.organization_id,

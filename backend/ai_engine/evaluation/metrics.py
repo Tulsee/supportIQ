@@ -35,9 +35,10 @@ _ACTION_OF_STATUS = {
     "declined": "abstain",
     "no_passages": "abstain",
     "failed": "error",
-    # Module 5 adds clarify and escalate decisions.
+    # Decisions of the evidence policy (Module 5).
     "clarify": "clarify",
-    "escalate": "escalate",
+    "escalated": "escalate",
+    "abstained": "abstain",
 }
 
 _CITATION = re.compile(r"\[\d+\]")
@@ -80,6 +81,22 @@ class QuestionOutcome:
     error: str | None = None
     model: str | None = None
     model_version: str | None = None
+    # Evidence policy (Module 5): its decision, the reason, every signal, the evidence
+    # score, and the model's draft answer (kept even when the policy withheld it).
+    decision: str | None = None
+    reason: str | None = None
+    signals: dict[str, Any] | None = None
+    score: float | None = None
+    draft: str | None = None
+
+    @property
+    def draft_missing_facts(self) -> list[str]:
+        text = normalize(self.draft or "")
+        return [
+            alternatives[0]
+            for alternatives in self.question.key_facts
+            if not any(normalize(a) in text for a in alternatives)
+        ]
 
     @property
     def action(self) -> str | None:
@@ -174,7 +191,52 @@ def retrieval_metrics(outcomes: Sequence[QuestionOutcome], k: int) -> dict[str, 
         )
         if scored
         else None,
+        "ndcg@10": round(statistics.fmean(ndcg(o, 10) for o in scored), 4) if scored else None,
     }
+
+
+def ndcg(outcome: QuestionOutcome, k: int) -> float:
+    """nDCG@k with binary gains: a passage is relevant if it contains an evidence quote
+    not already credited higher up (so one quote counts once)."""
+    quotes = [e.quote for e in outcome.question.evidence]
+    credited: set[int] = set()
+    dcg = 0.0
+    for rank, passage in enumerate(outcome.ranked_passages[:k], start=1):
+        new = {i for i, q in enumerate(quotes) if i not in credited and contains(passage, q)}
+        if new:
+            credited |= new
+            dcg += 1 / math.log2(rank + 1)
+    ideal = sum(1 / math.log2(r + 1) for r in range(1, min(len(quotes), k) + 1))
+    return dcg / ideal if ideal else 0.0
+
+
+def calibration(
+    pairs: Sequence[tuple[float, bool]], bins: int = 5
+) -> dict[str, float | int | None]:
+    """How well a 0-1 score predicts an outcome: Brier score (mean squared error) and
+    expected calibration error over equal-width bins. Lower is better for both."""
+    if not pairs:
+        return {"n": 0, "brier": None, "ece": None}
+    brier = statistics.fmean((score - float(ok)) ** 2 for score, ok in pairs)
+    ece = 0.0
+    for b in range(bins):
+        low, high = b / bins, (b + 1) / bins
+        members = [(s, ok) for s, ok in pairs if low <= s < high or (b == bins - 1 and s == 1.0)]
+        if members:
+            confidence = statistics.fmean(s for s, _ in members)
+            accuracy = statistics.fmean(float(ok) for _, ok in members)
+            ece += len(members) / len(pairs) * abs(confidence - accuracy)
+    return {"n": len(pairs), "brier": round(brier, 4), "ece": round(ece, 4)}
+
+
+def score_calibration(outcomes: Sequence[QuestionOutcome]) -> dict[str, float | int | None]:
+    """The evidence score against "handled as labelled, and correct if answered"."""
+    pairs = [
+        (o.score, o.action == o.question.expected_action and (o.action != "answer" or o.correct))
+        for o in outcomes
+        if o.score is not None
+    ]
+    return calibration(pairs)
 
 
 def answer_metrics(outcomes: Sequence[QuestionOutcome]) -> dict[str, Any]:
@@ -204,7 +266,21 @@ def answer_metrics(outcomes: Sequence[QuestionOutcome]) -> dict[str, Any]:
         "uncited_answers": rate(_count(answered, lambda o: o.status == "uncited"), len(answered)),
         "invalid_citations": sum(o.invalid_citations for o in outcomes),
         "failures": _count(outcomes, lambda o: o.status == "failed"),
+        "decision_accuracy": rate(
+            _count(outcomes, lambda o: o.action == o.question.expected_action), len(outcomes)
+        ),
+        "decisions": confusion(outcomes),
     }
+
+
+def confusion(outcomes: Sequence[QuestionOutcome]) -> dict[str, dict[str, int]]:
+    """Expected action -> what the system did -> count."""
+    table: dict[str, dict[str, int]] = {}
+    for o in outcomes:
+        row = table.setdefault(o.question.expected_action, {})
+        action = o.action or "none"
+        row[action] = row.get(action, 0) + 1
+    return table
 
 
 def latency_metrics(outcomes: Sequence[QuestionOutcome]) -> dict[str, Any]:
@@ -229,6 +305,7 @@ def summarize(
     if answers:
         summary["answers"] = answer_metrics(outcomes)
         summary["actions"] = dict(Counter(o.action or "none" for o in outcomes))
+        summary["calibration"] = score_calibration(outcomes)
     return summary
 
 

@@ -29,6 +29,8 @@ class LLMError(Exception):
 class Prompt:
     system: str
     user: str
+    # When set, the reply must be JSON matching this schema (structured output).
+    json_schema: dict[str, Any] | None = None
 
 
 # Normalized across providers: "stop" (finished), "length" (hit the output limit),
@@ -174,6 +176,8 @@ class OllamaClient:
                 **({"seed": self.seed} if self.seed is not None else {}),
             },
         }
+        if prompt.json_schema is not None:
+            body["format"] = prompt.json_schema  # grammar-constrained JSON
         started = time.perf_counter()
         try:
             async with self._http(self.timeout_seconds) as http:
@@ -307,13 +311,16 @@ class ClaudeClient:
 
     async def complete(self, prompt: Prompt) -> Completion:
         started = time.perf_counter()
+        output_config: dict[str, Any] = {"effort": self.effort}
+        if prompt.json_schema is not None:
+            output_config["format"] = {"type": "json_schema", "schema": prompt.json_schema}
         try:
             response = await self._anthropic().beta.messages.create(
                 model=self._model,
                 max_tokens=self.max_output_tokens,
                 system=prompt.system,
                 messages=[{"role": "user", "content": prompt.user}],
-                output_config={"effort": self.effort},
+                output_config=output_config,
                 betas=[self.FALLBACK_BETA],
                 fallbacks="default",
             )

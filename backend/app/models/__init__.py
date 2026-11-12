@@ -6,10 +6,14 @@ autogenerate can only detect tables whose models have been imported.
 
 from app.models.ai_run import (
     AIAnswer,
+    AIDecision,
+    AIFeedback,
     AIRun,
     AIRunKind,
     AnswerStatus,
     Citation,
+    EvidenceAssessment,
+    FeedbackRating,
     RetrievalResult,
 )
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
@@ -35,6 +39,8 @@ __all__ = [
     "ACTIVE_INGESTION",
     "CUSTOMER_VISIBLE_EVENTS",
     "AIAnswer",
+    "AIDecision",
+    "AIFeedback",
     "AIRun",
     "AIRunKind",
     "AnswerStatus",
@@ -44,6 +50,8 @@ __all__ = [
     "Document",
     "DocumentChunk",
     "DocumentStatus",
+    "EvidenceAssessment",
+    "FeedbackRating",
     "MessageAuthorType",
     "OrgRole",
     "Organization",

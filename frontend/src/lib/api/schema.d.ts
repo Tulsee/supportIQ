@@ -470,6 +470,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tickets/{ticket_id}/ai/suggestion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Draft a reply to the customer
+         * @description Answers the customer's latest message from the knowledge base, as a draft
+         *     reply with citations, or explains why it can't (`answer.status`: clarify,
+         *     escalated, abstained). A local model can take a minute or more.
+         */
+        post: operations["suggest_reply_api_v1_tickets__ticket_id__ai_suggestion_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tickets/{ticket_id}/ai/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Summarize the conversation
+         * @description 3-5 bullet points for agents: the request, what was tried, what's open, the
+         *     next step. Internal notes are included.
+         */
+        post: operations["summarize_api_v1_tickets__ticket_id__ai_summary_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tickets/{ticket_id}/ai": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The newest suggestion and summary */
+        get: operations["latest_api_v1_tickets__ticket_id__ai_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/documents": {
         parameters: {
             query?: never;
@@ -638,12 +698,13 @@ export interface paths {
         put?: never;
         /**
          * Answer a question from the knowledge base
-         * @description Retrieves passages as `POST /ai/retrieve` does, then has the language model
-         *     answer from those passages only, citing them by number. Citations always resolve
-         *     to retrieved passages (document, version, page, section); numbers the model
-         *     invents are removed. If the model is unavailable the run is still recorded,
-         *     with `answer.status = failed` and the reason in `answer.error`. A local model
-         *     can take a minute or more.
+         * @description Retrieves passages as `POST /ai/retrieve` does, assesses the evidence, and then
+         *     answers from those passages only, asks a clarifying question, escalates (the
+         *     sources disagree) or abstains (`answer.status`; the signals and the reason are in
+         *     `assessment`). Citations always resolve to retrieved passages (document, version,
+         *     page, section); numbers the model invents are removed. If the model is
+         *     unavailable the run is still recorded, with `answer.status = failed`. A local
+         *     model can take a minute or more.
          */
         post: operations["chat_api_v1_ai_chat_post"];
         delete?: never;
@@ -699,6 +760,68 @@ export interface paths {
         };
         /** Inspect an AI run */
         get: operations["get_run_api_v1_ai_runs__run_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/ai/runs/{run_id}/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ratings of an AI run */
+        get: operations["get_feedback_api_v1_ai_runs__run_id__feedback_get"];
+        /**
+         * Rate an AI run
+         * @description Helpful or not, with an optional comment; rating again replaces your rating.
+         */
+        put: operations["rate_run_api_v1_ai_runs__run_id__feedback_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Support operations
+         * @description Open tickets, volume per day, median first-response and resolution times.
+         */
+        get: operations["overview_api_v1_analytics_overview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/ai-performance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * AI performance
+         * @description AI runs per day, answer outcomes and policy decisions, latency, staff feedback,
+         *     model usage, and knowledge gaps (questions not answered confidently).
+         */
+        get: operations["ai_performance_api_v1_analytics_ai_performance_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -763,10 +886,45 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /**
+         * AIDecision
+         * @enum {string}
+         */
+        AIDecision: "answer" | "clarify" | "escalate" | "abstain";
+        /** AIPerformance */
+        AIPerformance: {
+            /** Days */
+            days: number;
+            /**
+             * Daily Runs
+             * @description Per day: {day, retrieval, answer, suggestion, summary} run counts.
+             */
+            daily_runs: {
+                [key: string]: number | string;
+            }[];
+            answers: components["schemas"]["AnswerStats"];
+            /** Decisions */
+            decisions: components["schemas"]["DecisionStat"][];
+            /**
+             * Latency
+             * @description By run kind.
+             */
+            latency: {
+                [key: string]: components["schemas"]["LatencyStat"];
+            };
+            feedback: components["schemas"]["FeedbackStats"];
+            /** Models */
+            models: components["schemas"]["ModelUsage"][];
+            /**
+             * Knowledge Gaps
+             * @description Questions most often not answered confidently: what the knowledge base is missing or gets wrong.
+             */
+            knowledge_gaps: components["schemas"]["KnowledgeGap"][];
+        };
+        /**
          * AIRunKind
          * @enum {string}
          */
-        AIRunKind: "retrieval" | "answer";
+        AIRunKind: "retrieval" | "answer" | "suggestion" | "summary";
         /** AIRunRead */
         AIRunRead: {
             /**
@@ -829,6 +987,8 @@ export interface components {
              * @description Candidates considered but not selected, by fused rank.
              */
             other_candidates: components["schemas"]["RetrievedPassage"][];
+            /** @description For `answer` runs under the evidence policy: the signals, thresholds, claim checks and decision. */
+            assessment: components["schemas"]["AssessmentRead"] | null;
             /** @description For `answer` runs: the answer, its citations, and the exact prompt and model settings. Null for searches, and for a run whose answer was never recorded (the server stopped while the model was working). */
             answer: components["schemas"]["AnswerRead"] | null;
         };
@@ -893,8 +1053,13 @@ export interface components {
         };
         /** AnswerRead */
         AnswerRead: {
-            /** @description `answered`: cites the passages; `uncited`: answered without citing (unverified); `declined`: the model found no answer in the passages; `no_passages`: nothing was retrieved, the model wasn't asked; `failed`: see `error`. */
+            /** @description `answered`: cites the passages; `uncited`: answered without citing (unverified); `declined`: the model found no answer in the passages; `no_passages`: nothing was retrieved, the model wasn't asked; `failed`: see `error`. Evidence policy decisions: `clarify` (`text` is a clarifying question), `escalated` (the sources disagree; `text` says what each one states), `abstained` (the evidence doesn't support an answer). */
             status: components["schemas"]["AnswerStatus"];
+            /**
+             * Requires Human Review
+             * @description True when a person should handle the question (escalated, abstained, failed).
+             */
+            requires_human_review: boolean;
             /**
              * Text
              * @description The answer, with [n] citation markers. Numbers the model invented are removed (see `invalid_citations`).
@@ -971,11 +1136,39 @@ export interface components {
             /** Latency Ms */
             latency_ms: number;
         };
+        /** AnswerStats */
+        AnswerStats: {
+            /**
+             * Total
+             * @description Questions and reply suggestions in the period.
+             */
+            total: number;
+            /** By Status */
+            by_status: {
+                [key: string]: number;
+            };
+            /** By Kind */
+            by_kind: {
+                [key: string]: {
+                    [key: string]: number;
+                };
+            };
+            /**
+             * Answer Rate
+             * @description Share answered (with or without citations).
+             */
+            answer_rate: number | null;
+            /**
+             * Human Review Rate
+             * @description Share escalated, abstained or failed: handed to a person.
+             */
+            human_review_rate: number | null;
+        };
         /**
          * AnswerStatus
          * @enum {string}
          */
-        AnswerStatus: "answered" | "uncited" | "declined" | "no_passages" | "failed";
+        AnswerStatus: "answered" | "uncited" | "declined" | "no_passages" | "failed" | "clarify" | "escalated" | "abstained";
         /** AskRequest */
         AskRequest: {
             /** Query */
@@ -997,6 +1190,81 @@ export interface components {
              * @default 5
              */
             top_k: number;
+            /**
+             * History
+             * @description Earlier questions and answers in this conversation (oldest first), so follow-ups like "and for the camera?" are understood.
+             */
+            history?: components["schemas"]["HistoryTurn"][];
+        };
+        /** AssessmentRead */
+        AssessmentRead: {
+            /**
+             * Policy
+             * @description `assessed`, or `observe` (always asks the model).
+             */
+            policy: string;
+            /** Policy Version */
+            policy_version: string;
+            decision: components["schemas"]["AIDecision"];
+            /**
+             * Reason
+             * @description Why: no_passages, low_relevance, vague_question, low_coverage, model_ambiguous, conflicting_sources, model_not_found, incomplete_evidence, no_citations, contradicted_by_source, weak_grounding, model_error, supported.
+             */
+            reason: string;
+            /**
+             * Stage
+             * @description `before` generation (the model wasn't asked) or `after`.
+             */
+            stage: string;
+            /**
+             * Relevance
+             * @description Best passage's cross-encoder relevance, 0-1.
+             */
+            relevance: number | null;
+            /**
+             * Coverage
+             * @description Share of the question's words in the passages.
+             */
+            coverage: number | null;
+            /**
+             * Consistency
+             * @description 0 when the model reported conflicting sources.
+             */
+            consistency: number | null;
+            /**
+             * Grounding
+             * @description Mean NLI entailment of the cited claims.
+             */
+            grounding: number | null;
+            /**
+             * Contradiction
+             * @description Strongest claim/source contradiction.
+             */
+            contradiction: number | null;
+            /**
+             * Ambiguity
+             * @description 1 when the question has no specific subject.
+             */
+            ambiguity: number | null;
+            /**
+             * Score
+             * @description Evidence score (weighted signals, 0-1); ranks evidence quality, not a calibrated probability.
+             */
+            score: number | null;
+            /** Signals */
+            signals: {
+                [key: string]: unknown;
+            };
+            /** Thresholds */
+            thresholds: {
+                [key: string]: unknown;
+            };
+            /** Claims */
+            claims: components["schemas"]["ClaimCheckRead"][];
+            /** Nli Model */
+            nli_model: string | null;
+            /** Latency Ms */
+            latency_ms: number;
         };
         /** Body_upload_document_api_v1_documents_post */
         Body_upload_document_api_v1_documents_post: {
@@ -1099,6 +1367,23 @@ export interface components {
             /** Section Heading */
             section_heading: string | null;
         };
+        /** ClaimCheckRead */
+        ClaimCheckRead: {
+            /** Claim */
+            claim: string;
+            /** Passages */
+            passages: number[];
+            /**
+             * Entailment
+             * @description NLI probability that the cited passage states it.
+             */
+            entailment: number;
+            /**
+             * Contradiction
+             * @description NLI probability that the passage contradicts it.
+             */
+            contradiction: number;
+        };
         /** CustomerCreate */
         CustomerCreate: {
             /** Name */
@@ -1174,6 +1459,29 @@ export interface components {
             metadata?: {
                 [key: string]: unknown;
             } | null;
+        };
+        /** DailyTickets */
+        DailyTickets: {
+            /** Day */
+            day: string;
+            /** Created */
+            created: number;
+            /** Resolved */
+            resolved: number;
+        };
+        /** DecisionStat */
+        DecisionStat: {
+            /** Decision */
+            decision: string;
+            /** Reason */
+            reason: string;
+            /** Count */
+            count: number;
+            /**
+             * Mean Score
+             * @description Mean evidence score (not a probability).
+             */
+            mean_score: number | null;
         };
         /** DocumentRead */
         DocumentRead: {
@@ -1294,6 +1602,37 @@ export interface components {
              */
             created_at: string;
         };
+        /** FeedbackCreate */
+        FeedbackCreate: {
+            rating: components["schemas"]["FeedbackRating"];
+            /** Comment */
+            comment?: string | null;
+        };
+        /**
+         * FeedbackRating
+         * @enum {string}
+         */
+        FeedbackRating: "helpful" | "not_helpful";
+        /** FeedbackStats */
+        FeedbackStats: {
+            /** Helpful */
+            helpful: number;
+            /** Not Helpful */
+            not_helpful: number;
+            /** Helpful Rate */
+            helpful_rate: number | null;
+        };
+        /** FeedbackSummary */
+        FeedbackSummary: {
+            /** Helpful */
+            helpful: number;
+            /** Not Helpful */
+            not_helpful: number;
+            /** @description Your own rating of this run, if any. */
+            mine: components["schemas"]["FeedbackRating"] | null;
+            /** My Comment */
+            my_comment: string | null;
+        };
         /** HealthResponse */
         HealthResponse: {
             /**
@@ -1307,6 +1646,13 @@ export interface components {
             version: string;
             /** Environment */
             environment: string;
+        };
+        /** HistoryTurn */
+        HistoryTurn: {
+            /** Question */
+            question: string;
+            /** Answer */
+            answer: string;
         };
         /** InvitationCreate */
         InvitationCreate: {
@@ -1383,6 +1729,34 @@ export interface components {
         InvitationTokenRequest: {
             /** Token */
             token: string;
+        };
+        /** KnowledgeGap */
+        KnowledgeGap: {
+            /** Query */
+            query: string;
+            /**
+             * Count
+             * @description Times asked without a confident answer.
+             */
+            count: number;
+            /** Last Asked */
+            last_asked: string;
+            /**
+             * Run Id
+             * @description The latest run, to inspect.
+             */
+            run_id: string;
+            /** Status */
+            status: string;
+        };
+        /** LatencyStat */
+        LatencyStat: {
+            /** P50 Ms */
+            p50_ms: number;
+            /** P95 Ms */
+            p95_ms: number;
+            /** Runs */
+            runs: number;
         };
         /** LoginRequest */
         LoginRequest: {
@@ -1477,6 +1851,19 @@ export interface components {
             /** Detail */
             detail: string | null;
         };
+        /** ModelUsage */
+        ModelUsage: {
+            /** Provider */
+            provider: string;
+            /** Model */
+            model: string;
+            /** Runs */
+            runs: number;
+            /** Input Tokens */
+            input_tokens: number;
+            /** Output Tokens */
+            output_tokens: number;
+        };
         /**
          * OrgRole
          * @enum {string}
@@ -1515,6 +1902,34 @@ export interface components {
             created_at: string;
             /** @description The current user's role in this organization. */
             role: components["schemas"]["OrgRole"];
+        };
+        /** Overview */
+        Overview: {
+            /** Days */
+            days: number;
+            tickets: components["schemas"]["TicketTotals"];
+            /** Open By Status */
+            open_by_status: {
+                [key: string]: number;
+            };
+            /** Daily */
+            daily: components["schemas"]["DailyTickets"][];
+            /**
+             * Median First Response Minutes
+             * @description From opening to the first public agent reply, for tickets opened in the period that got one.
+             */
+            median_first_response_minutes: number | null;
+            /** Tickets Replied */
+            tickets_replied: number;
+            /**
+             * Median Resolution Minutes
+             * @description From opening to resolution, for tickets resolved in the period.
+             */
+            median_resolution_minutes: number | null;
+            /** Customers */
+            customers: number;
+            /** Indexed Documents */
+            indexed_documents: number;
         };
         /** Page[AIRunSummary] */
         Page_AIRunSummary_: {
@@ -1776,6 +2191,13 @@ export interface components {
             /** Score */
             score: number;
         };
+        /** TicketAIRead */
+        TicketAIRead: {
+            /** @description The newest reply suggestion. */
+            suggestion: components["schemas"]["AIRunRead"] | null;
+            /** @description The newest summary. */
+            summary: components["schemas"]["AIRunRead"] | null;
+        };
         /** TicketCounts */
         TicketCounts: {
             /** By Status */
@@ -1819,7 +2241,7 @@ export interface components {
          * TicketEventType
          * @enum {string}
          */
-        TicketEventType: "created" | "status_changed" | "priority_changed" | "subject_changed" | "assigned" | "unassigned";
+        TicketEventType: "created" | "status_changed" | "priority_changed" | "subject_changed" | "assigned" | "unassigned" | "ai_escalated";
         /**
          * TicketPriority
          * @enum {string}
@@ -1868,6 +2290,31 @@ export interface components {
          * @enum {string}
          */
         TicketStatus: "open" | "assigned" | "in_progress" | "waiting_for_customer" | "resolved" | "closed";
+        /** TicketTotals */
+        TicketTotals: {
+            /** Open */
+            open: number;
+            /**
+             * Unassigned
+             * @description Open and nobody assigned.
+             */
+            unassigned: number;
+            /**
+             * Urgent
+             * @description Open with urgent priority.
+             */
+            urgent: number;
+            /**
+             * Created
+             * @description Opened in the period.
+             */
+            created: number;
+            /**
+             * Resolved
+             * @description Resolved in the period.
+             */
+            resolved: number;
+        };
         /**
          * TicketUpdate
          * @description Staff only. Only the fields provided are changed; ``assignee_id: null``
@@ -4282,6 +4729,270 @@ export interface operations {
             };
         };
     };
+    suggest_reply_api_v1_tickets__ticket_id__ai_suggestion_post: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AIRunRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    summarize_api_v1_tickets__ticket_id__ai_summary_post: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AIRunRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    latest_api_v1_tickets__ticket_id__ai_get: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketAIRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     list_documents_api_v1_documents_get: {
         parameters: {
             query?: {
@@ -5564,6 +6275,292 @@ export interface operations {
             };
             /** @description Service Unavailable */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_feedback_api_v1_ai_runs__run_id__feedback_get: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedbackSummary"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    rate_run_api_v1_ai_runs__run_id__feedback_put: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeedbackCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedbackSummary"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    overview_api_v1_analytics_overview_get: {
+        parameters: {
+            query?: {
+                /** @description Trailing window, in days. */
+                days?: number;
+            };
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Overview"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    ai_performance_api_v1_analytics_ai_performance_get: {
+        parameters: {
+            query?: {
+                /** @description Trailing window, in days. */
+                days?: number;
+            };
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AIPerformance"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

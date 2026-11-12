@@ -67,6 +67,7 @@ class IngestionLimits:
                 min_text_chars=settings.ocr_min_text_chars,
                 max_pages=settings.ocr_max_pages,
                 dpi=settings.ocr_dpi,
+                min_confidence=settings.ocr_min_confidence,
             )
             if settings.ocr_enabled
             else None

@@ -7,7 +7,7 @@ from typing import Any, Self
 from pydantic import BaseModel, Field
 
 from app.models import AIRun, AIRunKind, AnswerStatus, RetrievalResult
-from app.schemas.answers import AnswerRead
+from app.schemas.answers import AnswerRead, AssessmentRead
 from app.schemas.retrieval import RetrievedPassage
 from app.schemas.tickets import PersonSummary
 
@@ -58,6 +58,10 @@ class AIRunRead(AIRunSummary):
     other_candidates: list[RetrievedPassage] = Field(
         description="Candidates considered but not selected, by fused rank."
     )
+    assessment: AssessmentRead | None = Field(
+        description="For `answer` runs under the evidence policy: the signals, thresholds, "
+        "claim checks and decision."
+    )
     answer: AnswerRead | None = Field(
         description="For `answer` runs: the answer, its citations, and the exact prompt "
         "and model settings. Null for searches, and for a run whose answer was never "
@@ -77,4 +81,10 @@ class AIRunRead(AIRunSummary):
             results=[p for p in passages if p.final_rank is not None],
             other_candidates=[p for p in passages if p.final_rank is None],
             answer=AnswerRead.build(run.answer) if run.answer is not None else None,
+            assessment=AssessmentRead.build(run.assessment) if run.assessment is not None else None,
         )
+
+
+class TicketAIRead(BaseModel):
+    suggestion: AIRunRead | None = Field(description="The newest reply suggestion.")
+    summary: AIRunRead | None = Field(description="The newest summary.")

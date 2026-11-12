@@ -3,7 +3,17 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, String, Text, func
+from sqlalchemy import (
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy import text as sql_text  # `text` is also a column name below
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -16,6 +26,13 @@ from app.models.user import User
 class AIRunKind(enum.StrEnum):
     RETRIEVAL = "retrieval"  # evidence retrieval only (the search playground)
     ANSWER = "answer"  # retrieval, then an answer generated from the selected passages
+    SUGGESTION = "suggestion"  # an answer drafted as a reply on a ticket (Module 6)
+    SUMMARY = "summary"  # a ticket conversation summarized for agents (no retrieval)
+
+
+class FeedbackRating(enum.StrEnum):
+    HELPFUL = "helpful"
+    NOT_HELPFUL = "not_helpful"
 
 
 class AnswerStatus(enum.StrEnum):
@@ -24,6 +41,17 @@ class AnswerStatus(enum.StrEnum):
     DECLINED = "declined"  # the model said the passages don't answer the question
     NO_PASSAGES = "no_passages"  # nothing to answer from; the model wasn't called
     FAILED = "failed"  # the model produced no answer (see ``error``)
+    # Decisions of the evidence policy (Module 5):
+    CLARIFY = "clarify"  # the question is ambiguous: ``text`` is a clarifying question
+    ESCALATED = "escalated"  # the sources disagree: a person should confirm
+    ABSTAINED = "abstained"  # the evidence doesn't support an answer
+
+
+class AIDecision(enum.StrEnum):
+    ANSWER = "answer"
+    CLARIFY = "clarify"
+    ESCALATE = "escalate"
+    ABSTAIN = "abstain"
 
 
 class AIRun(UUIDPrimaryKeyMixin, Base):
@@ -39,6 +67,10 @@ class AIRun(UUIDPrimaryKeyMixin, Base):
         ForeignKey("organizations.id", ondelete="CASCADE")
     )
     user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    # The ticket a suggestion or summary was made for.
+    ticket_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("tickets.id", ondelete="SET NULL"), index=True
+    )
     kind: Mapped[AIRunKind] = mapped_column(str_enum_type(AIRunKind, "ai_run_kind"))
     query: Mapped[str] = mapped_column(Text)
     query_type: Mapped[str] = mapped_column(String(40))
@@ -56,6 +88,7 @@ class AIRun(UUIDPrimaryKeyMixin, Base):
 
     user: Mapped[User | None] = relationship(lazy="raise")
     answer: Mapped["AIAnswer | None"] = relationship(lazy="raise", viewonly=True)
+    assessment: Mapped["EvidenceAssessment | None"] = relationship(lazy="raise", viewonly=True)
 
 
 class RetrievalResult(UUIDPrimaryKeyMixin, Base):
@@ -170,3 +203,65 @@ class Citation(UUIDPrimaryKeyMixin, Base):
     section_heading: Mapped[str | None] = mapped_column(Text)
 
     document: Mapped[Document | None] = relationship(lazy="raise")
+
+
+class EvidenceAssessment(Base):
+    """How good the evidence for an answer run was, and what the policy decided:
+    every signal, the thresholds in force, and the claim checks, so a decision can
+    be explained and the policy re-tuned from recorded runs."""
+
+    __tablename__ = "evidence_assessments"
+
+    ai_run_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("ai_runs.id", ondelete="CASCADE"), primary_key=True
+    )
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE")
+    )
+    policy: Mapped[str] = mapped_column(String(20))  # assessed | observe
+    policy_version: Mapped[str] = mapped_column(String(40))
+    decision: Mapped[AIDecision] = mapped_column(str_enum_type(AIDecision, "ai_decision"))
+    reason: Mapped[str] = mapped_column(String(40))
+    stage: Mapped[str] = mapped_column(String(10))  # before or after generation
+    relevance: Mapped[float | None] = mapped_column(Float)
+    coverage: Mapped[float | None] = mapped_column(Float)
+    consistency: Mapped[float | None] = mapped_column(Float)
+    grounding: Mapped[float | None] = mapped_column(Float)
+    contradiction: Mapped[float | None] = mapped_column(Float)
+    ambiguity: Mapped[float | None] = mapped_column(Float)
+    score: Mapped[float | None] = mapped_column(Float)  # evidence score, 0-1 (not a probability)
+    signals: Mapped[dict[str, Any]] = mapped_column(JSONB, server_default=sql_text("'{}'::jsonb"))
+    thresholds: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, server_default=sql_text("'{}'::jsonb")
+    )
+    claims: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONB, server_default=sql_text("'[]'::jsonb")
+    )
+    nli_model: Mapped[str | None] = mapped_column(String(200))
+    latency_ms: Mapped[float] = mapped_column(Float)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class AIFeedback(UUIDPrimaryKeyMixin, Base):
+    """A staff member's rating of an AI run (one per person and run)."""
+
+    __tablename__ = "ai_feedback"
+    __table_args__ = (UniqueConstraint("ai_run_id", "user_id"),)
+
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE")
+    )
+    ai_run_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("ai_runs.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    rating: Mapped[FeedbackRating] = mapped_column(str_enum_type(FeedbackRating, "feedback_rating"))
+    comment: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
