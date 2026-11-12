@@ -1,0 +1,12 @@
+# Build context for backend/Dockerfile (the repository root): only the backend and
+# the evaluation datasets go in. The frontend image has its own (frontend/.dockerignore).
+*
+!backend/
+!datasets/
+
+backend/.venv*
+backend/tests/
+backend/.env
+**/__pycache__/
+**/.pytest_cache/
+**/.ruff_cache/

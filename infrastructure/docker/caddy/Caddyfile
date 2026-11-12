@@ -1,0 +1,28 @@
+# One origin for the browser: the API under /api (WebSockets included) and its docs,
+# everything else from Next.js. Same-origin keeps the httpOnly refresh cookie simple.
+#
+# SITE_ADDRESS defaults to plain HTTP on port 80 inside the container. Set it to a
+# domain name (e.g. support.example.com) and publish ports 80 and 443, and Caddy
+# obtains and renews an HTTPS certificate for it automatically.
+
+{
+	admin off
+}
+
+{$SITE_ADDRESS::80} {
+	encode zstd gzip
+
+	# No proxy timeout: answers from a local model on a CPU can take a minute or more.
+	handle /api/* {
+		reverse_proxy api:8000
+	}
+	handle /docs* {
+		reverse_proxy api:8000
+	}
+	handle /redoc* {
+		reverse_proxy api:8000
+	}
+	handle {
+		reverse_proxy web:3000
+	}
+}

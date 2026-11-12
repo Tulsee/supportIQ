@@ -1,6 +1,7 @@
 # Runs on every pull request and on pushes to main.
 #   backend:  lint, format, migrations (apply, drift check, round trip), tests
 #   frontend: API types in sync with the backend contract, lint, typecheck, build
+#   docker:   the Compose file is valid and the application images build
 name: CI
 
 on:
@@ -146,3 +147,18 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  docker:
+    name: Docker images
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: The Compose file is valid, with and without the app profile
+        run: |
+          docker compose config --quiet
+          docker compose --profile app config --quiet
+
+      - name: Build the backend and web images
+        run: docker compose --profile app build

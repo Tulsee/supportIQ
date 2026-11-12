@@ -7,6 +7,7 @@ import {
   CircleAlertIcon,
   Loader2Icon,
   MessageSquareTextIcon,
+  SquarePenIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
@@ -235,6 +236,15 @@ export function AskKnowledgeBase() {
               <span className="mt-1 block text-xs">Answered by {modelLabel(model.data)}</span>
             ) : null}
           </>
+        }
+        actions={
+          exchanges.length > 0 ? (
+            // Later questions are read in the context of earlier ones; this starts afresh.
+            <Button variant="outline" onClick={() => setExchanges([])} disabled={ask.isPending}>
+              <SquarePenIcon aria-hidden />
+              New conversation
+            </Button>
+          ) : null
         }
       />
 

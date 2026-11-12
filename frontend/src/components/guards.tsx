@@ -1,5 +1,6 @@
 "use client";
 
+import { useQueryClient } from "@tanstack/react-query";
 import { ShieldAlertIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -8,7 +9,9 @@ import type { ReactNode } from "react";
 import { FullPageSpinner } from "@/components/full-page-spinner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAuth, useCurrentUser } from "@/lib/auth/auth-provider";
+import type { Organization } from "@/lib/api/client";
 import { useActiveOrganization, useOrganizations } from "@/lib/org/org-provider";
+import { queryKeys } from "@/lib/query-keys";
 
 /**
  * Renders children only for a signed-in user; otherwise sends them to sign in and
@@ -34,12 +37,20 @@ export function AuthGuard({ children }: { children: ReactNode }) {
 export function RequireOrganization({ children }: { children: ReactNode }) {
   const { activeOrganization, isLoading, isFetching, isError } = useOrganizations();
   const router = useRouter();
+  const queryClient = useQueryClient();
   // Decide only on fresh data: a cached empty list can predate a just-created org.
   const needsOnboarding = !isLoading && !isFetching && !isError && !activeOrganization;
 
   useEffect(() => {
-    if (needsOnboarding) router.replace("/onboarding");
-  }, [needsOnboarding, router]);
+    if (!needsOnboarding) return;
+    // This layout stays mounted, hidden, while the user is on /onboarding (Cache
+    // Components keep visited routes in <Activity>). When it's shown again, this
+    // effect can run with the values of its last render, from before the
+    // organization was created or joined. Check the list as it is now.
+    const current = queryClient.getQueryData<{ items: Organization[] }>(queryKeys.organizations);
+    if (current?.items.length) return;
+    router.replace("/onboarding");
+  }, [needsOnboarding, router, queryClient]);
 
   if (isError) {
     return (

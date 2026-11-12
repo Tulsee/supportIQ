@@ -304,7 +304,7 @@ enough data to fit or check one.
 3. Add a judged faithfulness metric (a stronger model as judge, checked against a
    human-labelled sample) to cover the gap key-fact matching leaves.
 4. Repeat E5 and E6 with several seeds and a second model (Claude through
-   `LLM_PROVIDER=claude`) to separate the policy's effect from one model's behaviour.
+   `LLM_PROVIDER=anthropic`) to separate the policy's effect from one model's behaviour.
 
 ## Reproducing
 

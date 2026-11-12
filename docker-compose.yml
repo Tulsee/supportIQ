@@ -1,8 +1,50 @@
-# Local development infrastructure. Start with:  docker compose up -d
+# Local infrastructure, and optionally the whole application.
+#
+#   docker compose up -d                          services only, for development
+#   docker compose --profile app up -d --build    services + API, worker, web app and
+#                                                 proxy at http://localhost:8080
+#
 # Services are bound to 127.0.0.1 only, so dev credentials are never exposed on the LAN.
 # Connect via 127.0.0.1, not "localhost" (on Windows, localhost tries IPv6 first: ~2s stall).
 
 name: supportiq
+
+# Settings shared by the API, the worker and the migration job. Everything else
+# (model provider, API keys, limits) comes from .env if it exists; these override it,
+# because inside the network the services are reached by name, not via 127.0.0.1.
+x-backend: &backend
+  # Built once, by the migrate service below; the API and the worker reuse it.
+  image: supportiq-backend
+  env_file:
+    - path: .env
+      required: false
+  environment:
+    ENVIRONMENT: ${APP_ENVIRONMENT:-development}
+    # The least-privilege role created by infrastructure/docker/postgres/init (its
+    # password there is for development; change both for a deployment).
+    DATABASE_URL: postgresql+asyncpg://supportiq_app:${APP_DB_PASSWORD:-supportiq_app}@postgres:5432/${POSTGRES_DB:-supportiq}
+    MIGRATION_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-supportiq}:${POSTGRES_PASSWORD:-supportiq}@postgres:5432/${POSTGRES_DB:-supportiq}
+    DATABASE_APP_ROLE: supportiq_app
+    REDIS_URL: redis://redis:6379/0
+    CELERY_BROKER_URL: redis://redis:6379/1
+    QDRANT_URL: http://qdrant:6333
+    STORAGE_BACKEND: s3
+    S3_ENDPOINT_URL: http://object-storage:9000
+    S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-supportiq}
+    S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-supportiq-dev-secret}
+    EMAIL_BACKEND: smtp
+    SMTP_HOST: mailpit
+    SMTP_PORT: "1025"
+    FRONTEND_URL: ${APP_URL:-http://localhost:8080}
+    CORS_ORIGINS: ${APP_URL:-http://localhost:8080}
+    # Ollama running on the host (the default), or set DOCKER_OLLAMA_URL.
+    OLLAMA_URL: ${DOCKER_OLLAMA_URL:-http://host.docker.internal:11434}
+    MODEL_CACHE_DIR: /models
+  extra_hosts:
+    - "host.docker.internal:host-gateway"  # Linux; Docker Desktop resolves it already
+  volumes:
+    - models:/models
+  restart: unless-stopped
 
 services:
   postgres:
@@ -70,7 +112,91 @@ services:
     volumes:
       - object_data:/data
 
+  # --- The application (profile "app") ---------------------------------------------
+
+  # Applies database migrations as the schema owner, then exits.
+  migrate:
+    <<: *backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    profiles: ["app"]
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    <<: *backend
+    profiles: ["app"]
+    pull_policy: never  # the image comes from the migrate service's build
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+      object-storage:
+        condition: service_started
+      mailpit:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+
+  # Document ingestion (extraction, OCR, chunking, embedding). One job at a time.
+  worker:
+    <<: *backend
+    profiles: ["app"]
+    pull_policy: never
+    command: ["celery", "-A", "app.workers.celery_app", "worker", "--loglevel=info", "--concurrency=1"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+      object-storage:
+        condition: service_started
+
+  web:
+    profiles: ["app"]
+    build:
+      context: frontend
+      args:
+        BACKEND_URL: http://api:8000
+    image: supportiq-web
+    restart: unless-stopped
+    depends_on:
+      - api
+
+  # The only published port of the application.
+  proxy:
+    profiles: ["app"]
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    ports:
+      - "${APP_BIND:-127.0.0.1}:${APP_PORT:-8080}:80"
+    volumes:
+      - ./infrastructure/docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_started
+
 volumes:
   postgres_data:
   qdrant_data:
   object_data:
+  models:
+  caddy_data:
