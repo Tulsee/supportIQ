@@ -31,7 +31,7 @@ from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from typing import Any, TypeVar
 
-from sqlalchemy import exists, func, select
+from sqlalchemy import exists, func, select, true
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import contains_eager, joinedload
@@ -59,6 +59,7 @@ from app.models import (
     AgentProfile,
     AgentSkill,
     AgentStatus,
+    Customer,
     NotificationKind,
     Organization,
     OrganizationMember,
@@ -70,6 +71,7 @@ from app.models import (
     TeamMember,
     Ticket,
     TicketCategory,
+    TicketPriority,
     TicketStatus,
     User,
 )
@@ -97,6 +99,8 @@ from app.workers.queue import NotificationMailer, QueueUnavailableError, Routing
 logger = logging.getLogger(__name__)
 
 RULE_INVALID = "routing_rule_invalid"
+# Metadata keys a rule can name (``customer.<key>``).
+CUSTOMER_KEY_PATTERN = "^[a-z0-9_]{1,50}$"
 # The sweep leaves older tickets alone: turning routing on doesn't route the backlog.
 SWEEP_MAX_AGE = timedelta(hours=24)
 SWEEP_BATCH = 100
@@ -277,6 +281,24 @@ class RuleService:
         return [by_id[i] for i in data.rule_ids]
 
     # --- Helpers ----------------------------------------------------------------------
+
+    async def customer_fields(self, member: OrganizationMember) -> list[str]:
+        """Keys of customers' metadata that rules can use, most common first."""
+        require_role(member, *STAFF_ROLES)
+        key = func.jsonb_object_keys(Customer.metadata_).table_valued("value").render_derived()
+        rows = await self.session.execute(
+            select(key.c.value, func.count())
+            .select_from(Customer)
+            .join(key, true())
+            .where(
+                Customer.organization_id == member.organization_id,
+                key.c.value.op("~")(CUSTOMER_KEY_PATTERN),
+            )
+            .group_by(key.c.value)
+            .order_by(func.count().desc(), key.c.value)
+            .limit(50)
+        )
+        return [name for name, _ in rows.all()]
 
     async def _get(self, member: OrganizationMember, rule_id: uuid.UUID) -> RoutingRule:
         rule = await self.session.scalar(
@@ -481,8 +503,8 @@ class RoutingService:
         else:
             facts = TicketFacts(
                 category=request.category.strip().lower() if request.category else None,
-                priority=request.priority.value,
-                subject=request.subject,
+                priority=(request.priority or TicketPriority.NORMAL).value,
+                subject=request.subject or "",
                 customer=request.customer,
             )
         plan = await self._plan(member.organization_id, facts, claim=False)

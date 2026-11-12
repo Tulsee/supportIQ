@@ -1,6 +1,6 @@
 # SLA management and automated ticket routing
 
-**Status:** in progress: phases 1-6 done, the screens next (Module 10 in the [implementation plan](../../IMPLEMENTATION_PLAN.MD#15-phase-2-feature-roadmap)).
+**Status:** in progress: phases 1-7 done, hardening (analytics, load tests) next (Module 10 in the [implementation plan](../../IMPLEMENTATION_PLAN.MD#15-phase-2-feature-roadmap)).
 **Source:** the feature plan "SupportIQ - SLA Management & Automated Ticket Routing",
 adapted to this repository after its Phase 0 audit (12 November 2026). Where this
 document and the original differ, this one records the deviation and the reason.
@@ -249,15 +249,28 @@ Same conventions as today: `/api/v1`, `X-Organization-Id`, staff-only unless sta
 
 - **Settings → Service levels:** policies per priority, the business calendar (time
   zone, weekly hours, holidays) with a "next working time" preview.
-- **Settings → Teams and routing:** teams and members (with leads), agent capacity and
-  skills, ordered rules with a constrained condition builder, and the simulator.
+- **Settings → Teams and agents:** teams (add, rename, turn off) with members and leads;
+  every admin and agent with status, online or offline, workload against capacity,
+  skills and teams; capacity and skills edited per agent.
+- **Settings → Routing:** the routing mode (off, shadow, on); the ordered rules (move
+  up or down, turn off, edit, delete) with a condition builder made of choices, not
+  typing (field, then how to compare, then category or priority buttons or text;
+  customer fields suggested from the metadata in use, `GET /routing/customer-fields`);
+  and a simulator for an example or an existing ticket that shows the rules tried and
+  the ranked agents with reasons.
 - **Settings → Categories.**
 - **Ticket list:** SLA badge (text and color: "On track", "Due in 35 min", "Breached",
   "Paused", "Met", "No SLA"), team column, filters for at risk, breached, unassigned and
-  my team.
+  my team. Each ticket in API responses carries `sla` for staff: the clock that matters
+  most (open clocks first, most urgent and earliest due), so the list needs no extra
+  request per row; `GET /tickets?sla=at_risk|breached&my_teams=true` filters in SQL with
+  the same rules as the SLA panel.
 - **Ticket detail:** SLA panel with both clocks and remaining business time (server
-  values; the countdown is display only), team, assignment explanation, reroute and
-  reassign-with-reason actions; SLA and routing events in the timeline.
+  values; the countdown is display only), a team selector, and a routing panel: the
+  latest decision's outcome and explanation, the rules and agents behind it, earlier
+  decisions, and "Route now" / "Reroute" while the ticket is unassigned. SLA and routing
+  events in the timeline ("assigned it to Abe by the routing rule “Billing”").
+  Reassigning with a reason is not built yet.
 - **App shell:** notification bell (Module 9) and a presence switch in the user menu.
 - **Analytics:** SLA compliance and routing sections (section 9).
 
@@ -308,7 +321,7 @@ Everything in the plan's section 15, plus:
 | 4 | Monitoring: evaluator, notifications, escalation, timeline events (done; admins stand in for team leads until phase 5; compliance in analytics brought forward from phase 8) | 2 days |
 | 5 | Teams, members, agent profiles, skills, presence (done, with a team on each ticket, team leads as SLA escalation contacts and a status switch in the user menu) | 2-3 days |
 | 6 | Routing: rules, engine, jobs and sweep, decisions, reroute, simulator (done, with the routing mode setting, `no_agent` alerts and timeline wording; the screens are phase 7) | 3-4 days |
-| 7 | Front end: settings, queue and ticket panels, bell, presence | 4-5 days |
+| 7 | Front end: settings, queue and ticket panels, bell, presence (done; the bell and presence came earlier, reassign-with-reason is left out) | 4-5 days |
 | 8 | Analytics, load and concurrency tests, docs, screenshots, demo data | 2-3 days |
 
 About 20-27 working days for one developer.

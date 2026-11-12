@@ -1935,7 +1935,9 @@ timeline events, SLA compliance in analytics), and phase 5 (teams with members a
 leads, agent capacity and skills, status and presence, a team on each ticket; team
 leads receive SLA alerts), and phase 6 (routing rules, the routing engine with its
 job, sweep and reroute, recorded decisions with explanations, shadow mode, the
-simulator). Next: the screens (phase 7).
+simulator), and phase 7 (Settings → Teams and agents and Settings → Routing with the
+simulator, SLA badges and filters in the ticket list, the team and routing panel on
+tickets). Next: hardening (phase 8).
 
 Specified in [docs/features/sla-and-automated-routing.md](docs/features/sla-and-automated-routing.md),
 adapted from the feature plan after auditing this repository. In short:

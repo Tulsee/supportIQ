@@ -866,6 +866,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/routing/customer-fields": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Customer metadata keys rules can use
+         * @description Keys found in customers' metadata (lower-case letters, digits and underscores),
+         *     most common first, for `customer.<key>` conditions.
+         */
+        get: operations["customer_fields_api_v1_routing_customer_fields_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/routing/rules/order": {
         parameters: {
             query?: never;
@@ -3469,13 +3490,10 @@ export interface components {
              * @description A category key.
              */
             category?: string | null;
-            /** @default normal */
-            priority: components["schemas"]["TicketPriority"];
-            /**
-             * Subject
-             * @default
-             */
-            subject: string;
+            /** @description Normal if omitted. */
+            priority?: components["schemas"]["TicketPriority"] | null;
+            /** Subject */
+            subject?: string | null;
             /**
              * Customer
              * @description The customer's metadata.
@@ -3864,6 +3882,8 @@ export interface components {
             category: components["schemas"]["CategorySummary"] | null;
             /** @description Staff only; null for customers. */
             team: components["schemas"]["TeamSummary"] | null;
+            /** @description Staff only: the SLA clock that matters most now. Null without SLA clocks, and for customers. */
+            sla?: components["schemas"]["TicketSlaSummary"] | null;
             /**
              * Allowed Statuses
              * @description Statuses this ticket can move to next (lifecycle rules).
@@ -3896,6 +3916,31 @@ export interface components {
              * @description Latest cycle first per kind; empty if no policy covered the ticket.
              */
             clocks: components["schemas"]["SlaClockRead"][];
+        };
+        /**
+         * TicketSlaSummary
+         * @description The one SLA clock that matters most on a ticket right now (for lists): an open
+         *     clock, the most urgent first (breached, due soon, on track, paused; then the
+         *     earliest deadline), or once none is open, how resolution (else first response)
+         *     ended.
+         */
+        TicketSlaSummary: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "on_track" | "at_risk" | "breached" | "paused" | "met" | "met_late" | "cancelled";
+            kind: components["schemas"]["SlaClockKind"];
+            /**
+             * Due At
+             * Format: date-time
+             */
+            due_at: string;
+            /**
+             * Remaining Minutes
+             * @description Business minutes left (negative: overdue); null once met or cancelled.
+             */
+            remaining_minutes: number | null;
         };
         /**
          * TicketStatus
@@ -5712,6 +5757,10 @@ export interface operations {
                 category_id?: string | null;
                 /** @description Staff only. */
                 team_id?: string | null;
+                /** @description Staff only: tickets of the teams you belong to. */
+                my_teams?: boolean;
+                /** @description Staff only: an open SLA clock due soon, or past its deadline. */
+                sla?: ("at_risk" | "breached") | null;
                 /** @description Ticket number (#42), customer name or email, or words in the subject or messages. */
                 search?: string | null;
                 sort?: "-updated_at" | "-created_at" | "created_at" | "-priority";
@@ -8005,6 +8054,74 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RuleRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    customer_fields_api_v1_routing_customer_fields_get: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": string[];
                 };
             };
             /** @description Unauthorized */

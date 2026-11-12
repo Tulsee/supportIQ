@@ -41,6 +41,17 @@ export type Category = Schemas["CategoryRead"];
 export type Team = Schemas["TeamRead"];
 export type Agent = Schemas["AgentRead"];
 export type AgentStatus = Agent["status"];
+export type AgentPresence = Agent["presence"];
+export type SkillLevel = Schemas["SkillLevel-Output"];
+export type RoutingRule = Schemas["RuleRead"];
+export type RoutingStrategy = RoutingRule["strategy"];
+export type RoutingCondition = Schemas["ConditionIn"];
+export type RoutingDecision = Schemas["DecisionRead"];
+export type RoutingSimulation = Schemas["SimulationRead"];
+export type RoutingOutcome = RoutingDecision["outcome"];
+export type RoutingCandidate = Schemas["CandidateRead"];
+export type RoutingMode = Schemas["OrganizationSettings"]["routing_mode"];
+export type TicketSlaSummary = Schemas["TicketSlaSummary"];
 export type OrganizationSettings = Schemas["OrganizationSettings"];
 
 /**

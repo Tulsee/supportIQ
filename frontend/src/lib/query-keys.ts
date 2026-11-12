@@ -29,6 +29,9 @@ export const queryKeys = {
     ["organizations", orgId, "tickets", "detail", ticketId, "events"] as const,
   ticketSla: (orgId: string, ticketId: string) =>
     ["organizations", orgId, "tickets", "detail", ticketId, "sla"] as const,
+  // Under the ticket, so live ticket updates refetch it too.
+  ticketRouting: (orgId: string, ticketId: string) =>
+    ["organizations", orgId, "tickets", "detail", ticketId, "routing"] as const,
 
   customers: (orgId: string, page?: SearchPage) =>
     page
@@ -66,6 +69,12 @@ export const queryKeys = {
       ? (["organizations", orgId, "categories", filters] as const)
       : (["organizations", orgId, "categories"] as const),
   agents: (orgId: string) => ["organizations", orgId, "agents"] as const,
+  teams: (orgId: string, filters?: object) =>
+    filters
+      ? (["organizations", orgId, "teams", filters] as const)
+      : (["organizations", orgId, "teams"] as const),
+  routingRules: (orgId: string) => ["organizations", orgId, "routing", "rules"] as const,
+  customerFields: (orgId: string) => ["organizations", orgId, "routing", "customer-fields"] as const,
   agentMe: (orgId: string) => ["organizations", orgId, "agents", "me"] as const,
   notifications: (orgId: string, filters?: object) =>
     filters

@@ -70,17 +70,25 @@ class Condition:
             value = tuple(str(v) for v in value)
         return cls(str(raw["field"]), Operator(raw["operator"]), value)
 
-    def describe(self) -> str:
-        name = self.field.replace("_", " ")
+    def describe(self, *, negated: bool = False) -> str:
+        """In words: "category is billing", or with ``negated``, "category isn't billing"."""
+        name = self.field.replace(CUSTOMER_PREFIX, "customer ").replace("_", " ")
+        values = list(self.value) if isinstance(self.value, tuple) else [str(self.value)]
         match self.operator:
-            case Operator.EQ:
-                return f"{name} is {self.value}"
+            case Operator.EQ | Operator.IN if len(values) == 1:
+                verb = "isn't" if negated else "is"
+                return f"{name} {verb} {values[0]}"
             case Operator.IN:
-                return f"{name} is one of {', '.join(self.value)}"  # type: ignore[arg-type]
+                listed = ", ".join(values[:-1]) + f" or {values[-1]}"
+                return (
+                    f"{name} is none of {', '.join(values)}" if negated else f"{name} is {listed}"
+                )
             case Operator.CONTAINS:
-                return f"{name} contains “{self.value}”"
-            case Operator.IS_SET:
-                return f"{name} is set" if self.value else f"{name} is not set"
+                verb = "doesn't contain" if negated else "contains"
+                return f"{name} {verb} “{self.value}”"
+            case _:  # is_set
+                is_set = bool(self.value) != negated
+                return f"{name} is set" if is_set else f"{name} is not set"
 
 
 @dataclass(frozen=True)
@@ -163,13 +171,16 @@ class RuleCheck:
 def check_rule(rule: Rule, facts: TicketFacts) -> RuleCheck:
     for condition in rule.all:
         if not condition_matches(condition, facts):
-            return RuleCheck(rule.id, rule.name, False, f"not {condition.describe()}")
+            return RuleCheck(rule.id, rule.name, False, condition.describe(negated=True))
     reasons = [c.describe() for c in rule.all]
     if rule.any:
         hit = next((c for c in rule.any if condition_matches(c, facts)), None)
         if hit is None:
-            options = " or ".join(c.describe() for c in rule.any)
-            return RuleCheck(rule.id, rule.name, False, f"not {options}")
+            if len(rule.any) == 1:
+                detail = rule.any[0].describe(negated=True)
+            else:
+                detail = "none of: " + "; ".join(c.describe() for c in rule.any)
+            return RuleCheck(rule.id, rule.name, False, detail)
         reasons.append(hit.describe())
     return RuleCheck(rule.id, rule.name, True, ", ".join(reasons) or "matches every ticket")
 

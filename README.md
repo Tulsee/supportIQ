@@ -54,7 +54,9 @@ a labelled benchmark measures how well it works.
   capacity and has the skills: least loaded, round robin or best skill match. Every
   decision is recorded with an explanation; when nobody can take a ticket it waits and
   the team lead is told. Shadow mode, rerouting and a dry-run simulator; a person's
-  assignment always wins.
+  assignment always wins. Managed under Settings → Teams and agents and Settings →
+  Routing; the ticket list shows each ticket's SLA and filters by due soon, breached
+  and my teams.
 - **Notifications and audit log.** A live notification bell (assignments, customer
   replies, AI escalations, and replies to customers), optional email per kind, and an
   append-only log of administrative changes.

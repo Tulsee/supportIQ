@@ -228,3 +228,44 @@ class TicketSla(BaseModel):
     clocks: list[SlaClockRead] = Field(
         description="Latest cycle first per kind; empty if no policy covered the ticket."
     )
+
+
+# The order a list shows open clocks in: the most urgent first.
+_URGENCY = {"breached": 0, "at_risk": 1, "on_track": 2, "paused": 3}
+
+
+class TicketSlaSummary(BaseModel):
+    """The one SLA clock that matters most on a ticket right now (for lists): an open
+    clock, the most urgent first (breached, due soon, on track, paused; then the
+    earliest deadline), or once none is open, how resolution (else first response)
+    ended."""
+
+    status: ClockStatus
+    kind: SlaClockKind
+    due_at: datetime
+    remaining_minutes: int | None = Field(
+        description="Business minutes left (negative: overdue); null once met or cancelled."
+    )
+
+    @classmethod
+    def pick(cls, clocks: list[TicketSlaClock], now: datetime) -> "TicketSlaSummary | None":
+        latest: dict[SlaClockKind, TicketSlaClock] = {}
+        for clock in sorted(clocks, key=lambda c: c.cycle):
+            latest[clock.kind] = clock
+        reads = [SlaClockRead.build(c, now) for c in latest.values()]
+        if not reads:
+            return None
+        open_ = [r for r in reads if r.status in _URGENCY]
+        if open_:
+            chosen = min(open_, key=lambda r: (_URGENCY[r.status], r.due_at))
+        else:
+            chosen = next(
+                (r for r in reads if r.kind == SlaClockKind.RESOLUTION and r.status != "cancelled"),
+                next((r for r in reads if r.status != "cancelled"), reads[0]),
+            )
+        return cls(
+            status=chosen.status,
+            kind=chosen.kind,
+            due_at=chosen.due_at,
+            remaining_minutes=chosen.remaining_minutes,
+        )

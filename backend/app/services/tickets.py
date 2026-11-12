@@ -135,7 +135,13 @@ class TicketService:
         if not is_staff(member):
             # Customers only ever see their own tickets (RLS enforces this too).
             filters = replace(
-                filters, only_for_user_id=user.id, assignee=None, category_id=None, team_id=None
+                filters,
+                only_for_user_id=user.id,
+                assignee=None,
+                category_id=None,
+                team_id=None,
+                my_teams=False,
+                sla=None,
             )
         return await self.tickets.find(
             member.organization_id, filters, current_user_id=user.id, limit=limit, offset=offset

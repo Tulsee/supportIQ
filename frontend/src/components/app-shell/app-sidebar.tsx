@@ -5,8 +5,10 @@ import {
   Building2Icon,
   BuildingIcon,
   ChartLineIcon,
+  ContactIcon,
   LayoutDashboardIcon,
   MessageSquareTextIcon,
+  RouteIcon,
   ScanSearchIcon,
   ScrollTextIcon,
   TagsIcon,
@@ -74,6 +76,8 @@ const ADMIN_SETTINGS: NavItem[] = [
   ...SETTINGS,
   { title: "Categories", icon: TagsIcon, href: "/settings/categories" },
   { title: "Service levels", icon: TimerIcon, href: "/settings/sla" },
+  { title: "Teams and agents", icon: ContactIcon, href: "/settings/teams" },
+  { title: "Routing", icon: RouteIcon, href: "/settings/routing" },
   { title: "Audit log", icon: ScrollTextIcon, href: "/settings/audit-log" },
 ];
 

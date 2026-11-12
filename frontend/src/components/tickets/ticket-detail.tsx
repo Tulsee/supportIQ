@@ -14,9 +14,11 @@ import {
   refreshTickets,
   useAssignableMembers,
   useCategories,
+  useTeams,
 } from "@/components/tickets/hooks";
 import { NewRequestDialog } from "@/components/tickets/new-request-dialog";
 import { ReplyBox, type ReplyDraft } from "@/components/tickets/reply-box";
+import { RoutingPanel } from "@/components/tickets/routing-panel";
 import { SlaPanel } from "@/components/tickets/sla-panel";
 import { TicketAIPanel } from "@/components/tickets/ticket-ai-panel";
 import { PriorityLabel, StatusBadge } from "@/components/tickets/ticket-badges";
@@ -45,6 +47,7 @@ import { PRIORITIES, PRIORITY_LABELS, STATUS_LABELS, formatDateTime } from "@/li
 
 const UNASSIGNED = "unassigned";
 const NO_CATEGORY = "none";
+const NO_TEAM = "none";
 const MESSAGES_PAGE = { limit: 100 };
 
 /** Staff controls: status (lifecycle-aware), assignee, priority. */
@@ -57,6 +60,7 @@ function TicketProperties({ ticket }: { ticket: Ticket }) {
   const queryClient = useQueryClient();
   const { members } = useAssignableMembers();
   const { categories } = useCategories();
+  const { teams } = useTeams();
   const closed = ticket.status === "closed";
 
   const update = useMutation({
@@ -84,6 +88,14 @@ function TicketProperties({ ticket }: { ticket: Ticket }) {
   // Keep the current category selectable even if it was deactivated since.
   if (ticket.category && !(ticket.category.id in categoryItems)) {
     categoryItems[ticket.category.id] = `${ticket.category.name} (inactive)`;
+  }
+  const teamItems: Record<string, string> = {
+    [NO_TEAM]: "No team",
+    ...Object.fromEntries(teams.map((t) => [t.id, t.name])),
+  };
+  // Keep the current team selectable even if it was turned off since.
+  if (ticket.team && !(ticket.team.id in teamItems)) {
+    teamItems[ticket.team.id] = `${ticket.team.name} (off)`;
   }
   const assigneeItems: Record<string, string> = {
     [UNASSIGNED]: "Unassigned",
@@ -163,6 +175,37 @@ function TicketProperties({ ticket }: { ticket: Ticket }) {
                 ))}
               </SelectContent>
             </Select>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor={`${uid}-team`}>Team</FieldLabel>
+            <Select
+              items={teamItems}
+              value={ticket.team?.id ?? NO_TEAM}
+              onValueChange={(value) => {
+                if (!value || value === (ticket.team?.id ?? NO_TEAM)) return;
+                update.mutate({ team_id: value === NO_TEAM ? null : value });
+              }}
+              disabled={update.isPending || closed}
+            >
+              <SelectTrigger id={`${uid}-team`} className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(teamItems).map(([id, name]) => (
+                  <SelectItem key={id} value={id}>
+                    {name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {teams.length === 0 && organization.role === "admin" ? (
+              <FieldDescription>
+                <Link href="/settings/teams" className="underline-offset-4 hover:underline">
+                  Add teams
+                </Link>{" "}
+                to route tickets to them.
+              </FieldDescription>
+            ) : null}
           </Field>
           <Field>
             <FieldLabel htmlFor={`${uid}-category`}>Category</FieldLabel>
@@ -383,6 +426,7 @@ export function TicketDetail() {
         <aside className="space-y-4" aria-label="Ticket details">
           {audience === "staff" ? <TicketProperties ticket={data} /> : null}
           {audience === "staff" ? <SlaPanel ticket={data} /> : null}
+          {audience === "staff" ? <RoutingPanel ticket={data} /> : null}
           {audience === "staff" ? (
             <Card size="sm">
               <CardHeader>

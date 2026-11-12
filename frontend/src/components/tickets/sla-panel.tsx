@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { api, tenant, unwrap, type Schemas, type Ticket } from "@/lib/api/client";
+import { api, tenant, unwrap, type Schemas, type Ticket, type TicketSlaSummary } from "@/lib/api/client";
 import { useActiveOrganization } from "@/lib/org/org-provider";
 import { queryKeys } from "@/lib/query-keys";
 import { formatInZone, formatMinutes } from "@/lib/sla";
@@ -25,6 +25,26 @@ const STATUS: Record<Status, { label: string; className: string }> = {
   met_late: { label: "Met late", className: "bg-amber-500/15 text-amber-700 dark:text-amber-400" },
   cancelled: { label: "Cancelled", className: "bg-muted text-muted-foreground" },
 };
+
+/** A ticket's SLA in one word or two, for lists: "On track", "Due in 35 min", "Breached"... */
+export function SlaBadge({ sla }: { sla: TicketSlaSummary | null | undefined }) {
+  if (!sla) return <span className="text-xs text-muted-foreground">No SLA</span>;
+  if (sla.status === "cancelled") return <span className="text-xs text-muted-foreground">–</span>;
+  const status = STATUS[sla.status];
+  const label =
+    sla.status === "at_risk" && sla.remaining_minutes !== null
+      ? `Due in ${formatMinutes(Math.max(sla.remaining_minutes, 0))}`
+      : status.label;
+  const what = sla.kind === "first_response" ? "First response" : "Resolution";
+  return (
+    <Badge
+      className={cn("border-transparent whitespace-nowrap", status.className)}
+      title={`${what} · due ${new Date(sla.due_at).toLocaleString()}`}
+    >
+      {label}
+    </Badge>
+  );
+}
 
 function detail(clock: Clock): string {
   const due = formatInZone(clock.due_at, clock.timezone);

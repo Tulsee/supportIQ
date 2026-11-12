@@ -8,6 +8,7 @@ import uuid
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Query, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import (
     CurrentUser,
@@ -19,10 +20,10 @@ from app.api.deps import (
     TenantMembership,
 )
 from app.core.security import utcnow
-from app.models import SlaClockKind, TicketPriority, TicketStatus
+from app.models import OrganizationMember, SlaClockKind, Ticket, TicketPriority, TicketStatus
 from app.repositories.tickets import TicketFilters, TicketSortKey
 from app.schemas.common import Page, error_responses
-from app.schemas.sla import SlaClockRead, TicketSla
+from app.schemas.sla import SlaClockRead, TicketSla, TicketSlaSummary
 from app.schemas.tickets import (
     EventRead,
     MessageCreate,
@@ -45,6 +46,18 @@ router = APIRouter(
 )
 
 
+async def _reads(
+    session: AsyncSession, member: OrganizationMember, tickets: list[Ticket]
+) -> list[TicketRead]:
+    """Tickets as the API returns them; for staff, with their SLA summary."""
+    summaries: dict[uuid.UUID, TicketSlaSummary | None] = {}
+    if member.role in STAFF_ROLES and tickets:
+        now = utcnow()
+        clocks = await SlaClockService(session).clocks_of([t.id for t in tickets])
+        summaries = {t.id: TicketSlaSummary.pick(clocks.get(t.id, []), now) for t in tickets}
+    return [TicketRead.build(t, allowed_statuses(member, t), summaries.get(t.id)) for t in tickets]
+
+
 @router.get("", summary="List tickets")
 async def list_tickets(
     member: TenantMembership,
@@ -64,6 +77,13 @@ async def list_tickets(
     customer_id: uuid.UUID | None = None,
     category_id: Annotated[uuid.UUID | None, Query(description="Staff only.")] = None,
     team_id: Annotated[uuid.UUID | None, Query(description="Staff only.")] = None,
+    my_teams: Annotated[
+        bool, Query(description="Staff only: tickets of the teams you belong to.")
+    ] = False,
+    sla: Annotated[
+        Literal["at_risk", "breached"] | None,
+        Query(description="Staff only: an open SLA clock due soon, or past its deadline."),
+    ] = None,
     search: Annotated[
         str | None,
         Query(
@@ -82,6 +102,8 @@ async def list_tickets(
         customer_id=customer_id,
         category_id=category_id,
         team_id=team_id,
+        my_teams=my_teams,
+        sla=sla,
         search=search.strip() if search and search.strip() else None,
         sort=sort,
     )
@@ -89,7 +111,7 @@ async def list_tickets(
         member, user, filters, limit=page.limit, offset=page.offset
     )
     return Page(
-        items=[TicketRead.build(t, allowed_statuses(member, t)) for t in tickets],
+        items=await _reads(session, member, tickets),
         total=total,
         limit=page.limit,
         offset=page.offset,
@@ -120,7 +142,7 @@ async def create_ticket(
     shadow)."""
     ticket = await TicketService(session, events, notifications).create(member, user, body)
     await enqueue_new_ticket(routing, member, ticket)
-    return TicketRead.build(ticket, allowed_statuses(member, ticket))
+    return (await _reads(session, member, [ticket]))[0]
 
 
 @router.post("/{ticket_id}/close", summary="Close a ticket")
@@ -136,7 +158,7 @@ async def close_ticket(
     they no longer need help). Closing is final: 409 `ticket_closed` if it already is,
     and closed tickets take no more replies."""
     ticket = await TicketService(session, events, notifications).close(member, user, ticket_id)
-    return TicketRead.build(ticket, allowed_statuses(member, ticket))
+    return (await _reads(session, member, [ticket]))[0]
 
 
 @router.get("/{ticket_id}/sla", summary="The ticket's SLA clocks (staff)")
@@ -161,7 +183,7 @@ async def get_ticket(
     ticket_id: uuid.UUID, member: TenantMembership, user: CurrentUser, session: DbSession
 ) -> TicketRead:
     ticket = await TicketService(session).get(member, user, ticket_id)
-    return TicketRead.build(ticket, allowed_statuses(member, ticket))
+    return (await _reads(session, member, [ticket]))[0]
 
 
 @router.patch("/{ticket_id}", summary="Update a ticket (staff)")
@@ -179,7 +201,7 @@ async def update_ticket(
     ticket = await TicketService(session, events, notifications).update(
         member, user, ticket_id, body
     )
-    return TicketRead.build(ticket, allowed_statuses(member, ticket))
+    return (await _reads(session, member, [ticket]))[0]
 
 
 @router.get("/{ticket_id}/messages", summary="List a ticket's messages (oldest first)")

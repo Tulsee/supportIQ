@@ -39,6 +39,13 @@ async def list_rules(member: TenantMembership, session: DbSession) -> list[RuleR
     return [RuleRead.build(r) for r in await RuleService(session).list_rules(member)]
 
 
+@router.get("/customer-fields", summary="Customer metadata keys rules can use")
+async def customer_fields(member: TenantMembership, session: DbSession) -> list[str]:
+    """Keys found in customers' metadata (lower-case letters, digits and underscores),
+    most common first, for `customer.<key>` conditions."""
+    return await RuleService(session).customer_fields(member)
+
+
 @router.post("/rules", status_code=status.HTTP_201_CREATED, summary="Add a routing rule (admin)")
 async def create_rule(body: RuleCreate, member: TenantMembership, session: DbSession) -> RuleRead:
     """Added last. 400 `routing_rule_invalid` for an inactive or unknown team or

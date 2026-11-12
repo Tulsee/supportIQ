@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/page-header";
 import { Pager } from "@/components/pager";
 import { SearchInput } from "@/components/search-input";
 import { NewTicketDialog } from "@/components/tickets/new-ticket-dialog";
+import { SlaBadge } from "@/components/tickets/sla-panel";
 import { PriorityLabel, StatusBadge } from "@/components/tickets/ticket-badges";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent } from "@/components/ui/card";
@@ -24,7 +25,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LIVE_QUERY, useCategories } from "@/components/tickets/hooks";
+import { LIVE_QUERY, useCategories, useTeams } from "@/components/tickets/hooks";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { api, errorMessage, tenant, unwrap, type TicketPriority, type TicketStatus } from "@/lib/api/client";
 import { useActiveOrganization } from "@/lib/org/org-provider";
@@ -70,6 +71,14 @@ const SORT_LABELS: Record<Sort, string> = {
 };
 const ANY_PRIORITY = "any";
 const ANY_CATEGORY = "any";
+const ANY_TEAM = "any";
+const MY_TEAMS = "mine";
+type SlaFilter = "any" | "at_risk" | "breached";
+const SLA_FILTER_LABELS: Record<SlaFilter, string> = {
+  any: "Any SLA",
+  at_risk: "Due soon",
+  breached: "Breached",
+};
 const PRIORITY_FILTER_LABELS: Record<string, string> = {
   [ANY_PRIORITY]: "Any priority",
   ...PRIORITY_LABELS,
@@ -87,6 +96,14 @@ export function TicketsInbox() {
     [ANY_CATEGORY]: "Any category",
     ...Object.fromEntries(categories.map((c) => [c.id, c.name])),
   };
+  const [slaFilter, setSlaFilter] = useState<SlaFilter>("any");
+  const [team, setTeam] = useState<string>(ANY_TEAM);
+  const { teams } = useTeams();
+  const teamLabels: Record<string, string> = {
+    [ANY_TEAM]: "Any team",
+    [MY_TEAMS]: "My teams",
+    ...Object.fromEntries(teams.map((t) => [t.id, t.name])),
+  };
   const [sort, setSort] = useState<Sort>("-updated_at");
   const [offset, setOffset] = useState(0);
   const debouncedSearch = useDebouncedValue(search.trim());
@@ -95,6 +112,9 @@ export function TicketsInbox() {
     ...viewFilters(view),
     priority: priority === ANY_PRIORITY ? undefined : [priority as TicketPriority],
     category_id: category === ANY_CATEGORY ? undefined : category,
+    sla: slaFilter === "any" ? undefined : slaFilter,
+    my_teams: team === MY_TEAMS ? true : undefined,
+    team_id: team === ANY_TEAM || team === MY_TEAMS ? undefined : team,
     search: debouncedSearch || undefined,
     sort,
     limit: LIMIT,
@@ -106,6 +126,7 @@ export function TicketsInbox() {
     queryFn: () =>
       unwrap(api.GET("/api/v1/tickets", { params: { query, header: tenant(organization.id) } })),
     placeholderData: keepPreviousData,
+    refetchInterval: 60_000, // SLA badges follow the clock
   });
   const counts = useQuery({
     queryKey: queryKeys.ticketCounts(organization.id),
@@ -204,6 +225,40 @@ export function TicketsInbox() {
               </Select>
             ) : null}
             <Select
+              items={SLA_FILTER_LABELS}
+              value={slaFilter}
+              onValueChange={(value) => value && resetPage(setSlaFilter)(value as SlaFilter)}
+            >
+              <SelectTrigger aria-label="Filter by SLA" className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(Object.keys(SLA_FILTER_LABELS) as SlaFilter[]).map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {SLA_FILTER_LABELS[value]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {teams.length ? (
+              <Select
+                items={teamLabels}
+                value={team}
+                onValueChange={(value) => value && resetPage(setTeam)(value)}
+              >
+                <SelectTrigger aria-label="Filter by team" className="w-36">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(teamLabels).map(([id, name]) => (
+                    <SelectItem key={id} value={id}>
+                      {name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : null}
+            <Select
               items={SORT_LABELS}
               value={sort}
               onValueChange={(value) => value && resetPage(setSort)(value as Sort)}
@@ -255,7 +310,9 @@ export function TicketsInbox() {
                     <TableHead className="w-16">#</TableHead>
                     <TableHead>Subject</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead className="hidden sm:table-cell">SLA</TableHead>
                     <TableHead className="hidden md:table-cell">Priority</TableHead>
+                    <TableHead className="hidden xl:table-cell">Team</TableHead>
                     <TableHead className="hidden lg:table-cell">Assignee</TableHead>
                     <TableHead className="hidden sm:table-cell">Updated</TableHead>
                   </TableRow>
@@ -277,13 +334,20 @@ export function TicketsInbox() {
                         <div className="truncate text-xs text-muted-foreground">
                           {ticket.customer.name}
                           {ticket.category ? ` · ${ticket.category.name}` : ""}
+                          <span className="xl:hidden">{ticket.team ? ` · ${ticket.team.name}` : ""}</span>
                         </div>
                       </TableCell>
                       <TableCell>
                         <StatusBadge status={ticket.status} />
                       </TableCell>
+                      <TableCell className="hidden sm:table-cell">
+                        <SlaBadge sla={ticket.sla} />
+                      </TableCell>
                       <TableCell className="hidden md:table-cell">
                         <PriorityLabel priority={ticket.priority} />
+                      </TableCell>
+                      <TableCell className="hidden text-sm xl:table-cell">
+                        {ticket.team ? ticket.team.name : <span className="text-muted-foreground">–</span>}
                       </TableCell>
                       <TableCell className="hidden lg:table-cell">
                         {ticket.assignee ? (

@@ -2,7 +2,7 @@
 
 import { type QueryClient, useQuery } from "@tanstack/react-query";
 
-import { api, tenant, unwrap, type Category, type Member } from "@/lib/api/client";
+import { api, tenant, unwrap, type Agent, type Category, type Member, type Team } from "@/lib/api/client";
 import { useActiveOrganization } from "@/lib/org/org-provider";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -53,6 +53,34 @@ export function useCategories(includeInactive = false): {
     enabled,
   });
   return { categories: query.data ?? [], isPending: enabled && query.isPending };
+}
+
+/** The organization's teams with their members (staff only). */
+export function useTeams(includeInactive = false): { teams: Team[]; isPending: boolean } {
+  const organization = useActiveOrganization();
+  const enabled = organization.role !== "customer";
+  const params = { include_inactive: includeInactive };
+  const query = useQuery({
+    queryKey: queryKeys.teams(organization.id, params),
+    queryFn: () =>
+      unwrap(api.GET("/api/v1/teams", { params: { query: params, header: tenant(organization.id) } })),
+    enabled,
+  });
+  return { teams: query.data ?? [], isPending: enabled && query.isPending };
+}
+
+/** Admins and agents as routing sees them: status, presence, workload, skills, teams. */
+export function useAgents(): { agents: Agent[]; isPending: boolean } {
+  const organization = useActiveOrganization();
+  const enabled = organization.role !== "customer";
+  const query = useQuery({
+    queryKey: queryKeys.agents(organization.id),
+    queryFn: () =>
+      unwrap(api.GET("/api/v1/agents", { params: { header: tenant(organization.id) } })),
+    enabled,
+    refetchInterval: 60_000, // presence changes as people come and go
+  });
+  return { agents: query.data ?? [], isPending: enabled && query.isPending };
 }
 
 /**

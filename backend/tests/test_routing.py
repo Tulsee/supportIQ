@@ -477,7 +477,7 @@ async def test_manual_teams_unmatched_tickets_and_shadow_mode(
     decision = await router.new(plain)
     assert decision.outcome == "no_rule"
     assert decision.explanation == (
-        "The only active routing rule, “VIP”, didn't match (not customer.plan is gold), so "
+        "The only active routing rule, “VIP”, didn't match (customer plan isn't gold), so "
         "the ticket stays in the unassigned queue."
     )
     assert (await fetch(api, ws, plain))["team"] is None
@@ -600,7 +600,7 @@ async def test_the_simulator_explains_without_changing_anything(
         "Urgent billing",
         "Support",
     )
-    assert result["rules"][0]["detail"] == "category is billing, customer.plan is gold"
+    assert result["rules"][0]["detail"] == "category is billing, customer plan is gold"
     assert result["assignee"]["rank"] == 1
     assert "Would assign to" in result["explanation"]
 
@@ -609,7 +609,7 @@ async def test_the_simulator_explains_without_changing_anything(
         await api.post(f"{API}/routing/simulate", json={"ticket_id": ticket["id"]}, headers=admin)
     ).json()
     assert existing["outcome"] == "no_rule"
-    assert existing["rules"][0]["detail"] == "not category is billing"
+    assert existing["rules"][0]["detail"] == "category isn't billing"
     # Nothing was written.
     assert (await history(api, ws, ticket)).json() == []
     assert (await fetch(api, ws, ticket))["assignee"] is None

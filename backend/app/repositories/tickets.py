@@ -1,6 +1,7 @@
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Literal
 
 from sqlalchemy import ColumnElement, case, exists, func, literal_column, or_, select
@@ -8,14 +9,18 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
+from app.core.security import utcnow
 from app.models import (
     Customer,
+    SlaClockState,
+    TeamMember,
     Ticket,
     TicketCounter,
     TicketEvent,
     TicketEventType,
     TicketMessage,
     TicketPriority,
+    TicketSlaClock,
     TicketStatus,
 )
 from app.models.ticket import SEARCH_CONFIG
@@ -45,10 +50,31 @@ class TicketFilters:
     customer_id: uuid.UUID | None = None
     category_id: uuid.UUID | None = None
     team_id: uuid.UUID | None = None
+    # Tickets of any team the current user belongs to.
+    my_teams: bool = False
+    # An open SLA clock that's due soon (warning time passed) or past its deadline.
+    sla: Literal["at_risk", "breached"] | None = None
+    now: datetime | None = None  # for the SLA filter (defaults to the current time)
     search: str | None = None
     sort: TicketSortKey = "-updated_at"
     # Customers: restrict to the customer records linked to this user.
     only_for_user_id: uuid.UUID | None = field(default=None)
+
+
+def _sla_condition(kind: Literal["at_risk", "breached"], now: datetime) -> ColumnElement[bool]:
+    """An unmet clock of the ticket is breached, or due soon (and not yet breached). The
+    same rules as ``app.domain.sla.status``."""
+    clock = TicketSlaClock
+    running = clock.state == SlaClockState.RUNNING
+    if kind == "breached":
+        state = (clock.state.in_([SlaClockState.RUNNING, SlaClockState.PAUSED])) & (
+            clock.breached_at.is_not(None) | (running & (clock.due_at <= now))
+        )
+    else:
+        state = (
+            running & clock.breached_at.is_(None) & (clock.warn_at <= now) & (clock.due_at > now)
+        )
+    return exists().where(clock.ticket_id == Ticket.id, state)
 
 
 def _search_condition(search: str) -> ColumnElement[bool]:
@@ -143,6 +169,17 @@ class TicketRepository:
             conditions.append(Ticket.category_id == filters.category_id)
         if filters.team_id:
             conditions.append(Ticket.team_id == filters.team_id)
+        if filters.my_teams:
+            conditions.append(
+                Ticket.team_id.in_(
+                    select(TeamMember.team_id).where(
+                        TeamMember.organization_id == organization_id,
+                        TeamMember.user_id == current_user_id,
+                    )
+                )
+            )
+        if filters.sla is not None:
+            conditions.append(_sla_condition(filters.sla, filters.now or utcnow()))
         if filters.search:
             conditions.append(_search_condition(filters.search))
         return conditions

@@ -15,6 +15,7 @@ from app.models import (
     User,
 )
 from app.schemas.customers import CustomerSummary
+from app.schemas.sla import TicketSlaSummary
 
 Subject = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=300)]
 Body = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=20_000)]
@@ -82,6 +83,11 @@ class TicketRead(BaseModel):
     assignee: PersonSummary | None
     category: CategorySummary | None = Field(description="Staff only; null for customers.")
     team: TeamSummary | None = Field(description="Staff only; null for customers.")
+    sla: TicketSlaSummary | None = Field(
+        default=None,
+        description="Staff only: the SLA clock that matters most now. Null without SLA "
+        "clocks, and for customers.",
+    )
     allowed_statuses: list[TicketStatus] = Field(
         description="Statuses this ticket can move to next (lifecycle rules)."
     )
@@ -91,7 +97,12 @@ class TicketRead(BaseModel):
     closed_at: datetime | None
 
     @classmethod
-    def build(cls, ticket: Ticket, allowed_statuses: list[TicketStatus]) -> Self:
+    def build(
+        cls,
+        ticket: Ticket,
+        allowed_statuses: list[TicketStatus],
+        sla: TicketSlaSummary | None = None,
+    ) -> Self:
         return cls(
             id=ticket.id,
             number=ticket.number,
@@ -108,6 +119,7 @@ class TicketRead(BaseModel):
                 else None
             ),
             team=TeamSummary(id=ticket.team.id, name=ticket.team.name) if ticket.team else None,
+            sla=sla,
             allowed_statuses=allowed_statuses,
             created_at=ticket.created_at,
             updated_at=ticket.updated_at,

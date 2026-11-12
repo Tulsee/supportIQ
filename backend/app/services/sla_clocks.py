@@ -72,6 +72,18 @@ class SlaClockService:
         )
         return list(rows.all())
 
+    async def clocks_of(self, ticket_ids: list[uuid.UUID]) -> dict[uuid.UUID, list[TicketSlaClock]]:
+        """Every clock of these tickets (one query, for lists)."""
+        grouped: dict[uuid.UUID, list[TicketSlaClock]] = {}
+        if not ticket_ids:
+            return grouped
+        rows = await self.session.scalars(
+            select(TicketSlaClock).where(TicketSlaClock.ticket_id.in_(ticket_ids))
+        )
+        for clock in rows.all():
+            grouped.setdefault(clock.ticket_id, []).append(clock)
+        return grouped
+
     async def current(self, ticket_id: uuid.UUID) -> dict[SlaClockKind, TicketSlaClock]:
         """The latest cycle of each kind."""
         latest: dict[SlaClockKind, TicketSlaClock] = {}

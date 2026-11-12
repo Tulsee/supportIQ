@@ -108,9 +108,9 @@ def test_all_conditions_and_one_of_any() -> None:
     neither = rule(
         "Neither", all=[cond("category", "eq", "billing")], any=[cond("priority", "eq", "low")]
     )
-    assert match_rule([neither], TICKET)[1][0].detail == "not priority is low"
+    assert match_rule([neither], TICKET)[1][0].detail == "priority isn't low"
     wrong = rule("Wrong", all=[cond("subject", "contains", "refund")])
-    assert match_rule([wrong], TICKET)[1][0].detail == "not subject contains “refund”"
+    assert match_rule([wrong], TICKET)[1][0].detail == "subject doesn't contain “refund”"
 
 
 def test_the_first_matching_rule_wins_and_no_conditions_match_everything() -> None:
@@ -247,7 +247,7 @@ def test_explanations() -> None:
     assert explain(
         rule=None, checks=one, candidates=[], outcome=Outcome.NO_RULE, assignee=None
     ) == (
-        "The only active routing rule, “Returns”, didn't match (not category is returns), "
+        "The only active routing rule, “Returns”, didn't match (category isn't returns), "
         "so the ticket stays in the unassigned queue."
     )
     _, two = match_rule([returns, returns], TICKET)
@@ -256,6 +256,23 @@ def test_explanations() -> None:
     ).startswith("None of the 2 active routing rules matched")
     assert "no active routing rules" in explain(
         rule=None, checks=[], candidates=[], outcome=Outcome.NO_RULE, assignee=None
+    )
+
+
+def test_conditions_in_words() -> None:
+    assert cond("priority", "in", ["high", "urgent"]).describe() == "priority is high or urgent"
+    assert (
+        cond("priority", "in", ["high", "urgent"]).describe(negated=True)
+        == "priority is none of high, urgent"
+    )
+    assert cond("customer.account_plan", "eq", "gold").describe() == "customer account plan is gold"
+    assert cond("category", "is_set", False).describe(negated=True) == "category is set"
+    either = rule(
+        "Either",
+        any=[cond("priority", "eq", "urgent"), cond("customer.plan", "eq", "platinum")],
+    )
+    assert match_rule([either], TICKET)[1][0].detail == (
+        "none of: priority is urgent; customer plan is platinum"
     )
 
 

@@ -172,8 +172,8 @@ class SimulationRequest(BaseModel):
 
     ticket_id: uuid.UUID | None = Field(default=None, description="Simulate this ticket.")
     category: str | None = Field(default=None, max_length=50, description="A category key.")
-    priority: TicketPriority = TicketPriority.NORMAL
-    subject: str = Field(default="", max_length=300)
+    priority: TicketPriority | None = Field(default=None, description="Normal if omitted.")
+    subject: str | None = Field(default=None, max_length=300)
     customer: dict[str, CustomerValue | list[CustomerValue]] = Field(
         default_factory=dict, description="The customer's metadata.", max_length=50
     )
