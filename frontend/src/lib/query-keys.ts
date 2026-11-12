@@ -27,6 +27,8 @@ export const queryKeys = {
     ["organizations", orgId, "tickets", "detail", ticketId, "messages"] as const,
   ticketEvents: (orgId: string, ticketId: string) =>
     ["organizations", orgId, "tickets", "detail", ticketId, "events"] as const,
+  ticketSla: (orgId: string, ticketId: string) =>
+    ["organizations", orgId, "tickets", "detail", ticketId, "sla"] as const,
 
   customers: (orgId: string, page?: SearchPage) =>
     page

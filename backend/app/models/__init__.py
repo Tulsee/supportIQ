@@ -29,7 +29,16 @@ from app.models.notification import (
 )
 from app.models.organization import Organization, OrganizationMember, OrgRole
 from app.models.refresh_token import RefreshToken
-from app.models.sla import BusinessCalendar, BusinessHoliday, BusinessHours, SlaPolicy
+from app.models.sla import (
+    BusinessCalendar,
+    BusinessHoliday,
+    BusinessHours,
+    SlaClockKind,
+    SlaClockState,
+    SlaPolicy,
+    TicketSlaClock,
+    TicketSlaPause,
+)
 from app.models.ticket import (
     CUSTOMER_VISIBLE_EVENTS,
     MessageAuthorType,
@@ -76,6 +85,8 @@ __all__ = [
     "OrganizationMember",
     "RefreshToken",
     "RetrievalResult",
+    "SlaClockKind",
+    "SlaClockState",
     "SlaPolicy",
     "Ticket",
     "TicketCategory",
@@ -84,6 +95,8 @@ __all__ = [
     "TicketEventType",
     "TicketMessage",
     "TicketPriority",
+    "TicketSlaClock",
+    "TicketSlaPause",
     "TicketStatus",
     "TimestampMixin",
     "UUIDPrimaryKeyMixin",

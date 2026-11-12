@@ -1928,7 +1928,9 @@ invitation emails and the ticket timeline).
 resolved tickets (added at the user's request). Customers and staff can also close
 tickets directly. Phase 2 (business-time calculator, calendar, holidays,
 policies, setup and preview, Settings → Service levels) implemented the same day.
-Next: ticket SLA clocks (phase 3).
+Phase 3 (ticket clocks: start, first response, pauses, reopen cycles,
+priority changes, cancellation, `GET /tickets/{id}/sla`, the ticket's SLA panel)
+implemented the same day. Next: monitoring and breach alerts (phase 4).
 
 Specified in [docs/features/sla-and-automated-routing.md](docs/features/sla-and-automated-routing.md),
 adapted from the feature plan after auditing this repository. In short:

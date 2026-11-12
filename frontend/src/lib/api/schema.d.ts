@@ -424,6 +424,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tickets/{ticket_id}/sla": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The ticket's SLA clocks (staff)
+         * @description First-response and resolution clocks with their status as of now, deadlines and
+         *     business time left. Customers can't see SLAs.
+         */
+        get: operations["ticket_sla_api_v1_tickets__ticket_id__sla_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tickets/{ticket_id}": {
         parameters: {
             query?: never;
@@ -2821,6 +2842,67 @@ export interface components {
             chunk: components["schemas"]["ChunkRead"] | null;
         };
         /**
+         * SlaClockKind
+         * @enum {string}
+         */
+        SlaClockKind: "first_response" | "resolution";
+        /** SlaClockRead */
+        SlaClockRead: {
+            kind: components["schemas"]["SlaClockKind"];
+            /**
+             * Cycle
+             * @description 1, or more after the ticket was reopened (resolution).
+             */
+            cycle: number;
+            /**
+             * Status
+             * @description As of the response, from the deadline.
+             * @enum {string}
+             */
+            status: "on_track" | "at_risk" | "breached" | "paused" | "met" | "met_late" | "cancelled";
+            /** Policy Name */
+            policy_name: string;
+            /** Policy Version */
+            policy_version: number;
+            /** Target Minutes */
+            target_minutes: number;
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            /**
+             * Warn At
+             * Format: date-time
+             */
+            warn_at: string;
+            /**
+             * Due At
+             * Format: date-time
+             */
+            due_at: string;
+            /** Met At */
+            met_at: string | null;
+            /** Breached At */
+            breached_at: string | null;
+            /** Cancelled At */
+            cancelled_at: string | null;
+            /** Paused Since */
+            paused_since: string | null;
+            /**
+             * Paused Minutes
+             * @description Business minutes spent paused so far.
+             */
+            paused_minutes: number;
+            /**
+             * Remaining Minutes
+             * @description Business minutes left (negative: overdue); null once met or cancelled.
+             */
+            remaining_minutes: number | null;
+            /** Timezone */
+            timezone: string;
+        };
+        /**
          * SlaConfig
          * @description The organization's calendar (null until SLAs are set up) and its policies.
          */
@@ -2974,6 +3056,19 @@ export interface components {
             resolved_at: string | null;
             /** Closed At */
             closed_at: string | null;
+        };
+        /** TicketSla */
+        TicketSla: {
+            /**
+             * Configured
+             * @description Service levels are set up for the organization.
+             */
+            configured: boolean;
+            /**
+             * Clocks
+             * @description Latest cycle first per kind; empty if no policy covered the ticket.
+             */
+            clocks: components["schemas"]["SlaClockRead"][];
         };
         /**
          * TicketStatus
@@ -5044,6 +5139,85 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TicketRead"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    ticket_sla_api_v1_tickets__ticket_id__sla_get: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketSla"];
                 };
             };
             /** @description Bad Request */

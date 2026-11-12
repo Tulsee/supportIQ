@@ -35,6 +35,9 @@ LLM-chosen assignees, workforce scheduling, cross-tenant assignment.
 | Original plan | Here | Why |
 | --- | --- | --- |
 | Policies reference a calendar; several calendars | One default calendar per organization (the schema allows more); policies use it | Simpler setup and UI; per-team calendars can come with routing teams |
+| `UNCONFIGURED` clock state, admin alert | No clocks; `GET /tickets/{id}/sla` says whether service levels are set up | The ticket panel explains it; alerts come with the monitor (phase 4) |
+| `AT_RISK` / `BREACHED` set only by the evaluator | Also derived on read from the deadline (`app/domain/sla.py`); the evaluator (phase 4) records them and alerts | Correct on screen even if the scheduler is down |
+| Manual pause and resume endpoints | Automatic pauses only (waiting for the customer) for now | Manual pauses need a reason policy; deferred |
 | Calendar CRUD endpoints | `GET /sla`, `POST /sla/setup` (defaults), `PUT /sla/calendar` (replaces the weekly hours), holiday add/remove, policy create/update, `GET /sla/preview` | One page edits everything; the preview makes the business-time rules visible |
 | `backend/app/modules/sla/...`, `routing/...` | Pure logic in `backend/app/domain/` (`business_time.py`, `sla.py`, `routing.py`); persistence and orchestration in the existing `models/`, `repositories/`, `services/`, `api/v1/endpoints/`, `workers/` | Matches the repository's layering (as `ai_engine/` does for AI); domain code has no FastAPI, SQL or Redis imports |
 | `ticket_assignments` table | Keep `tickets.assignee_id` (the one current assignment) and `ticket_events`; assignment events gain `source` (`manual`, `automatic`, `escalation`), `reason` and `decision_id` | The timeline already is the append-only assignment history; a second history would drift from it |
@@ -265,7 +268,7 @@ Everything in the plan's section 15, plus:
 | 0 | Repository audit (this document) | done |
 | 1 | Foundations: notifications and audit log (Module 9), Celery beat + `scheduler` service, categories, organization settings (done; also auto-close); `tzdata` moves to phase 2 | 3-4 days |
 | 2 | SLA configuration: calendars, policies, business-time calculator and its tests, seed defaults (done) | 2-3 days |
-| 3 | Ticket clocks: lifecycle hooks, pauses, cycles, `GET /tickets/{id}/sla`, first-response analytics fix | 2-3 days |
+| 3 | Ticket clocks: lifecycle hooks, pauses, cycles, `GET /tickets/{id}/sla`, first-response analytics fix (done, with the ticket's SLA panel) | 2-3 days |
 | 4 | Monitoring: evaluator, notifications, escalation, timeline events | 2 days |
 | 5 | Teams, members, agent profiles, skills, presence | 2-3 days |
 | 6 | Routing: rules, engine, jobs and sweep, decisions, reroute, simulator | 3-4 days |

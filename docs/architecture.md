@@ -103,6 +103,17 @@ stateDiagram-v2
   (`sla_policies`, versioned when a target changes). All staff-only under RLS; admins
   edit them under Settings → Service levels, starting from a one-click default setup.
   `GET /sla/preview` shows when a ticket of a priority would be due.
+- **Clocks** (`ticket_sla_clocks`, `ticket_sla_pauses`, `app/services/sla_clocks.py`):
+  a new ticket gets a first-response and a resolution clock from its priority's
+  policy. The deadline is `started_at` plus `target + paused` business minutes in a
+  snapshot of the calendar taken when the clock started, so edits to hours or targets
+  never move running clocks. The first public staff reply after the opening message
+  meets the first response; resolving meets the resolution clock; waiting for the
+  customer pauses it; reopening starts a new cycle; a priority change re-targets
+  unmet clocks; closing cancels them. Customers' actions move clocks too, so the
+  hooks run as a system operation under the RLS bypass. The state people see (on
+  track, due soon, breached, paused, met, met late, cancelled) is derived on read
+  (`app/domain/sla.py`).
 
 ## Notifications and audit log
 
@@ -201,7 +212,7 @@ The main tables, all scoped to an organization:
 | Knowledge base | `documents`, `document_chunks` (text, metadata, full-text vector; embeddings in Qdrant) |
 | AI | `ai_runs`, `retrieval_results`, `ai_answers`, `citations`, `evidence_assessments`, `ai_feedback` |
 | Notifications and audit | `notifications`, `notification_preferences`, `audit_log` |
-| Service levels | `business_calendars`, `business_hours`, `business_holidays`, `sla_policies` |
+| Service levels | `business_calendars`, `business_hours`, `business_holidays`, `sla_policies`, `ticket_sla_clocks`, `ticket_sla_pauses` |
 
 Enumerations are stored as text with CHECK constraints, and every schema change is an
 Alembic migration (`backend/migrations/`). CI applies all migrations, checks they match

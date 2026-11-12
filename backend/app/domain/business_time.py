@@ -146,3 +146,28 @@ def business_minutes_between(start: datetime, end: datetime, calendar: Calendar)
 def next_working_instant(at: datetime, calendar: Calendar) -> datetime:
     """``at`` itself during working time, otherwise the next opening."""
     return calculate_deadline(at, 0, calendar)
+
+
+def calendar_snapshot(calendar: Calendar) -> dict[str, object]:
+    """A JSON-safe copy of a calendar, stored with each SLA clock so later edits to
+    business hours don't move its deadline."""
+    return {
+        "timezone": calendar.timezone,
+        "hours": [
+            [day, f"{start:%H:%M}", f"{end:%H:%M}"]
+            for day, intervals in sorted(calendar.hours.items())
+            for start, end in sorted(intervals)
+        ],
+        "holidays": sorted(day.isoformat() for day in calendar.holidays),
+    }
+
+
+def calendar_from_snapshot(snapshot: Mapping[str, object]) -> Calendar:
+    hours: dict[int, list[Interval]] = {}
+    for day, start, end in snapshot["hours"]:  # type: ignore[attr-defined]
+        hours.setdefault(int(day), []).append((time.fromisoformat(start), time.fromisoformat(end)))
+    return Calendar(
+        str(snapshot["timezone"]),
+        {day: tuple(intervals) for day, intervals in hours.items()},
+        frozenset(date.fromisoformat(d) for d in snapshot["holidays"]),  # type: ignore[attr-defined]
+    )

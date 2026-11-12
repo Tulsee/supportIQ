@@ -42,6 +42,7 @@ from app.schemas.tickets import MessageCreate, TicketCreate, TicketUpdate
 from app.services.authorization import STAFF_ROLES, require_role
 from app.services.customers import CustomerService
 from app.services.notifications import NewNotification, NotificationService
+from app.services.sla_clocks import SlaClockService
 from app.websocket.broker import EventBroker, EventType
 from app.websocket.broker import TicketEvent as RealtimeEvent
 
@@ -98,6 +99,7 @@ class TicketService:
         self.events = events  # real-time notifications, published after each commit
         # People to tell (the bell, email): written with the change, sent after commit.
         self.notifications = notifications
+        self.sla = SlaClockService(session)
         self.tickets = TicketRepository(session)
         self.customers = CustomerRepository(session)
         self.orgs = OrganizationRepository(session)
@@ -216,6 +218,7 @@ class TicketService:
             await self._set_category(ticket, user.id, data.category_id)
         if data.assignee_id is not None:
             await self._assign(ticket, user.id, data.assignee_id)
+        await self.sla.start(ticket)
         await self.session.commit()
         await self._notify("ticket.created", ticket)
         await self._send_notifications()
@@ -247,6 +250,7 @@ class TicketService:
                 {"from": ticket.priority, "to": data.priority},
             )
             ticket.priority = data.priority
+            await self.sla.on_priority_change(ticket)
         # Assignment first: assigning an OPEN ticket makes it ASSIGNED, from which
         # a status in the same request (e.g. IN_PROGRESS) can follow.
         if "assignee_id" in fields:
@@ -254,7 +258,7 @@ class TicketService:
         if "category_id" in fields:
             await self._set_category(ticket, user.id, data.category_id)
         if "status" in fields and data.status is not None and data.status != ticket.status:
-            self._transition(ticket, user.id, data.status)
+            await self._transition(ticket, user.id, data.status)
 
         await self.session.commit()
         # Customers see status and subject; priority and assignment are staff-only.
@@ -285,8 +289,10 @@ class TicketService:
         message.author = user
         self.tickets.add(message)
         await self._notify_reply(ticket, message, user)
+        if staff and not data.is_internal:
+            await self.sla.on_first_response(ticket)
         if not staff and ticket.status in _REOPENED_BY_CUSTOMER_REPLY:
-            self._set_status(ticket, user.id, S.IN_PROGRESS)
+            await self._set_status(ticket, user.id, S.IN_PROGRESS)
         # New activity sorts the ticket to the top. clock_timestamp(), not now():
         # the moment of the reply, not the start of its transaction.
         ticket.updated_at = func.clock_timestamp()
@@ -302,7 +308,7 @@ class TicketService:
         ticket = await self.get(member, user, ticket_id, for_update=True)
         if ticket.status == S.CLOSED:
             raise ConflictError(TICKET_CLOSED, code="ticket_closed")
-        self._set_status(ticket, user.id, S.CLOSED)
+        await self._set_status(ticket, user.id, S.CLOSED)
         if (
             self.notifications is not None
             and not is_staff(member)
@@ -406,7 +412,7 @@ class TicketService:
             ticket.assignee = None
             self._record(ticket, actor_id, TicketEventType.UNASSIGNED, {"from": _person(previous)})
             if ticket.status == S.ASSIGNED:
-                self._set_status(ticket, actor_id, S.OPEN)  # back to the queue
+                await self._set_status(ticket, actor_id, S.OPEN)  # back to the queue
             return
         membership = await self.orgs.get_membership_with_user(ticket.organization_id, assignee_id)
         if membership is None or membership.role not in STAFF_ROLES:
@@ -438,9 +444,9 @@ class TicketService:
                 actor_id=actor_id,
             )
         if ticket.status == S.OPEN:
-            self._set_status(ticket, actor_id, S.ASSIGNED)
+            await self._set_status(ticket, actor_id, S.ASSIGNED)
 
-    def _transition(self, ticket: Ticket, actor_id: uuid.UUID, to: TicketStatus) -> None:
+    async def _transition(self, ticket: Ticket, actor_id: uuid.UUID, to: TicketStatus) -> None:
         if to == S.ASSIGNED:
             raise ConflictError(
                 "Assign the ticket to someone to mark it assigned",
@@ -457,9 +463,9 @@ class TicketService:
                     "allowed": [s for s in TicketStatus if s in allowed],
                 },
             )
-        self._set_status(ticket, actor_id, to)
+        await self._set_status(ticket, actor_id, to)
 
-    def _set_status(
+    async def _set_status(
         self,
         ticket: Ticket,
         actor_id: uuid.UUID | None,
@@ -480,6 +486,7 @@ class TicketService:
             TicketEventType.STATUS_CHANGED,
             {"from": previous, "to": to, **(extra or {})},
         )
+        await self.sla.on_status_change(ticket, previous, to, actor_id)
 
     def _record(
         self,

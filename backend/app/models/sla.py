@@ -2,12 +2,15 @@
 first-response / resolution targets per ticket priority. Ticket clocks come in
 phase 3."""
 
+import enum
 import uuid
-from datetime import date, time
+from datetime import date, datetime, time
+from typing import Any
 
 from sqlalchemy import (
     CheckConstraint,
     Date,
+    DateTime,
     ForeignKey,
     Index,
     Integer,
@@ -17,6 +20,7 @@ from sqlalchemy import (
     UniqueConstraint,
     text,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.domain.business_time import Calendar
@@ -136,3 +140,81 @@ class SlaPolicy(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     warning_minutes: Mapped[int] = mapped_column(Integer)
     is_active: Mapped[bool] = mapped_column(default=True, server_default=text("true"))
     version: Mapped[int] = mapped_column(Integer, default=1, server_default=text("1"))
+
+
+class SlaClockKind(enum.StrEnum):
+    FIRST_RESPONSE = "first_response"
+    RESOLUTION = "resolution"
+
+
+class SlaClockState(enum.StrEnum):
+    """Stored state. ``at_risk`` and ``breached`` are also derived on read from the
+    deadline, so a ticket shows them before the monitor (phase 4) records them."""
+
+    RUNNING = "running"
+    PAUSED = "paused"
+    MET = "met"
+    CANCELLED = "cancelled"  # closed without resolving, or no policy for a new priority
+
+
+class TicketSlaClock(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """One SLA target on one ticket. The deadline is ``started_at`` plus
+    ``target_minutes + paused_minutes`` of business time in ``calendar_snapshot`` (the
+    calendar as it was when the clock started). A reopened ticket gets a new
+    resolution cycle; earlier cycles keep their outcome."""
+
+    __tablename__ = "ticket_sla_clocks"
+    __table_args__ = (
+        UniqueConstraint("ticket_id", "kind", "cycle"),
+        Index(
+            "ix_ticket_sla_clocks_organization_id_state_due_at",
+            "organization_id",
+            "state",
+            "due_at",
+        ),
+        Index("ix_ticket_sla_clocks_state_warn_at", "state", "warn_at"),
+    )
+
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE")
+    )
+    ticket_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("tickets.id", ondelete="CASCADE"), index=True
+    )
+    kind: Mapped[SlaClockKind] = mapped_column(str_enum_type(SlaClockKind, "sla_clock_kind"))
+    cycle: Mapped[int] = mapped_column(SmallInteger, default=1, server_default=text("1"))
+    policy_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("sla_policies.id", ondelete="SET NULL")
+    )
+    policy_name: Mapped[str] = mapped_column(String(100))
+    policy_version: Mapped[int] = mapped_column(Integer)
+    target_minutes: Mapped[int] = mapped_column(Integer)
+    warning_minutes: Mapped[int] = mapped_column(Integer)
+    calendar_snapshot: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    state: Mapped[SlaClockState] = mapped_column(str_enum_type(SlaClockState, "sla_clock_state"))
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    paused_minutes: Mapped[int] = mapped_column(Integer, default=0, server_default=text("0"))
+    paused_since: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    warn_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    at_risk_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    breached_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    met_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class TicketSlaPause(UUIDPrimaryKeyMixin, Base):
+    """A period a clock didn't run (for now: the ticket waited for the customer)."""
+
+    __tablename__ = "ticket_sla_pauses"
+
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE")
+    )
+    clock_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("ticket_sla_clocks.id", ondelete="CASCADE"), index=True
+    )
+    reason: Mapped[str] = mapped_column(String(50))
+    actor_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

@@ -67,7 +67,7 @@ async def auto_close_resolved(
             break
         service = TicketService(session, events)
         for ticket, after_days in rows:
-            service._set_status(
+            await service._set_status(
                 ticket,
                 None,
                 TicketStatus.CLOSED,

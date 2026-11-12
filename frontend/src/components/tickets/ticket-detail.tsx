@@ -17,6 +17,7 @@ import {
 } from "@/components/tickets/hooks";
 import { NewRequestDialog } from "@/components/tickets/new-request-dialog";
 import { ReplyBox, type ReplyDraft } from "@/components/tickets/reply-box";
+import { SlaPanel } from "@/components/tickets/sla-panel";
 import { TicketAIPanel } from "@/components/tickets/ticket-ai-panel";
 import { PriorityLabel, StatusBadge } from "@/components/tickets/ticket-badges";
 import { TicketTimeline } from "@/components/tickets/ticket-timeline";
@@ -381,6 +382,7 @@ export function TicketDetail() {
 
         <aside className="space-y-4" aria-label="Ticket details">
           {audience === "staff" ? <TicketProperties ticket={data} /> : null}
+          {audience === "staff" ? <SlaPanel ticket={data} /> : null}
           {audience === "staff" ? (
             <Card size="sm">
               <CardHeader>

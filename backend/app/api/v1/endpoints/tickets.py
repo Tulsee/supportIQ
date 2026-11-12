@@ -17,9 +17,11 @@ from app.api.deps import (
     Pagination,
     TenantMembership,
 )
-from app.models import TicketPriority, TicketStatus
+from app.core.security import utcnow
+from app.models import SlaClockKind, TicketPriority, TicketStatus
 from app.repositories.tickets import TicketFilters, TicketSortKey
 from app.schemas.common import Page, error_responses
+from app.schemas.sla import SlaClockRead, TicketSla
 from app.schemas.tickets import (
     EventRead,
     MessageCreate,
@@ -29,6 +31,9 @@ from app.schemas.tickets import (
     TicketRead,
     TicketUpdate,
 )
+from app.services.authorization import STAFF_ROLES, require_role
+from app.services.sla import SlaConfigService
+from app.services.sla_clocks import SlaClockService
 from app.services.tickets import TicketService, allowed_statuses
 
 router = APIRouter(
@@ -124,6 +129,23 @@ async def close_ticket(
     and closed tickets take no more replies."""
     ticket = await TicketService(session, events, notifications).close(member, user, ticket_id)
     return TicketRead.build(ticket, allowed_statuses(member, ticket))
+
+
+@router.get("/{ticket_id}/sla", summary="The ticket's SLA clocks (staff)")
+async def ticket_sla(
+    ticket_id: uuid.UUID, member: TenantMembership, user: CurrentUser, session: DbSession
+) -> TicketSla:
+    """First-response and resolution clocks with their status as of now, deadlines and
+    business time left. Customers can't see SLAs."""
+    require_role(member, *STAFF_ROLES)
+    ticket = await TicketService(session).get(member, user, ticket_id)
+    clocks = await SlaClockService(session).clocks(ticket.id)
+    now = utcnow()
+    ordered = sorted(clocks, key=lambda c: (c.kind != SlaClockKind.FIRST_RESPONSE, -c.cycle))
+    return TicketSla(
+        configured=await SlaConfigService(session).calendar(member.organization_id) is not None,
+        clocks=[SlaClockRead.build(c, now) for c in ordered],
+    )
 
 
 @router.get("/{ticket_id}", summary="Get a ticket")

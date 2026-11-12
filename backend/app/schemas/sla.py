@@ -2,11 +2,20 @@
 
 import uuid
 from datetime import date, datetime, time
-from typing import Annotated, Self
+from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, Field, StringConstraints, field_validator, model_validator
 
-from app.models import BusinessCalendar, BusinessHoliday, SlaPolicy, TicketPriority
+from app.domain.business_time import business_minutes_between, calendar_from_snapshot
+from app.domain.sla import ClockTimes, status
+from app.models import (
+    BusinessCalendar,
+    BusinessHoliday,
+    SlaClockKind,
+    SlaPolicy,
+    TicketPriority,
+    TicketSlaClock,
+)
 
 # Up to a year of business minutes.
 Minutes = Annotated[int, Field(ge=1, le=525_600)]
@@ -152,3 +161,70 @@ class SlaPreview(BaseModel):
     first_response_warning: datetime | None
     resolution_due: datetime | None
     resolution_warning: datetime | None
+
+
+ClockStatus = Literal["on_track", "at_risk", "breached", "paused", "met", "met_late", "cancelled"]
+
+
+class SlaClockRead(BaseModel):
+    kind: SlaClockKind
+    cycle: int = Field(description="1, or more after the ticket was reopened (resolution).")
+    status: ClockStatus = Field(description="As of the response, from the deadline.")
+    policy_name: str
+    policy_version: int
+    target_minutes: int
+    started_at: datetime
+    warn_at: datetime
+    due_at: datetime
+    met_at: datetime | None
+    breached_at: datetime | None
+    cancelled_at: datetime | None
+    paused_since: datetime | None
+    paused_minutes: int = Field(description="Business minutes spent paused so far.")
+    remaining_minutes: int | None = Field(
+        description="Business minutes left (negative: overdue); null once met or cancelled."
+    )
+    timezone: str
+
+    @classmethod
+    def build(cls, clock: TicketSlaClock, now: datetime) -> Self:
+        calendar = calendar_from_snapshot(clock.calendar_snapshot)
+        state = status(
+            ClockTimes(
+                clock.state.value, clock.warn_at, clock.due_at, clock.met_at, clock.breached_at
+            ),
+            now,
+        )
+        remaining: int | None = None
+        if state not in ("met", "met_late", "cancelled"):
+            since = clock.paused_since or now
+            remaining = (
+                business_minutes_between(since, clock.due_at, calendar)
+                if since < clock.due_at
+                else -business_minutes_between(clock.due_at, since, calendar)
+            )
+        return cls(
+            kind=clock.kind,
+            cycle=clock.cycle,
+            status=state,
+            policy_name=clock.policy_name,
+            policy_version=clock.policy_version,
+            target_minutes=clock.target_minutes,
+            started_at=clock.started_at,
+            warn_at=clock.warn_at,
+            due_at=clock.due_at,
+            met_at=clock.met_at,
+            breached_at=clock.breached_at,
+            cancelled_at=clock.cancelled_at,
+            paused_since=clock.paused_since,
+            paused_minutes=clock.paused_minutes,
+            remaining_minutes=remaining,
+            timezone=calendar.timezone,
+        )
+
+
+class TicketSla(BaseModel):
+    configured: bool = Field(description="Service levels are set up for the organization.")
+    clocks: list[SlaClockRead] = Field(
+        description="Latest cycle first per kind; empty if no policy covered the ticket."
+    )
