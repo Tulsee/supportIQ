@@ -11,6 +11,7 @@ import {
   DataTable,
   type Series,
 } from "@/components/analytics/charts";
+import { SlaCompliance } from "@/components/analytics/sla-compliance";
 import { PageHeader } from "@/components/page-header";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -135,6 +136,15 @@ export function AnalyticsPage() {
             <Stat label="Median first response" value={duration(overview.data.median_first_response_minutes)} hint={`${overview.data.tickets_replied} tickets replied to`} />
             <Stat label="Median time to resolve" value={duration(overview.data.median_resolution_minutes)} />
           </section>
+
+          {overview.data.sla.configured ? (
+            <ChartCard
+              title="Service levels"
+              description={`First-response and resolution targets for tickets opened in the last ${days} days.`}
+            >
+              <SlaCompliance sla={overview.data.sla} />
+            </ChartCard>
+          ) : null}
 
           <ChartCard title="Tickets per day" description="Opened and resolved, by UTC day.">
             <DailyLines rows={overview.data.daily} series={TICKET_SERIES} label="Tickets opened and resolved per day" />

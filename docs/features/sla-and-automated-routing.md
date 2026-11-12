@@ -269,7 +269,7 @@ Everything in the plan's section 15, plus:
 | 1 | Foundations: notifications and audit log (Module 9), Celery beat + `scheduler` service, categories, organization settings (done; also auto-close); `tzdata` moves to phase 2 | 3-4 days |
 | 2 | SLA configuration: calendars, policies, business-time calculator and its tests, seed defaults (done) | 2-3 days |
 | 3 | Ticket clocks: lifecycle hooks, pauses, cycles, `GET /tickets/{id}/sla`, first-response analytics fix (done, with the ticket's SLA panel) | 2-3 days |
-| 4 | Monitoring: evaluator, notifications, escalation, timeline events | 2 days |
+| 4 | Monitoring: evaluator, notifications, escalation, timeline events (done; admins stand in for team leads until phase 5; compliance in analytics brought forward from phase 8) | 2 days |
 | 5 | Teams, members, agent profiles, skills, presence | 2-3 days |
 | 6 | Routing: rules, engine, jobs and sweep, decisions, reroute, simulator | 3-4 days |
 | 7 | Front end: settings, queue and ticket panels, bell, presence | 4-5 days |

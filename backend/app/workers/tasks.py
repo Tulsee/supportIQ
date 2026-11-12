@@ -8,6 +8,7 @@ from celery import Task
 from app.services.automation import run_auto_close_job
 from app.services.ingestion import TransientIngestionError, run_ingestion_job
 from app.services.notifications import run_email_job
+from app.services.sla_monitor import run_sla_job
 from app.workers.celery_app import celery_app
 
 MAX_RETRIES = 3
@@ -50,3 +51,10 @@ def email_notifications(notification_ids: list[str]) -> int:
 def auto_close_tickets() -> int:
     """Close resolved tickets past their organization's auto-close window."""
     return asyncio.run(run_auto_close_job())
+
+
+@celery_app.task(name="sla.evaluate", ignore_result=True)
+def evaluate_sla() -> dict[str, int]:
+    """Record SLA clocks that became due soon or breached, and notify."""
+    result = asyncio.run(run_sla_job())
+    return {"at_risk": result.at_risk, "breached": result.breached}

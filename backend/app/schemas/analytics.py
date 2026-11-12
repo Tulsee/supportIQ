@@ -17,6 +17,24 @@ class DailyTickets(BaseModel):
     resolved: int
 
 
+class SlaCompliance(BaseModel):
+    on_time: int = Field(description="Met by the deadline.")
+    late: int = Field(description="Met after the deadline.")
+    overdue: int = Field(description="Not met and past the deadline.")
+    open: int = Field(description="Not met yet, within the deadline (not in the rate).")
+    cancelled: int = Field(description="Closed unresolved or no longer covered (not in the rate).")
+    rate: float | None = Field(description="on_time / (on_time + late + overdue).")
+
+
+class SlaSummary(BaseModel):
+    """Clocks started in the period (first cycles)."""
+
+    configured: bool = Field(description="Service levels are set up.")
+    first_response: SlaCompliance
+    resolution: SlaCompliance
+    reopened_cycles: int = Field(description="Resolution cycles after a reopen, counted apart.")
+
+
 class Overview(BaseModel):
     days: int
     tickets: TicketTotals
@@ -32,6 +50,7 @@ class Overview(BaseModel):
     )
     customers: int
     indexed_documents: int
+    sla: SlaSummary
 
 
 class AnswerStats(BaseModel):

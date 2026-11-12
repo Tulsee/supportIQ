@@ -86,6 +86,8 @@ class Settings(BaseSettings):
     # How often the scheduler closes resolved tickets past their organization's
     # auto-close window (Settings, default 7 days). 0 disables the schedule.
     auto_close_interval_minutes: int = 30
+    # How often the SLA monitor looks for clocks due soon or breached. 0 disables it.
+    sla_monitor_interval_seconds: int = 60
 
     # --- Background jobs (Celery) ---------------------------------------------------
     # A separate Redis database from rate limits and real-time events.

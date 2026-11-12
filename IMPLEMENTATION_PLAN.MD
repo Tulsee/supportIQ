@@ -1930,7 +1930,9 @@ tickets directly. Phase 2 (business-time calculator, calendar, holidays,
 policies, setup and preview, Settings → Service levels) implemented the same day.
 Phase 3 (ticket clocks: start, first response, pauses, reopen cycles,
 priority changes, cancellation, `GET /tickets/{id}/sla`, the ticket's SLA panel)
-implemented the same day. Next: monitoring and breach alerts (phase 4).
+implemented the same day, and phase 4 (the monitor, due-soon and breach notifications,
+timeline events, SLA compliance in analytics). Next: teams, skills and presence
+(phase 5), then routing.
 
 Specified in [docs/features/sla-and-automated-routing.md](docs/features/sla-and-automated-routing.md),
 adapted from the feature plan after auditing this repository. In short:

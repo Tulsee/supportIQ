@@ -2362,7 +2362,7 @@ export interface components {
          * NotificationKind
          * @enum {string}
          */
-        NotificationKind: "ticket_assigned" | "customer_replied" | "ai_escalated" | "ticket_closed" | "agent_replied";
+        NotificationKind: "ticket_assigned" | "customer_replied" | "ai_escalated" | "ticket_closed" | "sla_at_risk" | "sla_breached" | "agent_replied";
         /** NotificationPage */
         NotificationPage: {
             /** Items */
@@ -2511,6 +2511,7 @@ export interface components {
             customers: number;
             /** Indexed Documents */
             indexed_documents: number;
+            sla: components["schemas"]["SlaSummary"];
         };
         /** Page[AIRunSummary] */
         Page_AIRunSummary_: {
@@ -2902,6 +2903,39 @@ export interface components {
             /** Timezone */
             timezone: string;
         };
+        /** SlaCompliance */
+        SlaCompliance: {
+            /**
+             * On Time
+             * @description Met by the deadline.
+             */
+            on_time: number;
+            /**
+             * Late
+             * @description Met after the deadline.
+             */
+            late: number;
+            /**
+             * Overdue
+             * @description Not met and past the deadline.
+             */
+            overdue: number;
+            /**
+             * Open
+             * @description Not met yet, within the deadline (not in the rate).
+             */
+            open: number;
+            /**
+             * Cancelled
+             * @description Closed unresolved or no longer covered (not in the rate).
+             */
+            cancelled: number;
+            /**
+             * Rate
+             * @description on_time / (on_time + late + overdue).
+             */
+            rate: number | null;
+        };
         /**
          * SlaConfig
          * @description The organization's calendar (null until SLAs are set up) and its policies.
@@ -2948,6 +2982,24 @@ export interface components {
              * @default Asia/Kathmandu
              */
             timezone: string;
+        };
+        /**
+         * SlaSummary
+         * @description Clocks started in the period (first cycles).
+         */
+        SlaSummary: {
+            /**
+             * Configured
+             * @description Service levels are set up.
+             */
+            configured: boolean;
+            first_response: components["schemas"]["SlaCompliance"];
+            resolution: components["schemas"]["SlaCompliance"];
+            /**
+             * Reopened Cycles
+             * @description Resolution cycles after a reopen, counted apart.
+             */
+            reopened_cycles: number;
         };
         /** StageScore */
         StageScore: {
@@ -3011,7 +3063,7 @@ export interface components {
          * TicketEventType
          * @enum {string}
          */
-        TicketEventType: "created" | "status_changed" | "priority_changed" | "subject_changed" | "assigned" | "unassigned" | "ai_escalated" | "category_changed";
+        TicketEventType: "created" | "status_changed" | "priority_changed" | "subject_changed" | "assigned" | "unassigned" | "ai_escalated" | "category_changed" | "sla_at_risk" | "sla_breached";
         /**
          * TicketPriority
          * @enum {string}

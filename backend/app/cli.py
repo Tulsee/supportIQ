@@ -55,6 +55,15 @@ async def _auto_close() -> int:
     return 0
 
 
+async def _sla_check() -> int:
+    from app.services.sla_monitor import evaluate_sla_clocks
+
+    async with SessionLocal() as session:
+        result = await evaluate_sla_clocks(session)
+    print(f"SLA monitor: {result.at_risk} due soon, {result.breached} breached")
+    return 0
+
+
 def _export_openapi(output: Path | None) -> int:
     """Write the API contract (no server or database needed). The frontend's typed
     client is generated from it, and CI checks that the two stay in sync."""
@@ -233,6 +242,8 @@ async def _run(args: argparse.Namespace) -> int:
             return await _set_superadmin(args.email, False)
         if args.command == "auto-close":
             return await _auto_close()
+        if args.command == "sla-check":
+            return await _sla_check()
         return await _purge_expired()
     finally:
         await engine.dispose()
@@ -305,6 +316,7 @@ def main(argv: list[str] | None = None) -> int:
     commands.add_parser(
         "auto-close", help="Close resolved tickets past their organization's auto-close window"
     )
+    commands.add_parser("sla-check", help="Record SLA clocks due soon or breached, and notify")
     export = commands.add_parser("export-openapi", help="Write the OpenAPI document as JSON")
     export.add_argument("--output", type=Path, help="File to write (default: stdout)")
     _add_evaluate(commands)

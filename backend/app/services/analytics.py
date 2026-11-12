@@ -77,6 +77,35 @@ _COUNTS = text(
     """
 )
 
+# SLA compliance for clocks started in the period (first cycles; reopened cycles are
+# counted separately). The rate counts only clocks with an outcome: met on time, met
+# late, or past the deadline unmet. Clocks still within their deadline, and cancelled
+# ones (closed unresolved, or no policy after a priority change), are reported apart.
+_SLA = text(
+    """
+    WITH c AS (
+      SELECT kind, cycle, state, met_at, due_at,
+        (breached_at IS NOT NULL OR (met_at IS NOT NULL AND met_at > due_at)
+         OR (met_at IS NULL AND state = 'running' AND due_at <= now())) AS past_due
+      FROM ticket_sla_clocks
+      WHERE organization_id = :org AND started_at >= :since
+    )
+    SELECT kind,
+      count(*) FILTER (WHERE cycle = 1 AND met_at IS NOT NULL AND NOT past_due) AS on_time,
+      count(*) FILTER (WHERE cycle = 1 AND met_at IS NOT NULL AND past_due) AS late,
+      count(*) FILTER (WHERE cycle = 1 AND met_at IS NULL AND state <> 'cancelled' AND past_due)
+        AS overdue,
+      count(*) FILTER (WHERE cycle = 1 AND met_at IS NULL AND state <> 'cancelled'
+        AND NOT past_due) AS open,
+      count(*) FILTER (WHERE cycle = 1 AND state = 'cancelled') AS cancelled,
+      count(*) FILTER (WHERE cycle > 1) AS reopened
+    FROM c GROUP BY kind
+    """
+)
+_SLA_CONFIGURED = text(
+    "SELECT EXISTS (SELECT 1 FROM business_calendars WHERE organization_id = :org) AS configured"
+)
+
 _RUNS_DAILY = text(
     """
     SELECT (created_at AT TIME ZONE 'UTC')::date AS day, kind, count(*) AS n FROM ai_runs
@@ -194,6 +223,27 @@ class AnalyticsService:
             "median_resolution_minutes": _minutes(resolution.resolution),
             "customers": counts.customers,
             "indexed_documents": counts.documents,
+            "sla": await self._sla(params),
+        }
+
+    async def _sla(self, params: dict[str, Any]) -> dict[str, Any]:
+        rows = {r.kind: r for r in await self._rows(_SLA, params)}
+        configured = (await self._rows(_SLA_CONFIGURED, params))[0].configured
+
+        def compliance(kind: str) -> dict[str, Any]:
+            r = rows.get(kind)
+            counts = {
+                key: getattr(r, key) if r else 0
+                for key in ("on_time", "late", "overdue", "open", "cancelled")
+            }
+            decided = counts["on_time"] + counts["late"] + counts["overdue"]
+            return {**counts, "rate": counts["on_time"] / decided if decided else None}
+
+        return {
+            "configured": configured,
+            "first_response": compliance("first_response"),
+            "resolution": compliance("resolution"),
+            "reopened_cycles": rows["resolution"].reopened if "resolution" in rows else 0,
         }
 
     async def ai_performance(self, member: OrganizationMember, days: int) -> dict[str, Any]:

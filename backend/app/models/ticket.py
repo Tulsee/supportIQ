@@ -59,6 +59,8 @@ class TicketEventType(enum.StrEnum):
     UNASSIGNED = "unassigned"
     AI_ESCALATED = "ai_escalated"  # the AI couldn't draft a supported reply (staff only)
     CATEGORY_CHANGED = "category_changed"  # staff only
+    SLA_AT_RISK = "sla_at_risk"  # the SLA monitor: a deadline is near (staff only)
+    SLA_BREACHED = "sla_breached"  # the SLA monitor: a deadline passed (staff only)
 
 
 # Events a customer may see on their own tickets (also enforced by RLS).

@@ -41,16 +41,27 @@ _heartbeat: Heartbeat | None = None
 # Periodic jobs, run by the scheduler (Celery beat), executed by the workers:
 #   uv run celery -A app.workers.celery_app beat --loglevel=info
 # Each job is safe to run twice at once (row locks with SKIP LOCKED).
-celery_app.conf.beat_schedule = (
-    {
-        "auto-close-resolved-tickets": {
-            "task": "tickets.auto_close",
-            "schedule": settings.auto_close_interval_minutes * 60,
-        }
-    }
-    if settings.auto_close_interval_minutes > 0
-    else {}
-)
+celery_app.conf.beat_schedule = {
+    name: job
+    for name, job, enabled in (
+        (
+            "auto-close-resolved-tickets",
+            {"task": "tickets.auto_close", "schedule": settings.auto_close_interval_minutes * 60},
+            settings.auto_close_interval_minutes > 0,
+        ),
+        (
+            "sla-monitor",
+            # Expire quickly: a backlog of minute-ly checks is pointless.
+            {
+                "task": "sla.evaluate",
+                "schedule": settings.sla_monitor_interval_seconds,
+                "options": {"expires": max(settings.sla_monitor_interval_seconds, 30)},
+            },
+            settings.sla_monitor_interval_seconds > 0,
+        ),
+    )
+    if enabled
+}
 
 
 @worker_ready.connect

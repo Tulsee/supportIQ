@@ -114,6 +114,14 @@ stateDiagram-v2
   hooks run as a system operation under the RLS bypass. The state people see (on
   track, due soon, breached, paused, met, met late, cancelled) is derived on read
   (`app/domain/sla.py`).
+- **The monitor** (`app/services/sla_monitor.py`, scheduled every
+  `SLA_MONITOR_INTERVAL_SECONDS`, also `python -m app.cli sla-check`) claims running
+  clocks past their warning time or deadline (`FOR UPDATE SKIP LOCKED`), records the
+  transition once (at the warning time or deadline itself), adds a staff-only ticket
+  event and notifies: due soon to the assignee (admins if unassigned), breaches to the
+  assignee and admins, by email by default. Analytics report compliance for clocks
+  started in the period: met on time / (on time + late + overdue), with clocks still in
+  time, cancelled ones and reopened cycles reported separately.
 
 ## Notifications and audit log
 

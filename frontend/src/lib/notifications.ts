@@ -17,6 +17,14 @@ export const KIND_LABELS: Record<NotificationKind, { label: string; description:
     label: "Closed by the customer",
     description: "The customer closes a ticket assigned to you.",
   },
+  sla_at_risk: {
+    label: "SLA due soon",
+    description: "A ticket assigned to you (or, unassigned, any ticket) nears its deadline.",
+  },
+  sla_breached: {
+    label: "SLA breached",
+    description: "A ticket assigned to you, or any ticket if you're an admin, misses its deadline.",
+  },
   agent_replied: {
     label: "Replies from support",
     description: "Support replies to one of your requests.",

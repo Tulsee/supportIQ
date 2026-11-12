@@ -52,6 +52,13 @@ function describe(event: TicketEvent, audience: "staff" | "customer", byMe: bool
         ? `changed the category from ${from.name} to ${to.name}`
         : `set the category to ${to.name}`;
     }
+    case "sla_at_risk":
+    case "sla_breached": {
+      const target = data.kind === "first_response" ? "first response" : "resolution";
+      return event.type === "sla_at_risk"
+        ? `flagged the ${target} as due soon`
+        : `recorded that the ${target} deadline passed`;
+    }
     case "ai_escalated":
       return data.reason === "conflicting_sources"
         ? "asked the AI for a reply; the documents disagree, so a person should answer"

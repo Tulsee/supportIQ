@@ -43,7 +43,8 @@ a labelled benchmark measures how well it works.
 - **Service levels.** Business hours in the organization's time zone, holidays,
   and first-response and resolution targets per priority, counted in business time.
   Each ticket shows its clocks: time left, due soon, breached, paused while waiting
-  for the customer, and a new cycle when it's reopened (breach alerts come next).
+  for the customer, and a new cycle when it's reopened. A monitor flags deadlines that
+  are near or missed, notifies the assignee and admins, and analytics report compliance.
 - **Notifications and audit log.** A live notification bell (assignments, customer
   replies, AI escalations, and replies to customers), optional email per kind, and an
   append-only log of administrative changes.
