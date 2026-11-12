@@ -16,6 +16,11 @@ function viaRule(data: Record<string, unknown>): string {
     : "";
 }
 
+/** ": “Needs a refund approval”" when the person gave a reason (staff only). */
+function because(data: Record<string, unknown>): string {
+  return typeof data.reason === "string" && data.reason ? `: “${data.reason}”` : "";
+}
+
 function describe(event: TicketEvent, audience: "staff" | "customer", byMe: boolean): string {
   const labels = audience === "customer" ? CUSTOMER_STATUS_LABELS : STATUS_LABELS;
   const data = event.data as Record<string, unknown>;
@@ -45,14 +50,14 @@ function describe(event: TicketEvent, audience: "staff" | "customer", byMe: bool
     case "assigned": {
       const to = data.to as Person;
       const from = data.from as Person;
-      const how = viaRule(data);
+      const how = viaRule(data) + because(data);
       return from
         ? `reassigned it from ${from.name} to ${to?.name}${how}`
         : `assigned it to ${to?.name}${how}`;
     }
     case "unassigned": {
       const from = data.from as Person;
-      return from ? `unassigned ${from.name}` : "unassigned the ticket";
+      return (from ? `unassigned ${from.name}` : "unassigned the ticket") + because(data);
     }
     case "team_changed": {
       const to = data.to as { name: string } | null;
@@ -66,9 +71,13 @@ function describe(event: TicketEvent, audience: "staff" | "customer", byMe: bool
       const to = data.to as { name: string } | null;
       const from = data.from as { name: string } | null;
       if (!to) return `removed the category ${from?.name ?? ""}`.trim();
+      const how =
+        data.source === "triage" && typeof data.confidence === "number"
+          ? ` (AI triage, score ${data.confidence.toFixed(2)})`
+          : "";
       return from
-        ? `changed the category from ${from.name} to ${to.name}`
-        : `set the category to ${to.name}`;
+        ? `changed the category from ${from.name} to ${to.name}${how}`
+        : `set the category to ${to.name}${how}`;
     }
     case "sla_at_risk":
     case "sla_breached": {

@@ -60,6 +60,14 @@ class TicketUpdate(BaseModel):
     team_id: uuid.UUID | None = Field(
         default=None, description="An active team of the organization; null clears it."
     )
+    assignment_reason: (
+        Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=300)]
+        | None
+    ) = Field(
+        default=None,
+        description="Why the assignee changes (with `assignee_id`); shown in the timeline "
+        "to staff.",
+    )
 
 
 class CategorySummary(BaseModel):
@@ -83,6 +91,9 @@ class TicketRead(BaseModel):
     assignee: PersonSummary | None
     category: CategorySummary | None = Field(description="Staff only; null for customers.")
     team: TeamSummary | None = Field(description="Staff only; null for customers.")
+    language: str | None = Field(
+        default=None, description="ISO 639-1 code of the customer's language (from triage)."
+    )
     sla: TicketSlaSummary | None = Field(
         default=None,
         description="Staff only: the SLA clock that matters most now. Null without SLA "
@@ -120,6 +131,7 @@ class TicketRead(BaseModel):
             ),
             team=TeamSummary(id=ticket.team.id, name=ticket.team.name) if ticket.team else None,
             sla=sla,
+            language=ticket.language,
             allowed_statuses=allowed_statuses,
             created_at=ticket.created_at,
             updated_at=ticket.updated_at,

@@ -1939,7 +1939,8 @@ simulator), and phase 7 (Settings → Teams and agents and Settings → Routing 
 simulator, SLA badges and filters in the ticket list, the team and routing panel on
 tickets), and phase 8 (routing analytics with shadow agreement, concurrency tests,
 screenshots). Module 10 is complete; SLA breakdowns by priority, team and agent are
-a follow-up.
+a follow-up (done the same day: breakdowns, business-time medians, daily trends,
+pause reasons, and a reason with reassignments).
 
 Specified in [docs/features/sla-and-automated-routing.md](docs/features/sla-and-automated-routing.md),
 adapted from the feature plan after auditing this repository. In short:
@@ -1958,6 +1959,10 @@ adapted from the feature plan after auditing this repository. In short:
   staff-created ticket as the first reply.
 
 ## 15.5 Module 11 - AI ticket triage with abstention
+
+**Status:** implemented (12 November 2026); see
+[docs/features/ai-triage.md](docs/features/ai-triage.md) and the
+[T1-T4 report](experiments/reports/triage-t1-t4.md).
 
 **Why:** routing rules need a category (and later a language) that customers don't
 choose reliably. This is the same uncertainty-aware approach as Module 5, applied to

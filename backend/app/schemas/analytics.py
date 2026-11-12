@@ -178,3 +178,88 @@ class RoutingAnalytics(BaseModel):
     overrides: OverrideStats
     shadow: ShadowStats
     workload: list[AgentWorkload] = Field(description="Every admin and agent, by name.")
+
+
+# --- SLA detail (Module 10) ---------------------------------------------------------------
+
+
+class SlaGroup(BaseModel):
+    key: str | None = Field(description="Priority, team id or user id; null: none.")
+    label: str
+    first_response: SlaCompliance
+    resolution: SlaCompliance
+
+
+class SlaMedians(BaseModel):
+    first_response: float | None = Field(description="Business minutes, pauses excluded.")
+    resolution: float | None
+
+
+class SlaMetCounts(BaseModel):
+    first_response: int
+    resolution: int
+
+
+class SlaDaily(BaseModel):
+    day: str
+    at_risk: int = Field(description="Clocks the monitor flagged as due soon that day.")
+    breached: int = Field(description="Clocks that passed their deadline that day.")
+
+
+class PauseStat(BaseModel):
+    reason: str
+    count: int
+    ongoing: int
+    median_minutes: float | None = Field(description="Wall-clock length of ended pauses.")
+
+
+class SlaDetail(BaseModel):
+    """First cycles of clocks started in the period, unless stated otherwise. Groups use
+    the ticket's priority, team and assignee as they are now."""
+
+    days: int
+    by_priority: list[SlaGroup]
+    by_team: list[SlaGroup]
+    by_agent: list[SlaGroup]
+    median_business_minutes: SlaMedians = Field(
+        description="From start to met, in the clock's own business calendar."
+    )
+    met: SlaMetCounts = Field(description="How many met clocks the medians are over.")
+    daily: list[SlaDaily]
+    pauses: list[PauseStat] = Field(description="Pauses started in the period, by reason.")
+
+
+# --- Triage (Module 11) -------------------------------------------------------------------
+
+
+class TriageCategoryStat(BaseModel):
+    key: str
+    name: str
+    predicted: int = Field(description="Confident predictions of this category.")
+    reviewed: int
+    correct: int
+    accuracy: float | None
+
+
+class TriageAnalytics(BaseModel):
+    """Predictions made in the period. Accuracy counts the ones a person reviewed (kept,
+    accepted, changed or cleared the category); kept or accepted is correct."""
+
+    days: int
+    mode: Literal["off", "shadow", "on"] = Field(description="The triage mode now.")
+    predictions: int
+    confident: int
+    unsure: int
+    failed: int
+    applied: int = Field(description="Confident predictions applied (mode on).")
+    coverage: float | None = Field(description="confident / predictions.")
+    confident_reviewed: int
+    confident_correct: int
+    accuracy: float | None = Field(description="Of reviewed confident predictions.")
+    unsure_reviewed: int
+    unsure_correct: int
+    unsure_accuracy: float | None = Field(
+        description="How often the top guess was right when triage abstained."
+    )
+    median_latency_ms: int | None
+    by_category: list[TriageCategoryStat]

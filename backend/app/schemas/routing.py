@@ -22,18 +22,19 @@ from app.schemas.tickets import PersonSummary
 
 RuleName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=100)]
 Text = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
-_FIELD = re.compile(r"^(category|priority|subject|customer\.[a-z0-9_]{1,50})$")
+_FIELD = re.compile(r"^(category|priority|subject|language|customer\.[a-z0-9_]{1,50})$")
 MAX_CONDITIONS = 20
 MAX_VALUES = 50
 
 
 class ConditionIn(BaseModel):
     """One test on the ticket. Fields: `category` (by key: eq, in, is_set),
-    `priority` (eq, in), `subject` (contains), and `customer.<key>` for the customer's
-    metadata (eq, in, contains, is_set). Text comparisons ignore case."""
+    `priority` (eq, in), `subject` (contains), `language` (ISO 639-1 code from triage:
+    eq, in, is_set), and `customer.<key>` for the customer's metadata (eq, in,
+    contains, is_set). Text comparisons ignore case."""
 
     field: str = Field(
-        description="`category`, `priority`, `subject` or `customer.<key>`.",
+        description="`category`, `priority`, `subject`, `language` or `customer.<key>`.",
         examples=["category", "customer.plan"],
     )
     operator: Operator
@@ -44,7 +45,9 @@ class ConditionIn(BaseModel):
     @model_validator(mode="after")
     def _valid(self) -> Self:
         if not _FIELD.match(self.field):
-            raise ValueError("field must be category, priority, subject or customer.<key>")
+            raise ValueError(
+                "field must be category, priority, subject, language or customer.<key>"
+            )
         allowed = (
             CUSTOMER_OPERATORS
             if self.field.startswith(CUSTOMER_PREFIX)
@@ -62,7 +65,7 @@ class ConditionIn(BaseModel):
                 raise ValueError(f"in takes a list of 1 to {MAX_VALUES} values")
         elif not isinstance(value, str):
             raise ValueError(f"{self.operator} takes one text value")
-        if self.field in ("priority", "category") and self.operator != Operator.IS_SET:
+        if self.field in ("priority", "category", "language") and self.operator != Operator.IS_SET:
             values = value if isinstance(value, list) else [value]
             normalized = [str(v).lower() for v in values]
             if self.field == "priority":

@@ -20,6 +20,7 @@ from app.api.v1.endpoints import (
     teams,
     ticket_ai,
     tickets,
+    triage,
     users,
 )
 
@@ -38,6 +39,7 @@ api_router.include_router(teams.router)
 api_router.include_router(teams.agents_router)
 api_router.include_router(routing.router)
 api_router.include_router(routing.ticket_router)
+api_router.include_router(triage.router)
 api_router.include_router(ticket_ai.router)
 api_router.include_router(documents.router)
 api_router.include_router(ai.router)

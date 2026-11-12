@@ -1,0 +1,37 @@
+[
+  {
+    "key": "billing",
+    "name": "Billing",
+    "description": "charges, invoices, payment methods and prices of subscriptions and purchases"
+  },
+  {
+    "key": "returns",
+    "name": "Returns and refunds",
+    "description": "sending a device back, the return window, exchanges, damaged or wrong deliveries, refunds for returned or cancelled orders"
+  },
+  {
+    "key": "setup",
+    "name": "Setup",
+    "description": "installing and configuring routers and cameras, nodes, the Quillon Home app, network settings"
+  },
+  {
+    "key": "connectivity",
+    "name": "Connectivity",
+    "description": "Wi-Fi drops, slow speeds, no internet, error codes, devices that won't stay connected"
+  },
+  {
+    "key": "cameras",
+    "name": "Cameras",
+    "description": "QC2 camera video, motion alerts, night vision, recordings and cloud video history"
+  },
+  {
+    "key": "account",
+    "name": "Account and login",
+    "description": "signing in, passwords, two-step verification, the account email, sharing and removing access, deleting an account"
+  },
+  {
+    "key": "secure",
+    "name": "Quillon Secure",
+    "description": "what the Secure plans include, malware blocking, parental controls, VPN, the free trial, changing or cancelling plans"
+  }
+]

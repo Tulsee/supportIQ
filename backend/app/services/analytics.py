@@ -5,12 +5,15 @@ organization (and by row-level security). Durations are medians, so a few very o
 tickets don't dominate. Days are UTC calendar days.
 """
 
+import json
+import statistics
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.domain.business_time import business_minutes_between, calendar_from_snapshot
 from app.models import DEFAULT_MAX_ACTIVE_TICKETS, OrganizationMember
 from app.schemas.organizations import OrganizationSettings
 from app.services.authorization import STAFF_ROLES, require_role
@@ -260,6 +263,102 @@ _WORKLOAD = text(
     """
 )
 
+# --- SLA detail (Module 10) ---------------------------------------------------------------
+# First cycles started in the period, grouped by the ticket's priority, team or assignee
+# as they are now. The same outcome rules as _SLA.
+_SLA_BY = """
+    WITH c AS (
+      SELECT k.kind, k.state, k.met_at, t.{column} AS key,
+        (k.breached_at IS NOT NULL OR (k.met_at IS NOT NULL AND k.met_at > k.due_at)
+         OR (k.met_at IS NULL AND k.state = 'running' AND k.due_at <= now())) AS past_due
+      FROM ticket_sla_clocks k JOIN tickets t ON t.id = k.ticket_id
+      WHERE k.organization_id = :org AND k.started_at >= :since AND k.cycle = 1
+    )
+    SELECT key, kind,
+      count(*) FILTER (WHERE met_at IS NOT NULL AND NOT past_due) AS on_time,
+      count(*) FILTER (WHERE met_at IS NOT NULL AND past_due) AS late,
+      count(*) FILTER (WHERE met_at IS NULL AND state <> 'cancelled' AND past_due) AS overdue,
+      count(*) FILTER (WHERE met_at IS NULL AND state <> 'cancelled' AND NOT past_due) AS open,
+      count(*) FILTER (WHERE state = 'cancelled') AS cancelled
+    FROM c GROUP BY key, kind
+"""
+_SLA_GROUPS = {
+    "priority": text(_SLA_BY.format(column="priority")),
+    "team": text(_SLA_BY.format(column="team_id")),
+    "agent": text(_SLA_BY.format(column="assignee_id")),
+}
+_TEAM_NAMES = text("SELECT id, name FROM teams WHERE organization_id = :org")
+_STAFF_NAMES = text(
+    """
+    SELECT u.id, u.full_name AS name FROM users u
+    JOIN organization_members m ON m.user_id = u.id WHERE m.organization_id = :org
+    """
+)
+# Met first cycles started in the period (newest first, bounded), for business-time
+# medians computed with each clock's own calendar.
+_MET_CLOCKS = text(
+    """
+    SELECT kind, started_at, met_at, paused_minutes, calendar_snapshot
+    FROM ticket_sla_clocks
+    WHERE organization_id = :org AND started_at >= :since AND cycle = 1
+      AND met_at IS NOT NULL
+    ORDER BY started_at DESC LIMIT 5000
+    """
+)
+_SLA_DAILY = text(
+    """
+    SELECT 'at_risk' AS kind, (at_risk_at AT TIME ZONE 'UTC')::date AS day, count(*) AS n
+    FROM ticket_sla_clocks WHERE organization_id = :org AND at_risk_at >= :since GROUP BY 2
+    UNION ALL
+    SELECT 'breached', (breached_at AT TIME ZONE 'UTC')::date, count(*)
+    FROM ticket_sla_clocks WHERE organization_id = :org AND breached_at >= :since GROUP BY 2
+    """
+)
+_PAUSES = text(
+    """
+    SELECT reason, count(*) AS n, count(*) FILTER (WHERE ended_at IS NULL) AS ongoing,
+      percentile_cont(0.5) WITHIN GROUP (ORDER BY ended_at - started_at)
+        FILTER (WHERE ended_at IS NOT NULL) AS median
+    FROM ticket_sla_pauses
+    WHERE organization_id = :org AND started_at >= :since
+    GROUP BY reason ORDER BY n DESC
+    """
+)
+
+# --- Triage (Module 11) -------------------------------------------------------------------
+# Predictions made in the period, with what people did with them. A prediction is
+# "correct" when the person kept or accepted its category (confirmed).
+_TRIAGE = text(
+    """
+    SELECT decision, outcome, count(*) AS n,
+      count(*) FILTER (WHERE applied) AS applied
+    FROM ticket_triage WHERE organization_id = :org AND created_at >= :since
+    GROUP BY decision, outcome
+    """
+)
+_TRIAGE_CATEGORIES = text(
+    """
+    SELECT p.category_key AS key, coalesce(c.name, p.category_name, p.category_key) AS name,
+      count(*) AS predicted,
+      count(*) FILTER (WHERE p.outcome IS NOT NULL) AS reviewed,
+      count(*) FILTER (WHERE p.outcome = 'confirmed') AS correct
+    FROM ticket_triage p
+    LEFT JOIN ticket_categories c
+      ON c.organization_id = p.organization_id AND c.key = p.category_key
+    WHERE p.organization_id = :org AND p.created_at >= :since AND p.decision = 'confident'
+    GROUP BY 1, 2 ORDER BY predicted DESC, 1
+    """
+)
+_TRIAGE_LATENCY = text(
+    """
+    SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY latency_ms) AS p50
+    FROM ticket_triage WHERE organization_id = :org AND created_at >= :since
+    """
+)
+
+
+_PRIORITY_ORDER = {"urgent": 0, "high": 1, "normal": 2, "low": 3}
+
 
 def _minutes(value: timedelta | None) -> float | None:
     return round(value.total_seconds() / 60, 1) if value is not None else None
@@ -334,6 +433,137 @@ class AnalyticsService:
             "first_response": compliance("first_response"),
             "resolution": compliance("resolution"),
             "reopened_cycles": rows["resolution"].reopened if "resolution" in rows else 0,
+        }
+
+    async def sla_detail(self, member: OrganizationMember, days: int) -> dict[str, Any]:
+        """Service levels in more depth: compliance by priority, team and agent, the
+        median business time to meet each target, due-soon and breached transitions
+        per day, and why clocks were paused."""
+        require_role(member, *STAFF_ROLES)
+        params = {"org": member.organization_id, **_window(days)}
+        teams = {r.id: r.name for r in await self._rows(_TEAM_NAMES, params)}
+        people = {r.id: r.name for r in await self._rows(_STAFF_NAMES, params)}
+
+        def label(group: str, key: Any) -> str:
+            if group == "priority":
+                return str(key)
+            if key is None:
+                return "No team" if group == "team" else "Unassigned"
+            names = teams if group == "team" else people
+            return names.get(key, "Removed")
+
+        breakdowns: dict[str, list[dict[str, Any]]] = {}
+        for group, query in _SLA_GROUPS.items():
+            rows: dict[Any, dict[str, Any]] = {}
+            for r in await self._rows(query, params):
+                entry = rows.setdefault(r.key, {"key": str(r.key) if r.key else None})
+                counts = {
+                    k: getattr(r, k) for k in ("on_time", "late", "overdue", "open", "cancelled")
+                }
+                decided = counts["on_time"] + counts["late"] + counts["overdue"]
+                entry[r.kind] = {**counts, "rate": counts["on_time"] / decided if decided else None}
+            empty = {k: 0 for k in ("on_time", "late", "overdue", "open", "cancelled")}
+            breakdowns[group] = sorted(
+                (
+                    {
+                        "key": entry["key"],
+                        "label": label(group, key),
+                        "first_response": entry.get("first_response", {**empty, "rate": None}),
+                        "resolution": entry.get("resolution", {**empty, "rate": None}),
+                    }
+                    for key, entry in rows.items()
+                ),
+                key=lambda e: (
+                    (_PRIORITY_ORDER.get(e["key"], 9), e["label"].lower())
+                    if group == "priority"
+                    else (e["key"] is None, e["label"].lower())
+                ),
+            )
+
+        business: dict[str, list[int]] = {"first_response": [], "resolution": []}
+        calendars: dict[str, Any] = {}
+        for r in await self._rows(_MET_CLOCKS, params):
+            key = json.dumps(r.calendar_snapshot, sort_keys=True)
+            if key not in calendars:
+                calendars[key] = calendar_from_snapshot(r.calendar_snapshot)
+            elapsed = business_minutes_between(r.started_at, r.met_at, calendars[key])
+            business[r.kind].append(max(elapsed - r.paused_minutes, 0))
+
+        daily = {d.isoformat(): {"at_risk": 0, "breached": 0} for d in _days(params, days)}
+        for r in await self._rows(_SLA_DAILY, params):
+            if r.day.isoformat() in daily:
+                daily[r.day.isoformat()][r.kind] = r.n
+
+        return {
+            "days": days,
+            "by_priority": breakdowns["priority"],
+            "by_team": breakdowns["team"],
+            "by_agent": breakdowns["agent"],
+            "median_business_minutes": {
+                kind: (statistics.median(values) if values else None)
+                for kind, values in business.items()
+            },
+            "met": {kind: len(values) for kind, values in business.items()},
+            "daily": [{"day": day, **counts} for day, counts in daily.items()],
+            "pauses": [
+                {
+                    "reason": r.reason,
+                    "count": r.n,
+                    "ongoing": r.ongoing,
+                    "median_minutes": _minutes(r.median),
+                }
+                for r in await self._rows(_PAUSES, params)
+            ],
+        }
+
+    async def triage(self, member: OrganizationMember, days: int) -> dict[str, Any]:
+        """AI triage in the period: how often it was confident (coverage), and how
+        often people agreed with it, for confident predictions and, separately, for
+        the top guess when it was unsure (what abstaining avoided)."""
+        require_role(member, *STAFF_ROLES)
+        params = {"org": member.organization_id, **_window(days)}
+        counts = {"confident": 0, "unsure": 0, "failed": 0}
+        applied = 0
+        reviewed = {"confident": 0, "unsure": 0}
+        correct = {"confident": 0, "unsure": 0}
+        for r in await self._rows(_TRIAGE, params):
+            counts[r.decision] += r.n
+            applied += r.applied
+            if r.outcome is not None and r.decision in reviewed:
+                reviewed[r.decision] += r.n
+                correct[r.decision] += r.n if r.outcome == "confirmed" else 0
+        total = sum(counts.values())
+        latency = (await self._rows(_TRIAGE_LATENCY, params))[0].p50
+        settings = OrganizationSettings.model_validate(member.organization.settings or {})
+
+        def rate(numerator: int, denominator: int) -> float | None:
+            return numerator / denominator if denominator else None
+
+        return {
+            "days": days,
+            "mode": settings.triage_mode,
+            "predictions": total,
+            **counts,
+            "applied": applied,
+            "coverage": rate(counts["confident"], total),
+            "confident_reviewed": reviewed["confident"],
+            "confident_correct": correct["confident"],
+            "accuracy": rate(correct["confident"], reviewed["confident"]),
+            "unsure_reviewed": reviewed["unsure"],
+            "unsure_correct": correct["unsure"],
+            "unsure_accuracy": rate(correct["unsure"], reviewed["unsure"]),
+            "median_latency_ms": round(latency) if latency is not None else None,
+            "by_category": [
+                {
+                    "key": r.key,
+                    "name": r.name,
+                    "predicted": r.predicted,
+                    "reviewed": r.reviewed,
+                    "correct": r.correct,
+                    "accuracy": rate(r.correct, r.reviewed),
+                }
+                for r in await self._rows(_TRIAGE_CATEGORIES, params)
+            ],
         }
 
     async def routing(self, member: OrganizationMember, days: int) -> dict[str, Any]:

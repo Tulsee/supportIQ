@@ -72,7 +72,7 @@ async def test_each_ticket_shows_the_clock_that_matters_most(
     assert summary == {
         "Normal": ("at_risk", "first_response"),  # due 13:00, warned at 12:00
         "Urgent": ("breached", "first_response"),  # due 10:00
-        "Low": ("on_track", "first_response"),  # due Tuesday 09:00
+        "Low": ("on_track", "first_response"),  # due 17:00, warned at 16:00
         "Answered": ("on_track", "resolution"),  # first response met: resolution next
     }
     assert tickets["Normal"]["sla"]["remaining_minutes"] == 30

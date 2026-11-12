@@ -10,6 +10,7 @@ from app.services.ingestion import TransientIngestionError, run_ingestion_job
 from app.services.notifications import run_email_job
 from app.services.routing import run_routing_job, run_routing_sweep
 from app.services.sla_monitor import run_sla_job
+from app.services.triage import run_triage_job
 from app.workers.celery_app import celery_app
 
 MAX_RETRIES = 3
@@ -80,3 +81,16 @@ def route_ticket(ticket_id: str) -> str | None:
 def sweep_unrouted_tickets() -> int:
     """Route open tickets whose routing job never ran."""
     return asyncio.run(run_routing_sweep())
+
+
+@celery_app.task(
+    name="triage.ticket",
+    ignore_result=True,
+    autoretry_for=(OSError, ConnectionError, TimeoutError),
+    max_retries=2,
+    retry_backoff=10,
+    retry_jitter=True,
+)
+def triage_ticket(ticket_id: str) -> str | None:
+    """Triage a newly opened ticket, then route it."""
+    return asyncio.run(run_triage_job(uuid.UUID(ticket_id)))

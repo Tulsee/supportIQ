@@ -377,8 +377,8 @@ export interface paths {
          * Open a ticket
          * @description Staff open tickets for a customer (`customer_id` required) and may set the
          *     priority and assignee. Customers open tickets for themselves. Unassigned tickets
-         *     are routed in the background when the organization's routing mode is on (or
-         *     shadow).
+         *     are triaged (category, priority, language) and routed in the background when the
+         *     organization uses triage or routing.
          */
         post: operations["create_ticket_api_v1_tickets_post"];
         delete?: never;
@@ -990,6 +990,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tickets/{ticket_id}/triage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The ticket's AI triage (staff)
+         * @description The prediction made when the ticket was opened (null if triage didn't run): the
+         *     category guess and how sure, both signals, suggested priority, language, urgency
+         *     cues, and what a person did with it.
+         */
+        get: operations["ticket_triage_api_v1_tickets__ticket_id__triage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tickets/{ticket_id}/triage/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept the suggested category (staff)
+         * @description Sets the suggested category (or confirms the one triage applied), records the
+         *     review, and makes the ticket an example for future triage. 404 `no_suggestion` if
+         *     there's no category guess.
+         */
+        post: operations["accept_triage_api_v1_tickets__ticket_id__triage_accept_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tickets/{ticket_id}/ai/suggestion": {
         parameters: {
             query?: never;
@@ -1321,6 +1365,48 @@ export interface paths {
          * @description Open tickets, volume per day, median first-response and resolution times.
          */
         get: operations["overview_api_v1_analytics_overview_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/sla": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Service levels in depth
+         * @description Compliance by priority, team and agent; median business time to meet each
+         *     target; due-soon and breached transitions per day; pause reasons.
+         */
+        get: operations["sla_detail_api_v1_analytics_sla_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/triage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * AI ticket triage
+         * @description Coverage (how often triage was confident), accuracy of confident predictions and
+         *     of the top guess when unsure (from people's reviews), per category, and latency.
+         */
+        get: operations["triage_api_v1_analytics_triage_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2291,13 +2377,14 @@ export interface components {
         /**
          * ConditionIn
          * @description One test on the ticket. Fields: `category` (by key: eq, in, is_set),
-         *     `priority` (eq, in), `subject` (contains), and `customer.<key>` for the customer's
-         *     metadata (eq, in, contains, is_set). Text comparisons ignore case.
+         *     `priority` (eq, in), `subject` (contains), `language` (ISO 639-1 code from triage:
+         *     eq, in, is_set), and `customer.<key>` for the customer's metadata (eq, in,
+         *     contains, is_set). Text comparisons ignore case.
          */
         ConditionIn: {
             /**
              * Field
-             * @description `category`, `priority`, `subject` or `customer.<key>`.
+             * @description `category`, `priority`, `subject`, `language` or `customer.<key>`.
              * @example category
              * @example customer.plan
              */
@@ -2772,6 +2859,25 @@ export interface components {
             /** Runs */
             runs: number;
         };
+        /** LlmSignal */
+        LlmSignal: {
+            /**
+             * Category
+             * @description Its pick (a key), or null when unsure.
+             */
+            category: string | null;
+            /**
+             * Confidence
+             * @description Its self-reported confidence as a score.
+             */
+            confidence: number;
+            /** Priority */
+            priority: string | null;
+            /** Language */
+            language: string | null;
+            /** Urgency Cues */
+            urgency_cues: string[];
+        };
         /** LoginRequest */
         LoginRequest: {
             /**
@@ -2902,6 +3008,35 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** NeighbourExample */
+        NeighbourExample: {
+            /**
+             * Ticket Id
+             * Format: uuid
+             */
+            ticket_id: string;
+            /** Number */
+            number: number | null;
+            /** Category */
+            category: string;
+            /** Similarity */
+            similarity: number;
+        };
+        /** NeighbourSignal */
+        NeighbourSignal: {
+            /**
+             * Shares
+             * @description Each category's share of the weighted vote.
+             */
+            shares: {
+                [key: string]: number;
+            };
+            /**
+             * Examples
+             * @description The similar labelled tickets.
+             */
+            examples: components["schemas"]["NeighbourExample"][];
+        };
         /**
          * NotificationDelivery
          * @enum {string}
@@ -3010,6 +3145,13 @@ export interface components {
              * @enum {string}
              */
             routing_mode: "off" | "shadow" | "on";
+            /**
+             * Triage Mode
+             * @description AI triage of new tickets: `off`, `shadow` (predict and record silently, to measure accuracy) or `on` (apply confident categories, suggest the rest).
+             * @default off
+             * @enum {string}
+             */
+            triage_mode: "off" | "shadow" | "on";
         };
         /** OrganizationSettingsUpdate */
         OrganizationSettingsUpdate: {
@@ -3017,6 +3159,8 @@ export interface components {
             auto_close_after_days?: number | null;
             /** Routing Mode */
             routing_mode?: ("off" | "shadow" | "on") | null;
+            /** Triage Mode */
+            triage_mode?: ("off" | "shadow" | "on") | null;
         };
         /**
          * OrganizationUpdate
@@ -3263,6 +3407,20 @@ export interface components {
             limit: number;
             /** Offset */
             offset: number;
+        };
+        /** PauseStat */
+        PauseStat: {
+            /** Reason */
+            reason: string;
+            /** Count */
+            count: number;
+            /** Ongoing */
+            ongoing: number;
+            /**
+             * Median Minutes
+             * @description Wall-clock length of ended pauses.
+             */
+            median_minutes: number | null;
         };
         /** PersonSummary */
         PersonSummary: {
@@ -3803,6 +3961,76 @@ export interface components {
             /** Policies */
             policies: components["schemas"]["PolicyRead"][];
         };
+        /** SlaDaily */
+        SlaDaily: {
+            /** Day */
+            day: string;
+            /**
+             * At Risk
+             * @description Clocks the monitor flagged as due soon that day.
+             */
+            at_risk: number;
+            /**
+             * Breached
+             * @description Clocks that passed their deadline that day.
+             */
+            breached: number;
+        };
+        /**
+         * SlaDetail
+         * @description First cycles of clocks started in the period, unless stated otherwise. Groups use
+         *     the ticket's priority, team and assignee as they are now.
+         */
+        SlaDetail: {
+            /** Days */
+            days: number;
+            /** By Priority */
+            by_priority: components["schemas"]["SlaGroup"][];
+            /** By Team */
+            by_team: components["schemas"]["SlaGroup"][];
+            /** By Agent */
+            by_agent: components["schemas"]["SlaGroup"][];
+            /** @description From start to met, in the clock's own business calendar. */
+            median_business_minutes: components["schemas"]["SlaMedians"];
+            /** @description How many met clocks the medians are over. */
+            met: components["schemas"]["SlaMetCounts"];
+            /** Daily */
+            daily: components["schemas"]["SlaDaily"][];
+            /**
+             * Pauses
+             * @description Pauses started in the period, by reason.
+             */
+            pauses: components["schemas"]["PauseStat"][];
+        };
+        /** SlaGroup */
+        SlaGroup: {
+            /**
+             * Key
+             * @description Priority, team id or user id; null: none.
+             */
+            key: string | null;
+            /** Label */
+            label: string;
+            first_response: components["schemas"]["SlaCompliance"];
+            resolution: components["schemas"]["SlaCompliance"];
+        };
+        /** SlaMedians */
+        SlaMedians: {
+            /**
+             * First Response
+             * @description Business minutes, pauses excluded.
+             */
+            first_response: number | null;
+            /** Resolution */
+            resolution: number | null;
+        };
+        /** SlaMetCounts */
+        SlaMetCounts: {
+            /** First Response */
+            first_response: number;
+            /** Resolution */
+            resolution: number;
+        };
         /**
          * SlaPreview
          * @description When a ticket of this priority opened at ``opened_at`` would be due.
@@ -4054,6 +4282,11 @@ export interface components {
             category: components["schemas"]["CategorySummary"] | null;
             /** @description Staff only; null for customers. */
             team: components["schemas"]["TeamSummary"] | null;
+            /**
+             * Language
+             * @description ISO 639-1 code of the customer's language (from triage).
+             */
+            language?: string | null;
             /** @description Staff only: the SLA clock that matters most now. Null without SLA clocks, and for customers. */
             sla?: components["schemas"]["TicketSlaSummary"] | null;
             /**
@@ -4166,6 +4399,11 @@ export interface components {
              * @description An active team of the organization; null clears it.
              */
             team_id?: string | null;
+            /**
+             * Assignment Reason
+             * @description Why the assignee changes (with `assignee_id`); shown in the timeline to staff.
+             */
+            assignment_reason?: string | null;
         };
         /** TokenResponse */
         TokenResponse: {
@@ -4182,6 +4420,172 @@ export interface components {
              * @description Access token lifetime in seconds.
              */
             expires_in: number;
+        };
+        /**
+         * TriageAnalytics
+         * @description Predictions made in the period. Accuracy counts the ones a person reviewed (kept,
+         *     accepted, changed or cleared the category); kept or accepted is correct.
+         */
+        TriageAnalytics: {
+            /** Days */
+            days: number;
+            /**
+             * Mode
+             * @description The triage mode now.
+             * @enum {string}
+             */
+            mode: "off" | "shadow" | "on";
+            /** Predictions */
+            predictions: number;
+            /** Confident */
+            confident: number;
+            /** Unsure */
+            unsure: number;
+            /** Failed */
+            failed: number;
+            /**
+             * Applied
+             * @description Confident predictions applied (mode on).
+             */
+            applied: number;
+            /**
+             * Coverage
+             * @description confident / predictions.
+             */
+            coverage: number | null;
+            /** Confident Reviewed */
+            confident_reviewed: number;
+            /** Confident Correct */
+            confident_correct: number;
+            /**
+             * Accuracy
+             * @description Of reviewed confident predictions.
+             */
+            accuracy: number | null;
+            /** Unsure Reviewed */
+            unsure_reviewed: number;
+            /** Unsure Correct */
+            unsure_correct: number;
+            /**
+             * Unsure Accuracy
+             * @description How often the top guess was right when triage abstained.
+             */
+            unsure_accuracy: number | null;
+            /** Median Latency Ms */
+            median_latency_ms: number | null;
+            /** By Category */
+            by_category: components["schemas"]["TriageCategoryStat"][];
+        };
+        /** TriageCategory */
+        TriageCategory: {
+            /**
+             * Id
+             * @description Null if the category was deleted since.
+             */
+            id: string | null;
+            /** Key */
+            key: string;
+            /** Name */
+            name: string;
+        };
+        /** TriageCategoryStat */
+        TriageCategoryStat: {
+            /** Key */
+            key: string;
+            /** Name */
+            name: string;
+            /**
+             * Predicted
+             * @description Confident predictions of this category.
+             */
+            predicted: number;
+            /** Reviewed */
+            reviewed: number;
+            /** Correct */
+            correct: number;
+            /** Accuracy */
+            accuracy: number | null;
+        };
+        /**
+         * TriageDecisionKind
+         * @enum {string}
+         */
+        TriageDecisionKind: "confident" | "unsure" | "failed";
+        /**
+         * TriageOutcome
+         * @enum {string}
+         */
+        TriageOutcome: "confirmed" | "changed" | "cleared";
+        /** TriageRead */
+        TriageRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Mode
+             * @description The triage mode when it ran.
+             * @enum {string}
+             */
+            mode: "shadow" | "on";
+            /** @description `confident` (at or above the threshold), `unsure`, or `failed` (the model couldn't be used). */
+            decision: components["schemas"]["TriageDecisionKind"];
+            /**
+             * Applied
+             * @description The category was set on the ticket.
+             */
+            applied: boolean;
+            /** @description The top guess, even when unsure. */
+            category: components["schemas"]["TriageCategory"] | null;
+            /**
+             * Confidence
+             * @description The combined score of the top guess (0-1).
+             */
+            confidence: number;
+            /** Threshold */
+            threshold: number;
+            /**
+             * Agree
+             * @description Both signals picked the same category.
+             */
+            agree: boolean | null;
+            /**
+             * Priority
+             * @description Suggested priority (never applied).
+             */
+            priority: string | null;
+            /** Language */
+            language: string | null;
+            /** Urgency Cues */
+            urgency_cues: string[];
+            llm: components["schemas"]["LlmSignal"] | null;
+            neighbours: components["schemas"]["NeighbourSignal"] | null;
+            /** Model */
+            model: string | null;
+            /** Error */
+            error: string | null;
+            /** Latency Ms */
+            latency_ms: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** @description What a person did with it, once they did. */
+            review: components["schemas"]["TriageReview"] | null;
+        };
+        /** TriageReview */
+        TriageReview: {
+            outcome: components["schemas"]["TriageOutcome"];
+            /** Final Category Key */
+            final_category_key: string | null;
+            /**
+             * Reviewed At
+             * Format: date-time
+             */
+            reviewed_at: string;
+            reviewed_by: components["schemas"]["PersonSummary"] | null;
         };
         /** UnreadCount */
         UnreadCount: {
@@ -8769,6 +9173,146 @@ export interface operations {
             };
         };
     };
+    ticket_triage_api_v1_tickets__ticket_id__triage_get: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TriageRead"] | null;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    accept_triage_api_v1_tickets__ticket_id__triage_accept_post: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TriageRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     suggest_reply_api_v1_tickets__ticket_id__ai_suggestion_post: {
         parameters: {
             query?: never;
@@ -10508,6 +11052,130 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Overview"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    sla_detail_api_v1_analytics_sla_get: {
+        parameters: {
+            query?: {
+                /** @description Trailing window, in days. */
+                days?: number;
+            };
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SlaDetail"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    triage_api_v1_analytics_triage_get: {
+        parameters: {
+            query?: {
+                /** @description Trailing window, in days. */
+                days?: number;
+            };
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TriageAnalytics"];
                 };
             };
             /** @description Unauthorized */

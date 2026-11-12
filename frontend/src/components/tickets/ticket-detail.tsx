@@ -19,6 +19,7 @@ import {
 import { NewRequestDialog } from "@/components/tickets/new-request-dialog";
 import { ReplyBox, type ReplyDraft } from "@/components/tickets/reply-box";
 import { RoutingPanel } from "@/components/tickets/routing-panel";
+import { TriagePanel } from "@/components/tickets/triage-panel";
 import { SlaPanel } from "@/components/tickets/sla-panel";
 import { TicketAIPanel } from "@/components/tickets/ticket-ai-panel";
 import { PriorityLabel, StatusBadge } from "@/components/tickets/ticket-badges";
@@ -26,9 +27,18 @@ import { TicketTimeline } from "@/components/tickets/ticket-timeline";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 import {
   ApiError,
   api,
@@ -77,6 +87,26 @@ function TicketProperties({ ticket }: { ticket: Ticket }) {
     },
     onError: (error) => toast.error(errorMessage(error)),
   });
+
+  // Changing or clearing someone's assignment asks why (optional, shown to staff in
+  // the timeline); a first assignment just happens.
+  const [reassignTo, setReassignTo] = useState<string | null>(null);
+  const [reason, setReason] = useState("");
+  const requestAssignee = (next: string | null) => {
+    if (ticket.assignee && next !== ticket.assignee.id) {
+      setReason("");
+      setReassignTo(next ?? UNASSIGNED);
+    } else {
+      update.mutate({ assignee_id: next });
+    }
+  };
+  const confirmReassign = () => {
+    const next = reassignTo === UNASSIGNED ? null : reassignTo;
+    update.mutate(
+      { assignee_id: next, ...(reason.trim() ? { assignment_reason: reason.trim() } : {}) },
+      { onSuccess: () => setReassignTo(null) },
+    );
+  };
 
   // Closing is final, so it has its own confirmed button (see CloseTicketButton).
   const changeTo = ticket.allowed_statuses.filter((status) => status !== "closed");
@@ -149,7 +179,7 @@ function TicketProperties({ ticket }: { ticket: Ticket }) {
                   size="xs"
                   className="h-auto p-0"
                   disabled={update.isPending}
-                  onClick={() => update.mutate({ assignee_id: user.id })}
+                  onClick={() => requestAssignee(user.id)}
                 >
                   Assign to me
                 </Button>
@@ -160,7 +190,7 @@ function TicketProperties({ ticket }: { ticket: Ticket }) {
               value={ticket.assignee?.id ?? UNASSIGNED}
               onValueChange={(value) => {
                 if (!value || value === (ticket.assignee?.id ?? UNASSIGNED)) return;
-                update.mutate({ assignee_id: value === UNASSIGNED ? null : value });
+                requestAssignee(value === UNASSIGNED ? null : value);
               }}
               disabled={update.isPending || closed}
             >
@@ -264,6 +294,47 @@ function TicketProperties({ ticket }: { ticket: Ticket }) {
           </Field>
         </FieldGroup>
       </CardContent>
+      <Dialog open={reassignTo !== null} onOpenChange={(open) => !open && setReassignTo(null)}>
+        <DialogContent>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              confirmReassign();
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>
+                {reassignTo === UNASSIGNED
+                  ? `Unassign ${ticket.assignee?.full_name}?`
+                  : `Reassign to ${assigneeItems[reassignTo ?? ""] ?? "someone else"}?`}
+              </DialogTitle>
+              <DialogDescription>
+                {ticket.assignee?.full_name} is working on #{ticket.number}. A reason helps
+                whoever picks it up; it&apos;s shown to staff in the activity.
+              </DialogDescription>
+            </DialogHeader>
+            <Field className="my-4">
+              <FieldLabel htmlFor={`${uid}-reason`}>Reason (optional)</FieldLabel>
+              <Textarea
+                id={`${uid}-reason`}
+                value={reason}
+                maxLength={300}
+                rows={3}
+                placeholder="e.g. Needs a refund approval"
+                onChange={(event) => setReason(event.target.value)}
+              />
+            </Field>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setReassignTo(null)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={update.isPending}>
+                {reassignTo === UNASSIGNED ? "Unassign" : "Reassign"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
@@ -425,6 +496,7 @@ export function TicketDetail() {
 
         <aside className="space-y-4" aria-label="Ticket details">
           {audience === "staff" ? <TicketProperties ticket={data} /> : null}
+          {audience === "staff" ? <TriagePanel ticket={data} /> : null}
           {audience === "staff" ? <SlaPanel ticket={data} /> : null}
           {audience === "staff" ? <RoutingPanel ticket={data} /> : null}
           {audience === "staff" ? (

@@ -80,3 +80,26 @@ class CeleryRoutingQueue:
             await to_thread.run_sync(_send)
         except (OperationalError, OSError) as exc:
             raise QueueUnavailableError(str(exc)) from exc
+
+
+class TriageQueue(Protocol):
+    async def enqueue(self, ticket_id: uuid.UUID) -> None: ...
+
+
+class CeleryTriageQueue:
+    async def enqueue(self, ticket_id: uuid.UUID) -> None:
+        from kombu.exceptions import OperationalError
+
+        from app.workers.tasks import triage_ticket
+
+        def _send() -> None:
+            triage_ticket.apply_async(
+                args=[str(ticket_id)],
+                retry=True,
+                retry_policy={"max_retries": 2, "interval_start": 0.2, "interval_step": 0.5},
+            )
+
+        try:
+            await to_thread.run_sync(_send)
+        except (OperationalError, OSError) as exc:
+            raise QueueUnavailableError(str(exc)) from exc

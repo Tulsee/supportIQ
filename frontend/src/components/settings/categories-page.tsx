@@ -6,6 +6,7 @@ import { useId, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 
 import { PageHeader } from "@/components/page-header";
+import { ModeCard } from "@/components/settings/mode-card";
 import { useCategories } from "@/components/tickets/hooks";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { api, errorMessage, tenant, unwrap, type Category } from "@/lib/api/client";
 import { useActiveOrganization } from "@/lib/org/org-provider";
 import { queryKeys } from "@/lib/query-keys";
+import { TRIAGE_MODES } from "@/lib/triage";
 
 type CategoryChange = { name?: string; description?: string; is_active?: boolean };
 
@@ -219,6 +221,12 @@ export function CategoriesPage() {
       <PageHeader
         title="Ticket categories"
         description="Sort tickets by topic. Categories are turned off rather than deleted, so older tickets keep theirs."
+      />
+      <ModeCard
+        title="AI triage"
+        description="Suggest each new ticket's category, priority and language from what the customer wrote and from similar tickets your team already sorted. When it isn't sure, it leaves the category for a person."
+        setting="triage_mode"
+        modes={TRIAGE_MODES}
       />
       <AddCategory />
       <Card>

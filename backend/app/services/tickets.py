@@ -44,6 +44,7 @@ from app.services.authorization import STAFF_ROLES, require_role
 from app.services.customers import CustomerService
 from app.services.notifications import NewNotification, NotificationService
 from app.services.sla_clocks import SlaClockService
+from app.services.triage_labels import record_category_choice
 from app.websocket.broker import EventBroker, EventType
 from app.websocket.broker import TicketEvent as RealtimeEvent
 
@@ -276,7 +277,8 @@ class TicketService:
         # Assignment first: assigning an OPEN ticket makes it ASSIGNED, from which
         # a status in the same request (e.g. IN_PROGRESS) can follow.
         if "assignee_id" in fields:
-            await self._assign(ticket, user.id, data.assignee_id)
+            reason = {"reason": data.assignment_reason} if data.assignment_reason else None
+            await self._assign(ticket, user.id, data.assignee_id, extra=reason)
         if "category_id" in fields:
             await self._set_category(ticket, user.id, data.category_id)
         if "team_id" in fields:
@@ -384,6 +386,13 @@ class TicketService:
             )
         return ticket.status != before
 
+    async def apply_triage(
+        self, ticket: Ticket, category_id: uuid.UUID, details: dict[str, Any]
+    ) -> None:
+        """Set the category triage was confident about, on a locked ticket, as an
+        automatic change. Doesn't commit."""
+        await self._set_category(ticket, None, category_id, {"automatic": True, **details})
+
     async def publish_change(self, ticket: Ticket, *, customer_visible: bool) -> None:
         """After the commit: refresh open views and send the notifications."""
         await self._notify("ticket.updated", ticket, staff_only=not customer_visible)
@@ -400,8 +409,13 @@ class TicketService:
     # --- Helpers --------------------------------------------------------------------
 
     async def _set_category(
-        self, ticket: Ticket, actor_id: uuid.UUID, category_id: uuid.UUID | None
+        self,
+        ticket: Ticket,
+        actor_id: uuid.UUID | None,
+        category_id: uuid.UUID | None,
+        extra: dict[str, Any] | None = None,
     ) -> None:
+        """``actor_id`` None: the AI set it (triage), so it teaches triage nothing."""
         if category_id == ticket.category_id:
             return
         category = None
@@ -421,8 +435,10 @@ class TicketService:
             ticket,
             actor_id,
             TicketEventType.CATEGORY_CHANGED,
-            {"from": _category(previous), "to": _category(category)},
+            {"from": _category(previous), "to": _category(category), **(extra or {})},
         )
+        if actor_id is not None:
+            await record_category_choice(self.session, ticket, category, actor_id)
 
     async def _set_team(
         self,
@@ -496,7 +512,12 @@ class TicketService:
         previous = ticket.assignee
         if assignee_id is None:
             ticket.assignee = None
-            self._record(ticket, actor_id, TicketEventType.UNASSIGNED, {"from": _person(previous)})
+            self._record(
+                ticket,
+                actor_id,
+                TicketEventType.UNASSIGNED,
+                {"from": _person(previous), **(extra or {})},
+            )
             if ticket.status == S.ASSIGNED:
                 await self._set_status(ticket, actor_id, S.OPEN)  # back to the queue
             return

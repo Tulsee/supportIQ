@@ -50,6 +50,7 @@ from app.api.deps import (
     get_rate_limiter,
     get_reranker_dep,
     get_routing_queue,
+    get_triage_queue,
     get_vector_store,
     get_worker_registry,
 )
@@ -68,6 +69,7 @@ from tests.factories import (
     RecordingMailer,
     RecordingQueue,
     RecordingRoutingQueue,
+    RecordingTriageQueue,
     ScriptedLLM,
     StaticWorkerRegistry,
     Workspace,
@@ -215,6 +217,11 @@ def routing_queue() -> RecordingRoutingQueue:
 
 
 @pytest.fixture
+def triage_queue() -> RecordingTriageQueue:
+    return RecordingTriageQueue()
+
+
+@pytest.fixture
 def worker_registry() -> StaticWorkerRegistry:
     return StaticWorkerRegistry(count=1)
 
@@ -275,6 +282,7 @@ def make_client(
     ingestion_queue: RecordingQueue,
     mailer: RecordingMailer,
     routing_queue: RecordingRoutingQueue,
+    triage_queue: RecordingTriageQueue,
     worker_registry: StaticWorkerRegistry,
     reranker: OverlapReranker,
     llm: ScriptedLLM,
@@ -306,6 +314,7 @@ def make_client(
             get_ingestion_queue: lambda: ingestion_queue,
             get_notification_mailer: lambda: mailer,
             get_routing_queue: lambda: routing_queue,
+            get_triage_queue: lambda: triage_queue,
             get_worker_registry: lambda: worker_registry,
             get_reranker_dep: lambda: reranker,
             get_llm_client_dep: lambda: llm,

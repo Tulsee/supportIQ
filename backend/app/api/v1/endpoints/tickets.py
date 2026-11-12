@@ -18,6 +18,7 @@ from app.api.deps import (
     Pagination,
     RoutingQueueDep,
     TenantMembership,
+    TriageQueueDep,
 )
 from app.core.security import utcnow
 from app.models import OrganizationMember, SlaClockKind, Ticket, TicketPriority, TicketStatus
@@ -34,10 +35,10 @@ from app.schemas.tickets import (
     TicketUpdate,
 )
 from app.services.authorization import STAFF_ROLES, require_role
-from app.services.routing import enqueue_new_ticket
 from app.services.sla import SlaConfigService
 from app.services.sla_clocks import SlaClockService
 from app.services.tickets import TicketService, allowed_statuses
+from app.services.triage import after_ticket_opened
 
 router = APIRouter(
     prefix="/tickets",
@@ -135,13 +136,14 @@ async def create_ticket(
     events: EventBrokerDep,
     notifications: NotificationsDep,
     routing: RoutingQueueDep,
+    triage: TriageQueueDep,
 ) -> TicketRead:
     """Staff open tickets for a customer (`customer_id` required) and may set the
     priority and assignee. Customers open tickets for themselves. Unassigned tickets
-    are routed in the background when the organization's routing mode is on (or
-    shadow)."""
+    are triaged (category, priority, language) and routed in the background when the
+    organization uses triage or routing."""
     ticket = await TicketService(session, events, notifications).create(member, user, body)
-    await enqueue_new_ticket(routing, member, ticket)
+    await after_ticket_opened(triage, routing, member, ticket)
     return (await _reads(session, member, [ticket]))[0]
 
 

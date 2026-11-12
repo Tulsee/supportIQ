@@ -71,7 +71,7 @@ export const PRESENCE: Record<AgentPresence, { label: string; dot: string }> = {
 // --- Conditions, as the rule editor shows them ---------------------------------------------
 
 /** What a condition tests: the ticket's category, priority or subject, or a customer field. */
-export type ConditionField = "category" | "priority" | "subject" | "customer";
+export type ConditionField = "category" | "priority" | "subject" | "language" | "customer";
 
 /** The choices offered per field. `eq` on category or priority is edited as "is any of". */
 export type ConditionOp = "in" | "contains" | "eq" | "is_set" | "not_set";
@@ -80,6 +80,7 @@ export const FIELD_LABELS: Record<ConditionField, string> = {
   category: "Category",
   priority: "Priority",
   subject: "Subject",
+  language: "Language",
   customer: "Customer field",
 };
 
@@ -87,6 +88,7 @@ export const FIELD_OPS: Record<ConditionField, ConditionOp[]> = {
   category: ["in", "not_set", "is_set"],
   priority: ["in"],
   subject: ["contains"],
+  language: ["in", "is_set", "not_set"],
   customer: ["eq", "in", "contains", "is_set", "not_set"],
 };
 
@@ -122,6 +124,9 @@ export function toDraft(condition: RoutingCondition): DraftCondition {
   const value = condition.value;
   if (condition.operator === "is_set") {
     draft.op = value ? "is_set" : "not_set";
+  } else if (condition.field === "language") {
+    draft.op = "in"; // edited as text: "ne, hi"
+    draft.text = (Array.isArray(value) ? value : [String(value)]).join(", ");
   } else if (condition.operator === "in") {
     draft.op = "in";
     draft.values = value as string[];
@@ -145,7 +150,7 @@ export function fromDraft(draft: DraftCondition): RoutingCondition | null {
       return { field, operator: "is_set", value: draft.op === "is_set" };
     case "in": {
       const values =
-        draft.field === "customer"
+        draft.field === "customer" || draft.field === "language"
           ? draft.text
               .split(",")
               .map((v) => v.trim())

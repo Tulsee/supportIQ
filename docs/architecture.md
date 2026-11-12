@@ -174,6 +174,17 @@ eligibility, the three strategies, explanations); `app/services/routing.py` appl
   agent exactly to capacity, and two sweeps or two SLA monitors at once each act once
   per ticket or clock.
 
+## AI ticket triage
+
+Module 11 (`ai_engine/triage/`, `app/services/triage.py`, [feature doc](features/ai-triage.md)).
+A new ticket without a category goes to a triage job before routing: the language model
+picks one of the organization's category keys or "unsure" (JSON-schema output), similar
+tickets a person labelled vote with their embeddings, and the combined score decides
+whether the category is applied (mode `on`) or only suggested. Priority is only
+suggested; the language is stored and routing can use it. People's category choices
+become labels and record whether the prediction was right; analytics report coverage
+and accuracy, and the triage set's T1-T4 experiments tune α and the threshold.
+
 ## Notifications and audit log
 
 - **Notifications** (`notifications`) are readable only by their recipient. Writing one

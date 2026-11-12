@@ -1,7 +1,7 @@
 # SLA management and automated ticket routing
 
 **Status:** implemented (phases 1-8, 12 November 2026); the follow-ups are listed in
-section 9 and under phase 8 (Module 10 in the [implementation plan](../../IMPLEMENTATION_PLAN.MD#15-phase-2-feature-roadmap)).
+section 9 (Module 10 in the [implementation plan](../../IMPLEMENTATION_PLAN.MD#15-phase-2-feature-roadmap)).
 **Source:** the feature plan "SupportIQ - SLA Management & Automated Ticket Routing",
 adapted to this repository after its Phase 0 audit (12 November 2026). Where this
 document and the original differ, this one records the deviation and the reason.
@@ -305,8 +305,11 @@ current workload against capacity with their assignments in the period by routin
 by people. "Failed" runs aren't a separate outcome: a run either records a decision or
 changes nothing (assigned or closed meanwhile).
 
-**Not yet:** compliance broken down by priority, team and agent; medians in business
-time; due-soon and breached counts over time; pause reasons.
+**Also built** (follow-ups, `GET /analytics/sla`): compliance by priority, team and
+assignee (each ticket's current values); the median business time to meet each target,
+in each clock's own calendar with pauses excluded; due-soon and breached transitions
+per day; pauses by reason (count, ongoing, median length). Reassigning or unassigning
+takes an optional reason (`assignment_reason`), shown to staff in the timeline.
 
 ## 10. Testing
 

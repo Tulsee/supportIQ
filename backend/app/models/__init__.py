@@ -67,6 +67,7 @@ from app.models.ticket import (
     TicketPriority,
     TicketStatus,
 )
+from app.models.triage import TicketTriage, TriageDecisionKind, TriageLabel, TriageOutcome
 from app.models.user import User
 
 __all__ = [
@@ -126,7 +127,11 @@ __all__ = [
     "TicketSlaClock",
     "TicketSlaPause",
     "TicketStatus",
+    "TicketTriage",
     "TimestampMixin",
+    "TriageDecisionKind",
+    "TriageLabel",
+    "TriageOutcome",
     "UUIDPrimaryKeyMixin",
     "User",
 ]

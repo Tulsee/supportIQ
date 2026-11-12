@@ -26,16 +26,15 @@ never ran, and a person's "reroute". The simulator runs steps 2-4 and writes not
 import logging
 import uuid
 from collections import defaultdict
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
-from typing import Any, TypeVar
+from typing import Any
 
 from sqlalchemy import exists, func, select, true
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import contains_eager, joinedload
-from sqlalchemy.pool import NullPool
 
 from app.core.config import settings
 from app.core.database import set_rls_context
@@ -94,6 +93,7 @@ from app.services.teams import active_ticket_counts, escalation_contacts, lock_a
 from app.services.tickets import TicketService
 from app.websocket.broker import EventBroker
 from app.websocket.presence import PresenceTracker
+from app.workers.context import with_worker_context
 from app.workers.queue import NotificationMailer, QueueUnavailableError, RoutingQueue
 
 logger = logging.getLogger(__name__)
@@ -124,6 +124,7 @@ def ticket_facts(ticket: Ticket) -> TicketFacts:
         priority=ticket.priority.value,
         subject=ticket.subject,
         customer=ticket.customer.metadata_ or {},
+        language=ticket.language,
     )
 
 
@@ -736,9 +737,6 @@ class RoutingService:
 
 # --- Jobs -------------------------------------------------------------------------------
 
-T = TypeVar("T")
-WorkerJob = Callable[[AsyncSession, PresenceTracker, EventBroker, NotificationMailer], Awaitable[T]]
-
 
 async def enqueue_new_ticket(
     queue: RoutingQueue, member: OrganizationMember, ticket: Ticket
@@ -838,26 +836,6 @@ async def sweep_unrouted(
     return routed
 
 
-async def _with_worker_context(job: "WorkerJob[T]") -> T:
-    """Run a job with the worker's own engine and Redis connection."""
-    from redis.asyncio import Redis
-
-    from app.websocket.broker import RedisEventBroker
-    from app.websocket.presence import RedisPresence
-    from app.workers.queue import CeleryNotificationMailer
-
-    engine = create_async_engine(settings.database_url, poolclass=NullPool)
-    redis = Redis.from_url(settings.redis_url)
-    try:
-        async with AsyncSession(engine, expire_on_commit=False) as session:
-            return await job(
-                session, RedisPresence(redis), RedisEventBroker(redis), CeleryNotificationMailer()
-            )
-    finally:
-        await redis.aclose()
-        await engine.dispose()
-
-
 async def run_routing_job(ticket_id: uuid.UUID) -> str | None:
     async def job(
         session: AsyncSession,
@@ -870,7 +848,7 @@ async def run_routing_job(ticket_id: uuid.UUID) -> str | None:
         )
         return decision.outcome.value if decision else None
 
-    return await _with_worker_context(job)
+    return await with_worker_context(job)
 
 
 async def run_routing_sweep() -> int:
@@ -882,4 +860,4 @@ async def run_routing_sweep() -> int:
     ) -> int:
         return await sweep_unrouted(session, presence=presence, events=events, mailer=mailer)
 
-    return await _with_worker_context(job)
+    return await with_worker_context(job)

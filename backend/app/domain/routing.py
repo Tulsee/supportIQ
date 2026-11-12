@@ -36,6 +36,7 @@ FIELD_OPERATORS: dict[str, frozenset[Operator]] = {
     "category": frozenset({Operator.EQ, Operator.IN, Operator.IS_SET}),
     "priority": frozenset({Operator.EQ, Operator.IN}),
     "subject": frozenset({Operator.CONTAINS}),
+    "language": frozenset({Operator.EQ, Operator.IN, Operator.IS_SET}),  # from triage
 }
 CUSTOMER_OPERATORS = frozenset(Operator)
 
@@ -99,6 +100,7 @@ class TicketFacts:
     priority: str
     subject: str
     customer: Mapping[str, Any] = field(default_factory=dict)  # the customer's metadata
+    language: str | None = None  # ISO 639-1, detected by triage
 
     def values(self, name: str) -> list[str]:
         """The field's value(s) as text; empty when not set."""
@@ -109,6 +111,7 @@ class TicketFacts:
                 "category": self.category,
                 "priority": self.priority,
                 "subject": self.subject,
+                "language": self.language,
             }.get(name)
         items = raw if isinstance(raw, list | tuple) else [raw]
         texts = []

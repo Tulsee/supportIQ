@@ -13,6 +13,8 @@ import {
 } from "@/components/analytics/charts";
 import { RoutingStats } from "@/components/analytics/routing-stats";
 import { SlaCompliance } from "@/components/analytics/sla-compliance";
+import { SlaDetailView } from "@/components/analytics/sla-detail";
+import { TriageStats } from "@/components/analytics/triage-stats";
 import { PageHeader } from "@/components/page-header";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -95,6 +97,16 @@ export function AnalyticsPage() {
     queryFn: () => unwrap(api.GET("/api/v1/analytics/overview", header)),
     placeholderData: keepPreviousData,
   });
+  const slaDetail = useQuery({
+    queryKey: queryKeys.analytics(organization.id, "sla", days),
+    queryFn: () => unwrap(api.GET("/api/v1/analytics/sla", header)),
+    placeholderData: keepPreviousData,
+  });
+  const triage = useQuery({
+    queryKey: queryKeys.analytics(organization.id, "triage", days),
+    queryFn: () => unwrap(api.GET("/api/v1/analytics/triage", header)),
+    placeholderData: keepPreviousData,
+  });
   const routing = useQuery({
     queryKey: queryKeys.analytics(organization.id, "routing", days),
     queryFn: () => unwrap(api.GET("/api/v1/analytics/routing", header)),
@@ -154,9 +166,13 @@ export function AnalyticsPage() {
               description={`First-response and resolution targets for tickets opened in the last ${days} days.`}
             >
               <SlaCompliance sla={overview.data.sla} />
+              {slaDetail.data ? <SlaDetailView detail={slaDetail.data} /> : null}
             </ChartCard>
           ) : null}
 
+          {triage.data && (triage.data.mode !== "off" || triage.data.predictions > 0) ? (
+            <TriageStats triage={triage.data} days={days} />
+          ) : null}
           {routingInUse ? <RoutingStats routing={routing.data!} days={days} /> : null}
 
           <ChartCard title="Tickets per day" description="Opened and resolved, by UTC day.">

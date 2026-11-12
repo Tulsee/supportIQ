@@ -7,6 +7,7 @@
     uv run python -m app.cli evaluate --name baseline
     uv run python -m app.cli tune-policy --report experiments/results/<observe run>.json
     uv run python -m app.cli compare experiments/results/a.json experiments/results/b.json
+    uv run python -m app.cli evaluate-triage --name t1-t4
 
 Super admin can only be bootstrapped here (there is no API to grant it from
 scratch); afterwards super admins can manage each other via /api/v1/admin.
@@ -18,6 +19,7 @@ import json
 import sys
 from pathlib import Path
 
+from app.core.config import REPO_ROOT
 from app.core.database import SessionLocal, engine
 from app.core.exceptions import NotFoundError
 from app.services.maintenance import purge_expired
@@ -64,11 +66,100 @@ async def _sla_check() -> int:
     return 0
 
 
+async def _triage_backfill() -> int:
+    from app.services.triage import backfill_labels
+
+    async with SessionLocal() as session:
+        created = await backfill_labels(session)
+    print(f"Triage labels: {created} tickets added (embedded by the next triage runs)")
+    return 0
+
+
 async def _routing_sweep() -> int:
     from app.services.routing import run_routing_sweep
 
     routed = await run_routing_sweep()
     print(f"Routing sweep: {routed} tickets routed")
+    return 0
+
+
+async def _evaluate_triage(args: argparse.Namespace) -> int:
+    """Experiments T1-T4: the triage set through the model (cached) and the embedder."""
+    import re
+    from datetime import datetime
+
+    from anyio import to_thread
+
+    from ai_engine.triage.combine import TriagePolicy
+    from app.core.config import REPO_ROOT, settings
+    from app.core.knowledge import get_embedder
+    from app.core.llm import build_llm_client
+    from app.evaluation import triage as evaluation
+    from app.evaluation.report import _environment, _git
+
+    items = evaluation.load_items(args.dataset)
+    if args.limit:
+        items = items[: args.limit]
+    categories = evaluation.load_categories(args.categories)
+    llm = build_llm_client(settings.model_copy(update={"ollama_seed": args.seed}))
+    status = await llm.status()
+    model_name = getattr(llm, "model", "model")
+    slug = re.sub(r"[^a-z0-9]+", "-", str(model_name).lower()).strip("-")
+    cache = args.cache or REPO_ROOT / "experiments" / "results" / f"triage-replies-{slug}.jsonl"
+    if not status.available:
+        print(
+            f"The model isn't ready ({status.detail}); using cached replies only.", file=sys.stderr
+        )
+
+    def progress(number: int, total: int, item: object, entry: dict) -> None:
+        vote = entry.get("vote") or {}
+        error = f" {entry['error']}" if entry.get("error") else ""
+        print(
+            f"[{number:>3}/{total}] {item.id} {item.category:<12} -> "  # type: ignore[attr-defined]
+            f"{vote.get('category')!s:<12} {vote.get('confidence', '-')} "
+            f"({entry['latency_ms'] / 1000:.1f} s){error}",
+            flush=True,
+        )
+
+    if status.available:
+        replies = await evaluation.collect_votes(items, categories, llm, cache, progress)
+    else:
+        replies = await evaluation.collect_votes([], categories, llm, cache)
+    embedder = get_embedder()
+    vectors = await to_thread.run_sync(evaluation.embed_items, items, embedder)
+    fixed = (
+        TriagePolicy(args.alpha, args.threshold)
+        if args.alpha is not None and args.threshold is not None
+        else None
+    )
+    results = evaluation.evaluate(
+        items,
+        categories,
+        replies,
+        vectors,
+        target=args.target,
+        neighbour_settings=evaluation.NeighbourSettings(
+            k=settings.triage_neighbours, min_similarity=settings.triage_min_similarity
+        ),
+        fixed=fixed,
+    )
+    report = evaluation.build_report(
+        args.name,
+        args.dataset.resolve().relative_to(REPO_ROOT).as_posix(),
+        str(model_name),
+        embedder.model_name,
+        results,
+        _git(),
+        _environment(),
+    )
+    out = REPO_ROOT / "experiments" / "results"
+    stem = f"{datetime.now():%Y%m%d-%H%M%S}-triage-{args.name}"
+    (out / f"{stem}.json").write_text(
+        json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+    (out / f"{stem}.md").write_text(evaluation.markdown(report), encoding="utf-8")
+    print(evaluation.markdown(report))
+    print(f"Wrote {out / stem}.md and .json")
     return 0
 
 
@@ -244,6 +335,8 @@ async def _run(args: argparse.Namespace) -> int:
             return _compare(args)
         if args.command == "evaluate":
             return await _evaluate(args)
+        if args.command == "evaluate-triage":
+            return await _evaluate_triage(args)
         if args.command == "grant-superadmin":
             return await _set_superadmin(args.email, True)
         if args.command == "revoke-superadmin":
@@ -254,6 +347,8 @@ async def _run(args: argparse.Namespace) -> int:
             return await _sla_check()
         if args.command == "routing-sweep":
             return await _routing_sweep()
+        if args.command == "triage-backfill":
+            return await _triage_backfill()
         return await _purge_expired()
     finally:
         await engine.dispose()
@@ -318,6 +413,28 @@ def _add_evaluate(commands: "argparse._SubParsersAction[argparse.ArgumentParser]
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m app.cli", description=__doc__.split("\n")[0])
     commands = parser.add_subparsers(dest="command", required=True)
+    triage = commands.add_parser(
+        "evaluate-triage", help="Experiments T1-T4: AI triage on the labelled triage set"
+    )
+    triage.add_argument(
+        "--dataset",
+        type=Path,
+        default=REPO_ROOT / "datasets" / "triage" / "quillon_triage_v1.jsonl",
+    )
+    triage.add_argument(
+        "--categories", type=Path, default=REPO_ROOT / "datasets" / "triage" / "categories.json"
+    )
+    triage.add_argument("--name", default="t1-t4", help="Name for the results files")
+    triage.add_argument("--cache", type=Path, help="The model replies cache (JSON lines)")
+    triage.add_argument(
+        "--target", type=float, default=0.95, help="Dev accuracy the tuned T4 must reach"
+    )
+    triage.add_argument(
+        "--alpha", type=float, help="Fix alpha instead of tuning (with --threshold)"
+    )
+    triage.add_argument("--threshold", type=float, help="Fix the threshold instead of tuning")
+    triage.add_argument("--limit", type=int, help="Only the first N tickets (a quick check)")
+    triage.add_argument("--seed", type=int, default=42, help="Ollama sampling seed")
     grant = commands.add_parser("grant-superadmin", help="Make a registered user a super admin")
     grant.add_argument("email")
     revoke = commands.add_parser("revoke-superadmin", help="Remove super admin from a user")
@@ -329,6 +446,10 @@ def main(argv: list[str] | None = None) -> int:
     commands.add_parser("sla-check", help="Record SLA clocks due soon or breached, and notify")
     commands.add_parser(
         "routing-sweep", help="Route open tickets whose routing job never ran (routing on/shadow)"
+    )
+    commands.add_parser(
+        "triage-backfill",
+        help="Make triage labels of tickets whose category a person chose before triage existed",
     )
     export = commands.add_parser("export-openapi", help="Write the OpenAPI document as JSON")
     export.add_argument("--output", type=Path, help="File to write (default: stdout)")

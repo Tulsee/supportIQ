@@ -168,12 +168,22 @@ function ConditionRow({
         ) : (
           <span className="text-sm text-muted-foreground">{OP_LABELS[condition.op]}</span>
         )}
-        {(condition.field === "subject" || condition.field === "customer") &&
+        {(condition.field === "subject" ||
+          condition.field === "customer" ||
+          condition.field === "language") &&
         condition.op !== "is_set" &&
         condition.op !== "not_set" ? (
           <Input
             aria-label={`${position}: value`}
-            placeholder={condition.op === "in" ? "gold, platinum" : condition.field === "subject" ? "e.g. refund" : "value"}
+            placeholder={
+              condition.field === "language"
+                ? "ne, hi (language codes)"
+                : condition.op === "in"
+                  ? "gold, platinum"
+                  : condition.field === "subject"
+                    ? "e.g. refund"
+                    : "value"
+            }
             value={condition.text}
             onChange={(event) => set({ text: event.target.value })}
             className="min-w-40 flex-1"

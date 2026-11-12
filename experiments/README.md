@@ -52,3 +52,17 @@ Reports of finished studies are in `reports/`:
 - [`quillon-v1-evaluation.md`](reports/quillon-v1-evaluation.md): E1-E6 on the Quillon
   benchmark v1 (retrieval, decisions, calibration, latency, error analysis and
   limitations), with the generated comparison tables beside it.
+
+## AI triage (Module 11, T1-T4)
+
+```bash
+uv run python -m app.cli evaluate-triage --name t1-t4          # from backend/
+uv run python -m app.cli evaluate-triage --alpha 0.5 --threshold 0.7 --name fixed
+```
+
+The model is asked once per ticket and its replies are kept in
+`results/triage-replies-<model>.jsonl`, so a run can stop and resume, and re-tuning or
+a fixed-policy run costs no model calls. T1 is the model alone, T2 the neighbour vote
+alone, T3 both combined always applying, T4 both combined with abstention; α and the
+threshold are chosen on dev (the most coverage at 95% dev accuracy) and everything is
+reported on test. The write-up is `reports/triage-t1-t4.md`.

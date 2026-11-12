@@ -153,6 +153,8 @@ class Ticket(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     category_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("ticket_categories.id", ondelete="SET NULL"), index=True
     )
+    # The language the customer wrote in (ISO 639-1), detected by triage (Module 11).
+    language: Mapped[str | None] = mapped_column(String(16))
     # The team responsible (set by staff, later by routing). Staff-only (RLS).
     team_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("teams.id", ondelete="SET NULL"), index=True

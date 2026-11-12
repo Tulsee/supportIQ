@@ -53,9 +53,11 @@ from app.workers.queue import (
     CeleryIngestionQueue,
     CeleryNotificationMailer,
     CeleryRoutingQueue,
+    CeleryTriageQueue,
     IngestionQueue,
     NotificationMailer,
     RoutingQueue,
+    TriageQueue,
 )
 
 DbSession = Annotated[AsyncSession, Depends(get_db_session)]
@@ -85,6 +87,10 @@ def get_ingestion_queue() -> IngestionQueue:
 
 def get_routing_queue() -> RoutingQueue:
     return CeleryRoutingQueue()
+
+
+def get_triage_queue() -> TriageQueue:
+    return CeleryTriageQueue()
 
 
 def get_notification_mailer() -> NotificationMailer:
@@ -122,6 +128,7 @@ StorageDep = Annotated[ObjectStorage, Depends(get_object_storage)]
 IngestionQueueDep = Annotated[IngestionQueue, Depends(get_ingestion_queue)]
 NotificationMailerDep = Annotated[NotificationMailer, Depends(get_notification_mailer)]
 RoutingQueueDep = Annotated[RoutingQueue, Depends(get_routing_queue)]
+TriageQueueDep = Annotated[TriageQueue, Depends(get_triage_queue)]
 WorkerRegistryDep = Annotated[WorkerRegistry, Depends(get_worker_registry)]
 EmbedderDep = Annotated[Embedder, Depends(get_embedder_dep)]
 RerankerDep = Annotated[Reranker, Depends(get_reranker_dep)]

@@ -52,6 +52,8 @@ export type RoutingOutcome = RoutingDecision["outcome"];
 export type RoutingCandidate = Schemas["CandidateRead"];
 export type RoutingMode = Schemas["OrganizationSettings"]["routing_mode"];
 export type TicketSlaSummary = Schemas["TicketSlaSummary"];
+export type TicketTriage = Schemas["TriageRead"];
+export type TriageMode = Schemas["OrganizationSettings"]["triage_mode"];
 export type OrganizationSettings = Schemas["OrganizationSettings"];
 
 /**

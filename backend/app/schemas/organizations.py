@@ -27,6 +27,7 @@ AutoCloseDays = Annotated[int, Field(ge=0, le=90)]
 # recorded decision that isn't carried out (to compare with what people do); on:
 # new tickets are routed automatically.
 RoutingMode = Literal["off", "shadow", "on"]
+TriageMode = Literal["off", "shadow", "on"]
 
 
 class OrganizationSettings(BaseModel):
@@ -40,11 +41,17 @@ class OrganizationSettings(BaseModel):
         description="Automatic routing of new tickets: `off`, `shadow` (decide and record, "
         "but don't assign) or `on`.",
     )
+    triage_mode: TriageMode = Field(
+        default="off",
+        description="AI triage of new tickets: `off`, `shadow` (predict and record silently, "
+        "to measure accuracy) or `on` (apply confident categories, suggest the rest).",
+    )
 
 
 class OrganizationSettingsUpdate(BaseModel):
     auto_close_after_days: AutoCloseDays | None = None
     routing_mode: RoutingMode | None = None
+    triage_mode: TriageMode | None = None
 
 
 class OrganizationUpdate(BaseModel):

@@ -5,7 +5,13 @@ from typing import Annotated
 from fastapi import APIRouter, Query
 
 from app.api.deps import DbSession, TenantMembership
-from app.schemas.analytics import AIPerformance, Overview, RoutingAnalytics
+from app.schemas.analytics import (
+    AIPerformance,
+    Overview,
+    RoutingAnalytics,
+    SlaDetail,
+    TriageAnalytics,
+)
 from app.schemas.common import error_responses
 from app.services.analytics import AnalyticsService
 
@@ -20,6 +26,20 @@ Days = Annotated[int, Query(ge=1, le=365, description="Trailing window, in days.
 async def overview(member: TenantMembership, session: DbSession, days: Days = 30) -> Overview:
     """Open tickets, volume per day, median first-response and resolution times."""
     return Overview(**await AnalyticsService(session).overview(member, days))
+
+
+@router.get("/sla", summary="Service levels in depth")
+async def sla_detail(member: TenantMembership, session: DbSession, days: Days = 30) -> SlaDetail:
+    """Compliance by priority, team and agent; median business time to meet each
+    target; due-soon and breached transitions per day; pause reasons."""
+    return SlaDetail(**await AnalyticsService(session).sla_detail(member, days))
+
+
+@router.get("/triage", summary="AI ticket triage")
+async def triage(member: TenantMembership, session: DbSession, days: Days = 30) -> TriageAnalytics:
+    """Coverage (how often triage was confident), accuracy of confident predictions and
+    of the top guess when unsure (from people's reviews), per category, and latency."""
+    return TriageAnalytics(**await AnalyticsService(session).triage(member, days))
 
 
 @router.get("/routing", summary="Automatic routing")

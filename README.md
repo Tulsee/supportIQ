@@ -40,7 +40,8 @@ a labelled benchmark measures how well it works.
   and score at every stage, the exact prompt, the raw model output and the assessment.
 - **Analytics.** Ticket volume and response times; AI outcomes and their reasons,
   latency, ratings, and the questions the assistant couldn't answer; how much routing
-  assigns, how fast, how often people change its choices, and each agent's workload.
+  assigns, how fast, how often people change its choices, and each agent's workload;
+  SLA compliance by priority, team and assignee, in business time; triage accuracy.
 - **Service levels.** Business hours in the organization's time zone, holidays,
   and first-response and resolution targets per priority, counted in business time.
   Each ticket shows its clocks: time left, due soon, breached, paused while waiting
@@ -58,6 +59,11 @@ a labelled benchmark measures how well it works.
   assignment always wins. Managed under Settings → Teams and agents and Settings →
   Routing; the ticket list shows each ticket's SLA and filters by due soon, breached
   and my teams.
+- **AI ticket triage.** New tickets get a category, a suggested priority, the language
+  and urgency cues from the language model and from similar tickets the team already
+  sorted. The category is applied only when the combined confidence clears a threshold
+  tuned on a labelled set; otherwise it's a suggestion to accept. Shadow mode measures
+  accuracy first, and routing uses what triage sets ([T1-T4 report](experiments/reports/triage-t1-t4.md)).
 - **Notifications and audit log.** A live notification bell (assignments, customer
   replies, AI escalations, and replies to customers), optional email per kind, and an
   append-only log of administrative changes.

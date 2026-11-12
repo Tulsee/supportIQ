@@ -93,6 +93,22 @@ class Settings(BaseSettings):
     routing_sweep_interval_seconds: int = 60
     routing_sweep_delay_seconds: int = 120
 
+    # --- AI ticket triage (Module 11) -------------------------------------------------
+    # score(category) = alpha * model + (1 - alpha) * neighbour vote; applied when the
+    # top score reaches the threshold. Tuned on the triage set's dev split for the most
+    # coverage at 95% accuracy (experiments/reports/triage-t1-t4.md, T5). Triage itself
+    # is switched per organization.
+    triage_alpha: Annotated[float, Field(ge=0, le=1)] = 0.3
+    triage_threshold: Annotated[float, Field(ge=0, le=1)] = 0.425
+    triage_neighbours: int = 10
+    triage_min_similarity: float = 0.5
+    # The most recent labels the neighbour vote compares against (in memory).
+    triage_max_labels: int = 2000
+    # Languages the embedding model reads (bge-small-en: English). For a ticket in
+    # another language the neighbour vote is noise, so the model decides alone. Empty:
+    # always use the neighbours.
+    triage_neighbour_languages: list[str] = ["en"]
+
     # --- Background jobs (Celery) ---------------------------------------------------
     # A separate Redis database from rate limits and real-time events.
     celery_broker_url: str = "redis://127.0.0.1:6379/1"

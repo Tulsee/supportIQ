@@ -32,6 +32,8 @@ export const queryKeys = {
   // Under the ticket, so live ticket updates refetch it too.
   ticketRouting: (orgId: string, ticketId: string) =>
     ["organizations", orgId, "tickets", "detail", ticketId, "routing"] as const,
+  ticketTriage: (orgId: string, ticketId: string) =>
+    ["organizations", orgId, "tickets", "detail", ticketId, "triage"] as const,
 
   customers: (orgId: string, page?: SearchPage) =>
     page

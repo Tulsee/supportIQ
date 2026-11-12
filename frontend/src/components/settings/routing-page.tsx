@@ -1,11 +1,12 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowDownIcon, ArrowUpIcon, Loader2Icon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { ArrowDownIcon, ArrowUpIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 
 import { ConfirmAction } from "@/components/confirm-action";
+import { ModeCard } from "@/components/settings/mode-card";
 import { PageHeader } from "@/components/page-header";
 import { RuleDialog } from "@/components/settings/rule-dialog";
 import { RoutingSimulator } from "@/components/settings/routing-simulator";
@@ -15,82 +16,20 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
-import { api, errorMessage, tenant, unwrap, type RoutingMode, type RoutingRule } from "@/lib/api/client";
-import { refreshOrganizations, useActiveOrganization } from "@/lib/org/org-provider";
+import { api, errorMessage, tenant, unwrap, type RoutingRule } from "@/lib/api/client";
+import { useActiveOrganization } from "@/lib/org/org-provider";
 import { queryKeys } from "@/lib/query-keys";
 import { ROUTING_MODES, STRATEGY_LABELS, describeConditions } from "@/lib/routing";
 import { cn } from "@/lib/utils";
 
 function RoutingModeCard() {
-  const organization = useActiveOrganization();
-  const queryClient = useQueryClient();
-  const current = organization.settings.routing_mode;
-  const save = useMutation({
-    mutationFn: (routing_mode: RoutingMode) =>
-      unwrap(
-        api.PATCH("/api/v1/organizations/{org_id}", {
-          params: { path: { org_id: organization.id } },
-          body: { settings: { routing_mode } },
-        }),
-      ),
-    onSuccess: async (updated) => {
-      await refreshOrganizations(queryClient);
-      const mode = ROUTING_MODES.find((m) => m.value === updated.settings.routing_mode);
-      toast.success(`Automatic routing: ${mode?.label.toLowerCase()}`);
-    },
-    onError: (error) => toast.error(errorMessage(error)),
-  });
-
   return (
-    <Card className="mb-6">
-      <CardHeader>
-        <CardTitle>
-          <h2 id="routing-mode-title">Automatic routing</h2>
-        </CardTitle>
-        <CardDescription>
-          What happens to new tickets that nobody assigned or sent to a team. A person&apos;s choice
-          always wins over routing.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div role="radiogroup" aria-labelledby="routing-mode-title" className="grid gap-3 sm:grid-cols-3">
-          {ROUTING_MODES.map((mode) => {
-            const checked = current === mode.value;
-            return (
-              <button
-                key={mode.value}
-                type="button"
-                role="radio"
-                aria-checked={checked}
-                disabled={save.isPending}
-                onClick={() => !checked && save.mutate(mode.value)}
-                className={cn(
-                  "rounded-lg border p-3 text-left transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-60",
-                  checked ? "border-primary bg-primary/5 ring-1 ring-primary" : "hover:bg-muted/50",
-                )}
-              >
-                <span className="flex items-center gap-2 text-sm font-medium">
-                  <span
-                    className={cn(
-                      "flex size-4 items-center justify-center rounded-full border",
-                      checked ? "border-primary" : "border-muted-foreground/50",
-                    )}
-                    aria-hidden
-                  >
-                    {checked ? <span className="size-2 rounded-full bg-primary" /> : null}
-                  </span>
-                  {mode.label}
-                  {save.isPending && save.variables === mode.value ? (
-                    <Loader2Icon className="size-3.5 animate-spin" aria-hidden />
-                  ) : null}
-                </span>
-                <span className="mt-1 block text-xs text-muted-foreground">{mode.description}</span>
-              </button>
-            );
-          })}
-        </div>
-      </CardContent>
-    </Card>
+    <ModeCard
+      title="Automatic routing"
+      description="What happens to new tickets that nobody assigned or sent to a team. A person's choice always wins over routing."
+      setting="routing_mode"
+      modes={ROUTING_MODES}
+    />
   );
 }
 
