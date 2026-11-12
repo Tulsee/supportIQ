@@ -45,11 +45,13 @@ from app.websocket.broker import EventBroker, EventType
 from app.websocket.broker import TicketEvent as RealtimeEvent
 
 S = TicketStatus
+# Any open ticket can be closed (resolved ones, but also spam, duplicates, or requests
+# the customer no longer needs). Closing is final.
 TRANSITIONS: dict[TicketStatus, frozenset[TicketStatus]] = {
-    S.OPEN: frozenset({S.ASSIGNED}),
-    S.ASSIGNED: frozenset({S.IN_PROGRESS}),
-    S.IN_PROGRESS: frozenset({S.WAITING_FOR_CUSTOMER, S.RESOLVED}),
-    S.WAITING_FOR_CUSTOMER: frozenset({S.IN_PROGRESS}),
+    S.OPEN: frozenset({S.ASSIGNED, S.CLOSED}),
+    S.ASSIGNED: frozenset({S.IN_PROGRESS, S.CLOSED}),
+    S.IN_PROGRESS: frozenset({S.WAITING_FOR_CUSTOMER, S.RESOLVED, S.CLOSED}),
+    S.WAITING_FOR_CUSTOMER: frozenset({S.IN_PROGRESS, S.CLOSED}),
     S.RESOLVED: frozenset({S.IN_PROGRESS, S.CLOSED}),
     S.CLOSED: frozenset(),
 }
@@ -283,6 +285,38 @@ class TicketService:
         await self._notify("message.created", ticket, staff_only=data.is_internal)
         await self._send_notifications()
         return message
+
+    async def close(self, member: OrganizationMember, user: User, ticket_id: uuid.UUID) -> Ticket:
+        """Close a ticket for good: staff any ticket, customers their own requests
+        (when they no longer need help). Closed tickets take no more replies."""
+        ticket = await self.get(member, user, ticket_id, for_update=True)
+        if ticket.status == S.CLOSED:
+            raise ConflictError(TICKET_CLOSED, code="ticket_closed")
+        self._set_status(ticket, user.id, S.CLOSED)
+        if (
+            self.notifications is not None
+            and not is_staff(member)
+            and ticket.assignee_id is not None
+        ):
+            await self.notifications.add(
+                ticket.organization_id,
+                [
+                    NewNotification(
+                        user_id=ticket.assignee_id,
+                        kind=NotificationKind.TICKET_CLOSED,
+                        title=f"{ticket.customer.name} closed #{ticket.number}",
+                        body=ticket.subject,
+                        ticket_id=ticket.id,
+                        dedupe_key=f"ticket_closed:{ticket.id}",
+                    )
+                ],
+                actor_id=user.id,
+            )
+        ticket.updated_at = func.clock_timestamp()
+        await self.session.commit()
+        await self._notify("ticket.updated", ticket)
+        await self._send_notifications()
+        return ticket
 
     async def unassign_member(self, actor: OrganizationMember, user_id: uuid.UUID) -> int:
         """Return a departing (or demoted) member's open tickets to the queue.

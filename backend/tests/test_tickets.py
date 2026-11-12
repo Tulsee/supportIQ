@@ -74,7 +74,8 @@ async def test_ticket_numbers_are_sequential_per_organization(
     assert first["status"] == "open"
     assert first["priority"] == "normal"
     assert first["assignee"] is None
-    assert first["allowed_statuses"] == []  # open tickets move on by being assigned
+    # Open tickets move on by being assigned (or are closed, e.g. as spam).
+    assert first["allowed_statuses"] == ["closed"]
 
 
 async def test_staff_must_name_an_existing_customer(api: httpx2.AsyncClient, ws: Workspace) -> None:
@@ -144,7 +145,7 @@ async def test_full_lifecycle_with_customer_replies(api: httpx2.AsyncClient, ws:
     assigned = await patch(api, ws, ticket, assignee_id=ws.agent.id)
     assert assigned.json()["status"] == "assigned"
     assert assigned.json()["assignee"]["full_name"] == "Abe Agent"
-    assert assigned.json()["allowed_statuses"] == ["in_progress"]
+    assert assigned.json()["allowed_statuses"] == ["in_progress", "closed"]
 
     assert (await patch(api, ws, ticket, status="in_progress")).json()["status"] == "in_progress"
     waiting = await patch(api, ws, ticket, status="waiting_for_customer")
@@ -192,12 +193,78 @@ async def test_invalid_transitions_are_rejected(api: httpx2.AsyncClient, ws: Wor
     assert skip_ahead.status_code == 409
     error = skip_ahead.json()["error"]
     assert error["code"] == "invalid_status_transition"
-    assert error["details"] == {"from": "open", "to": "resolved", "allowed": ["assigned"]}
+    assert error["details"] == {
+        "from": "open",
+        "to": "resolved",
+        "allowed": ["assigned", "closed"],
+    }
     assert no_assignee.status_code == 409
     unchanged = (
         await api.get(f"{TICKETS}/{ticket['id']}", headers=in_org(ws.agent, ws.org_id))
     ).json()
     assert unchanged["status"] == "open"
+
+
+async def close(
+    api: httpx2.AsyncClient, ws: Workspace, ticket: dict, actor: AuthedUser
+) -> httpx2.Response:
+    return await api.post(f"{TICKETS}/{ticket['id']}/close", headers=in_org(actor, ws.org_id))
+
+
+async def test_customers_close_their_own_requests(api: httpx2.AsyncClient, ws: Workspace) -> None:
+    ticket = await create_ticket(api, ws.customer, ws.org_id)
+    await patch(api, ws, ticket, assignee_id=ws.agent.id)
+
+    closed = await close(api, ws, ticket, ws.customer)
+
+    assert closed.status_code == 200, closed.text
+    assert closed.json()["status"] == "closed"
+    assert closed.json()["closed_at"] is not None
+    again = await close(api, ws, ticket, ws.customer)
+    late_reply = await reply(api, ws, ticket, ws.customer, "Actually, one more thing")
+    assert again.status_code == late_reply.status_code == 409
+    assert again.json()["error"]["code"] == "ticket_closed"
+    timeline = (
+        await api.get(f"{TICKETS}/{ticket['id']}/events", headers=in_org(ws.customer, ws.org_id))
+    ).json()
+    assert timeline[-1]["type"] == "status_changed"
+    assert timeline[-1]["data"]["to"] == "closed"
+    assert timeline[-1]["actor"]["id"] == ws.customer.id
+    # The assignee hears about it.
+    notices = (await api.get(f"{API}/notifications", headers=in_org(ws.agent, ws.org_id))).json()[
+        "items"
+    ]
+    assert notices[0]["kind"] == "ticket_closed"
+    assert notices[0]["title"] == f"Cleo Customer closed #{ticket['number']}"
+
+
+async def test_customers_cannot_close_other_peoples_requests(
+    api: httpx2.AsyncClient, ws: Workspace, outbox: Outbox
+) -> None:
+    other = await create_user(api)
+    await add_member(api, outbox, ws.admin, ws.org_id, other, "customer")
+    ticket = await create_ticket(api, ws.customer, ws.org_id)
+
+    assert (await close(api, ws, ticket, other)).status_code == 404
+    current = (
+        await api.get(f"{TICKETS}/{ticket['id']}", headers=in_org(ws.agent, ws.org_id))
+    ).json()
+    assert current["status"] == "open"
+
+
+async def test_staff_can_close_any_open_ticket(api: httpx2.AsyncClient, ws: Workspace) -> None:
+    spam = await staff_ticket(api, ws)
+    duplicate = await staff_ticket(api, ws)
+    await patch(api, ws, duplicate, assignee_id=ws.agent.id, status="in_progress")
+
+    assert (await close(api, ws, spam, ws.agent)).json()["status"] == "closed"
+    via_update = await patch(api, ws, duplicate, status="closed")
+    assert via_update.status_code == 200, via_update.text
+    assert via_update.json()["status"] == "closed"
+    assert via_update.json()["resolved_at"] is None  # closed, not resolved
+    # Nobody is notified of their own action.
+    notices = (await api.get(f"{API}/notifications", headers=in_org(ws.agent, ws.org_id))).json()
+    assert [n["kind"] for n in notices["items"]] == []
 
 
 async def test_assign_and_start_in_one_request(api: httpx2.AsyncClient, ws: Workspace) -> None:

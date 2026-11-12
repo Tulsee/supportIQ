@@ -45,7 +45,10 @@ LLM-chosen assignees, workforce scheduling, cross-tenant assignment.
 
 ## 3. Decisions (the plan's section 18, answered for this lifecycle)
 
-1. **Resolution is met by `resolved`**, not `closed`.
+1. **Resolution is met by `resolved`**, not `closed`. Tickets can also be closed without
+   being resolved (staff: spam, duplicates; customers: their own requests they no longer
+   need). That stops any unmet clock with the state `cancelled`, neither met nor
+   breached, and compliance reports leave those tickets out with a stated count.
 2. **Pausing:** `waiting_for_customer` pauses the *resolution* clock automatically (reason `waiting_for_customer`). The first-response clock never pauses: a ticket can only reach that status after an agent has handled it. Manual pauses (other reasons) are admin-only and audited.
 3. **First response** is the first public message by staff **after** the opening message. Internal notes, customer messages and the opening message of a staff-created ticket don't count. Sending an AI-suggested reply counts (a person sent it).
 4. **Capacity** counts tickets assigned to the agent in `assigned` or `in_progress`; `waiting_for_customer` doesn't consume capacity.

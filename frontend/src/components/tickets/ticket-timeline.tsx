@@ -17,6 +17,10 @@ function describe(event: TicketEvent, audience: "staff" | "customer", byMe: bool
       return "opened the ticket";
     case "status_changed": {
       const to = labels[data.to as TicketStatus] ?? String(data.to);
+      if (data.to === "closed") {
+        if (audience === "staff") return "closed the ticket";
+        return byMe ? "closed this request" : "closed your request";
+      }
       if (audience === "customer") {
         // In the customer's terms: someone took it on; their reply moved it along.
         if (data.to === "assigned") return "picked up your request";

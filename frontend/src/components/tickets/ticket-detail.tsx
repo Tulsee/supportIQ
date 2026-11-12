@@ -7,6 +7,7 @@ import { useParams } from "next/navigation";
 import { useId, useState } from "react";
 import { toast } from "sonner";
 
+import { CloseTicketButton } from "@/components/tickets/close-ticket-button";
 import { Conversation } from "@/components/tickets/conversation";
 import { LIVE_QUERY, refreshTickets, useAssignableMembers } from "@/components/tickets/hooks";
 import { NewRequestDialog } from "@/components/tickets/new-request-dialog";
@@ -65,7 +66,9 @@ function TicketProperties({ ticket }: { ticket: Ticket }) {
     onError: (error) => toast.error(errorMessage(error)),
   });
 
-  const statusOptions: TicketStatus[] = [ticket.status, ...ticket.allowed_statuses];
+  // Closing is final, so it has its own confirmed button (see CloseTicketButton).
+  const changeTo = ticket.allowed_statuses.filter((status) => status !== "closed");
+  const statusOptions: TicketStatus[] = [ticket.status, ...changeTo];
   const assigneeItems: Record<string, string> = {
     [UNASSIGNED]: "Unassigned",
     ...Object.fromEntries(members.map((m) => [m.user_id, m.full_name])),
@@ -92,7 +95,7 @@ function TicketProperties({ ticket }: { ticket: Ticket }) {
               onValueChange={(value) => {
                 if (value && value !== ticket.status) update.mutate({ status: value as TicketStatus });
               }}
-              disabled={update.isPending || ticket.allowed_statuses.length === 0}
+              disabled={update.isPending || changeTo.length === 0}
             >
               <SelectTrigger id={`${uid}-status`} className="w-full">
                 <SelectValue />
@@ -260,10 +263,13 @@ export function TicketDetail() {
       <div className="space-y-3">
         {backLink}
         <div className="space-y-2">
-          <h1 className="text-2xl font-semibold tracking-tight break-words">
-            <span className="mr-2 font-normal text-muted-foreground">#{data.number}</span>
-            {data.subject}
-          </h1>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <h1 className="min-w-0 text-2xl font-semibold tracking-tight break-words">
+              <span className="mr-2 font-normal text-muted-foreground">#{data.number}</span>
+              {data.subject}
+            </h1>
+            {closed ? null : <CloseTicketButton ticket={data} audience={audience} />}
+          </div>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
             <StatusBadge status={data.status} audience={audience} />
             {audience === "staff" ? <PriorityLabel priority={data.priority} /> : null}

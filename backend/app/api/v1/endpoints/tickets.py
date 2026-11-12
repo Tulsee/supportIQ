@@ -108,6 +108,22 @@ async def create_ticket(
     return TicketRead.build(ticket, allowed_statuses(member, ticket))
 
 
+@router.post("/{ticket_id}/close", summary="Close a ticket")
+async def close_ticket(
+    ticket_id: uuid.UUID,
+    member: TenantMembership,
+    user: CurrentUser,
+    session: DbSession,
+    events: EventBrokerDep,
+    notifications: NotificationsDep,
+) -> TicketRead:
+    """Staff close any ticket; customers close their own requests (for example when
+    they no longer need help). Closing is final: 409 `ticket_closed` if it already is,
+    and closed tickets take no more replies."""
+    ticket = await TicketService(session, events, notifications).close(member, user, ticket_id)
+    return TicketRead.build(ticket, allowed_statuses(member, ticket))
+
+
 @router.get("/{ticket_id}", summary="Get a ticket")
 async def get_ticket(
     ticket_id: uuid.UUID, member: TenantMembership, user: CurrentUser, session: DbSession

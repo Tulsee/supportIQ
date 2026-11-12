@@ -13,6 +13,10 @@ export const KIND_LABELS: Record<NotificationKind, { label: string; description:
     label: "AI escalations",
     description: "The AI can't draft a supported reply on a ticket assigned to you.",
   },
+  ticket_closed: {
+    label: "Closed by the customer",
+    description: "The customer closes a ticket assigned to you.",
+  },
   agent_replied: {
     label: "Replies from support",
     description: "Support replies to one of your requests.",
