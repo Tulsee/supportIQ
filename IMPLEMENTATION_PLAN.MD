@@ -1937,7 +1937,9 @@ leads receive SLA alerts), and phase 6 (routing rules, the routing engine with i
 job, sweep and reroute, recorded decisions with explanations, shadow mode, the
 simulator), and phase 7 (Settings → Teams and agents and Settings → Routing with the
 simulator, SLA badges and filters in the ticket list, the team and routing panel on
-tickets). Next: hardening (phase 8).
+tickets), and phase 8 (routing analytics with shadow agreement, concurrency tests,
+screenshots). Module 10 is complete; SLA breakdowns by priority, team and agent are
+a follow-up.
 
 Specified in [docs/features/sla-and-automated-routing.md](docs/features/sla-and-automated-routing.md),
 adapted from the feature plan after auditing this repository. In short:

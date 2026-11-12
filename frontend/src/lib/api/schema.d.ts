@@ -1329,6 +1329,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/analytics/routing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Automatic routing
+         * @description Routing decisions by outcome (and in shadow mode), the share of tickets assigned
+         *     automatically and the median time to a first assignment, automatic assignments a
+         *     person changed within an hour, how often people agreed with shadow decisions, and
+         *     each agent's workload.
+         */
+        get: operations["routing_api_v1_analytics_routing_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/analytics/ai-performance": {
         parameters: {
             query?: never;
@@ -1737,6 +1760,33 @@ export interface components {
             name: string;
             role: components["schemas"]["TeamRole"];
         };
+        /** AgentWorkload */
+        AgentWorkload: {
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Name */
+            name: string;
+            /**
+             * Active Tickets
+             * @description Now: assigned to them, assigned or in progress.
+             */
+            active_tickets: number;
+            /** Max Active Tickets */
+            max_active_tickets: number;
+            /**
+             * Assigned Automatically
+             * @description In the period.
+             */
+            assigned_automatically: number;
+            /**
+             * Assigned By People
+             * @description In the period.
+             */
+            assigned_by_people: number;
+        };
         /** AnswerRead */
         AnswerRead: {
             /** @description `answered`: cites the passages; `uncited`: answered without citing (unverified); `declined`: the model found no answer in the passages; `no_passages`: nothing was retrieved, the model wasn't asked; `failed`: see `error`. Evidence policy decisions: `clarify` (`text` is a clarifying question), `escalated` (the sources disagree; `text` says what each one states), `abstained` (the evidence doesn't support an answer). */
@@ -1951,6 +2001,35 @@ export interface components {
             nli_model: string | null;
             /** Latency Ms */
             latency_ms: number;
+        };
+        /**
+         * AssignmentStats
+         * @description The first assignment of each ticket opened in the period.
+         */
+        AssignmentStats: {
+            /** Tickets Assigned */
+            tickets_assigned: number;
+            /**
+             * Automatic
+             * @description By routing (including reroutes a person asked for).
+             */
+            automatic: number;
+            /**
+             * Manual
+             * @description By a person, including when they opened the ticket.
+             */
+            manual: number;
+            /** Automatic Rate */
+            automatic_rate: number | null;
+            /**
+             * Median Minutes
+             * @description From opening to the first assignment.
+             */
+            median_minutes: number | null;
+            /** Median Minutes Automatic */
+            median_minutes_automatic: number | null;
+            /** Median Minutes Manual */
+            median_minutes_manual: number | null;
         };
         /** AuditEntryRead */
         AuditEntryRead: {
@@ -2973,6 +3052,21 @@ export interface components {
          * @enum {string}
          */
         Outcome: "assigned" | "team_only" | "no_agent" | "no_rule";
+        /** OverrideStats */
+        OverrideStats: {
+            /**
+             * Automatic
+             * @description Automatic assignments made in the period.
+             */
+            automatic: number;
+            /**
+             * Changed Within Hour
+             * @description Of those, reassigned or unassigned by a person within an hour.
+             */
+            changed_within_hour: number;
+            /** Rate */
+            rate: number | null;
+        };
         /** Overview */
         Overview: {
             /** Days */
@@ -3335,6 +3429,61 @@ export interface components {
             /** @description The passage; null if it has been replaced by a re-index since the run. */
             chunk: components["schemas"]["ChunkRead"] | null;
         };
+        /** RoutingAnalytics */
+        RoutingAnalytics: {
+            /** Days */
+            days: number;
+            /**
+             * Mode
+             * @description The routing mode now.
+             * @enum {string}
+             */
+            mode: "off" | "shadow" | "on";
+            decisions: components["schemas"]["RoutingDecisionStats"];
+            assignment: components["schemas"]["AssignmentStats"];
+            overrides: components["schemas"]["OverrideStats"];
+            shadow: components["schemas"]["ShadowStats"];
+            /**
+             * Workload
+             * @description Every admin and agent, by name.
+             */
+            workload: components["schemas"]["AgentWorkload"][];
+        };
+        /** RoutingDecisionStats */
+        RoutingDecisionStats: {
+            /**
+             * Total
+             * @description Decisions carried out in the period (including reroutes).
+             */
+            total: number;
+            by_outcome: components["schemas"]["RoutingOutcomes"];
+            /**
+             * Shadow Total
+             * @description Decisions recorded in shadow mode, not carried out.
+             */
+            shadow_total: number;
+            shadow_by_outcome: components["schemas"]["RoutingOutcomes"];
+        };
+        /** RoutingOutcomes */
+        RoutingOutcomes: {
+            /** Assigned */
+            assigned: number;
+            /**
+             * Team Only
+             * @description The rule's strategy is manual: the team picks it up.
+             */
+            team_only: number;
+            /**
+             * No Agent
+             * @description A rule matched, but nobody in the team could take it.
+             */
+            no_agent: number;
+            /**
+             * No Rule
+             * @description No rule matched.
+             */
+            no_rule: number;
+        };
         /**
          * RoutingTrigger
          * @enum {string}
@@ -3453,6 +3602,29 @@ export interface components {
             required_skills?: components["schemas"]["SkillLevel-Input"][] | null;
             /** Is Active */
             is_active?: boolean | null;
+        };
+        /** ShadowStats */
+        ShadowStats: {
+            /**
+             * Decisions
+             * @description Shadow decisions that picked an agent.
+             */
+            decisions: number;
+            /**
+             * Compared
+             * @description Of those, tickets a person then assigned.
+             */
+            compared: number;
+            /**
+             * Agreed
+             * @description The person picked the same agent.
+             */
+            agreed: number;
+            /**
+             * Rate
+             * @description agreed / compared.
+             */
+            rate: number | null;
         };
         /** SimulationRead */
         SimulationRead: {
@@ -10336,6 +10508,68 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Overview"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    routing_api_v1_analytics_routing_get: {
+        parameters: {
+            query?: {
+                /** @description Trailing window, in days. */
+                days?: number;
+            };
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoutingAnalytics"];
                 };
             };
             /** @description Unauthorized */

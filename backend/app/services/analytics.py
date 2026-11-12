@@ -11,7 +11,8 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import OrganizationMember
+from app.models import DEFAULT_MAX_ACTIVE_TICKETS, OrganizationMember
+from app.schemas.organizations import OrganizationSettings
 from app.services.authorization import STAFF_ROLES, require_role
 
 _TICKETS = text(
@@ -170,6 +171,95 @@ _GAPS = text(
     """
 )
 
+# --- Routing (Module 10) ----------------------------------------------------------------
+# An assignment is automatic when routing made it (its event says source "routing"),
+# whether on its own or because someone asked for a reroute.
+_ROUTING_DECISIONS = text(
+    """
+    SELECT applied, outcome, count(*) AS n FROM routing_decisions
+    WHERE organization_id = :org AND created_at >= :since GROUP BY applied, outcome
+    """
+)
+# The first assignment of each ticket opened in the period: by routing or by a person,
+# and how long after the ticket was opened.
+_FIRST_ASSIGNMENTS = text(
+    """
+    WITH first AS (
+      SELECT DISTINCT ON (e.ticket_id) e.ticket_id, e.created_at,
+        coalesce(e.data->>'source', '') = 'routing' AS automatic
+      FROM ticket_events e JOIN tickets t ON t.id = e.ticket_id
+      WHERE t.organization_id = :org AND t.created_at >= :since AND e.type = 'assigned'
+      ORDER BY e.ticket_id, e.seq
+    )
+    SELECT count(*) AS assigned,
+      count(*) FILTER (WHERE f.automatic) AS automatic,
+      percentile_cont(0.5) WITHIN GROUP (ORDER BY f.created_at - t.created_at) AS wait,
+      percentile_cont(0.5) WITHIN GROUP (ORDER BY f.created_at - t.created_at)
+        FILTER (WHERE f.automatic) AS wait_automatic,
+      percentile_cont(0.5) WITHIN GROUP (ORDER BY f.created_at - t.created_at)
+        FILTER (WHERE NOT f.automatic) AS wait_manual
+    FROM first f JOIN tickets t ON t.id = f.ticket_id
+    """
+)
+# Automatic assignments in the period, and how many a person changed (reassigned or
+# unassigned) within an hour.
+_OVERRIDES = text(
+    """
+    SELECT count(*) AS automatic,
+      count(*) FILTER (WHERE EXISTS (
+        SELECT 1 FROM ticket_events n
+        WHERE n.ticket_id = a.ticket_id AND n.seq > a.seq
+          AND n.type IN ('assigned', 'unassigned')
+          AND coalesce(n.data->>'source', '') <> 'routing'
+          AND n.created_at <= a.created_at + interval '1 hour'
+      )) AS changed
+    FROM ticket_events a
+    WHERE a.organization_id = :org AND a.created_at >= :since AND a.type = 'assigned'
+      AND a.data->>'source' = 'routing'
+    """
+)
+# Shadow decisions that picked someone, against who a person then assigned first.
+_SHADOW = text(
+    """
+    SELECT count(*) AS decided,
+      count(f.assignee) AS compared,
+      count(*) FILTER (WHERE f.assignee = d.assignee_id::text) AS agreed
+    FROM routing_decisions d
+    LEFT JOIN LATERAL (
+      SELECT e.data->'to'->>'id' AS assignee FROM ticket_events e
+      WHERE e.ticket_id = d.ticket_id AND e.type = 'assigned'
+        AND coalesce(e.data->>'source', '') <> 'routing'
+      ORDER BY e.seq LIMIT 1
+    ) f ON true
+    WHERE d.organization_id = :org AND d.created_at >= :since
+      AND NOT d.applied AND d.outcome = 'assigned'
+    """
+)
+# Every admin and agent: tickets they work on now (assigned or in progress) against
+# their capacity, and how they got assignments in the period.
+_WORKLOAD = text(
+    """
+    SELECT u.id AS user_id, u.full_name AS name,
+      coalesce(p.max_active_tickets, :default_capacity) AS capacity,
+      (SELECT count(*) FROM tickets t
+        WHERE t.organization_id = :org AND t.assignee_id = u.id
+          AND t.status IN ('assigned', 'in_progress')) AS active,
+      (SELECT count(*) FROM ticket_events e
+        WHERE e.organization_id = :org AND e.created_at >= :since AND e.type = 'assigned'
+          AND e.data->'to'->>'id' = u.id::text AND e.data->>'source' = 'routing')
+        AS automatic,
+      (SELECT count(*) FROM ticket_events e
+        WHERE e.organization_id = :org AND e.created_at >= :since AND e.type = 'assigned'
+          AND e.data->'to'->>'id' = u.id::text
+          AND coalesce(e.data->>'source', '') <> 'routing') AS manual
+    FROM organization_members m
+    JOIN users u ON u.id = m.user_id
+    LEFT JOIN agent_profiles p ON p.organization_id = m.organization_id AND p.user_id = u.id
+    WHERE m.organization_id = :org AND m.role IN ('admin', 'agent')
+    ORDER BY lower(u.full_name), u.id
+    """
+)
+
 
 def _minutes(value: timedelta | None) -> float | None:
     return round(value.total_seconds() / 60, 1) if value is not None else None
@@ -244,6 +334,66 @@ class AnalyticsService:
             "first_response": compliance("first_response"),
             "resolution": compliance("resolution"),
             "reopened_cycles": rows["resolution"].reopened if "resolution" in rows else 0,
+        }
+
+    async def routing(self, member: OrganizationMember, days: int) -> dict[str, Any]:
+        """How routing did in the period: its decisions, the share of tickets it
+        assigned and how fast, how often people changed its choices, shadow-mode
+        agreement, and each agent's workload."""
+        require_role(member, *STAFF_ROLES)
+        params = {"org": member.organization_id, **_window(days)}
+        outcomes = {"assigned": 0, "team_only": 0, "no_agent": 0, "no_rule": 0}
+        applied = dict(outcomes)
+        shadow = dict(outcomes)
+        for r in await self._rows(_ROUTING_DECISIONS, params):
+            (applied if r.applied else shadow)[r.outcome] += r.n
+        first = (await self._rows(_FIRST_ASSIGNMENTS, params))[0]
+        overrides = (await self._rows(_OVERRIDES, params))[0]
+        agreement = (await self._rows(_SHADOW, params))[0]
+        workload = await self._rows(
+            _WORKLOAD, {**params, "default_capacity": DEFAULT_MAX_ACTIVE_TICKETS}
+        )
+        settings = OrganizationSettings.model_validate(member.organization.settings or {})
+        return {
+            "days": days,
+            "mode": settings.routing_mode,
+            "decisions": {
+                "total": sum(applied.values()),
+                "by_outcome": applied,
+                "shadow_total": sum(shadow.values()),
+                "shadow_by_outcome": shadow,
+            },
+            "assignment": {
+                "tickets_assigned": first.assigned,
+                "automatic": first.automatic,
+                "manual": first.assigned - first.automatic,
+                "automatic_rate": first.automatic / first.assigned if first.assigned else None,
+                "median_minutes": _minutes(first.wait),
+                "median_minutes_automatic": _minutes(first.wait_automatic),
+                "median_minutes_manual": _minutes(first.wait_manual),
+            },
+            "overrides": {
+                "automatic": overrides.automatic,
+                "changed_within_hour": overrides.changed,
+                "rate": overrides.changed / overrides.automatic if overrides.automatic else None,
+            },
+            "shadow": {
+                "decisions": agreement.decided,
+                "compared": agreement.compared,
+                "agreed": agreement.agreed,
+                "rate": agreement.agreed / agreement.compared if agreement.compared else None,
+            },
+            "workload": [
+                {
+                    "user_id": r.user_id,
+                    "name": r.name,
+                    "active_tickets": r.active,
+                    "max_active_tickets": r.capacity,
+                    "assigned_automatically": r.automatic,
+                    "assigned_by_people": r.manual,
+                }
+                for r in workload
+            ],
         }
 
     async def ai_performance(self, member: OrganizationMember, days: int) -> dict[str, Any]:

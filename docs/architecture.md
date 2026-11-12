@@ -167,6 +167,12 @@ eligibility, the three strategies, explanations); `app/services/routing.py` appl
   `no_rule`) and a readable explanation. `no_agent` notifies the team's leads (or the
   admins). In `shadow` mode decisions are recorded but not applied. A simulator shows
   what would happen, without writing.
+- **Measured** (`GET /analytics/routing`): outcomes, the share of first assignments
+  made by routing and the time to them, automatic assignments people changed within an
+  hour, agreement with shadow decisions, and workload per agent. Concurrency is tested
+  with real transactions (`tests/test_routing_load.py`): a burst of runs fills every
+  agent exactly to capacity, and two sweeps or two SLA monitors at once each act once
+  per ticket or clock.
 
 ## Notifications and audit log
 

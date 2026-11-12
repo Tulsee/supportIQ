@@ -5,7 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Query
 
 from app.api.deps import DbSession, TenantMembership
-from app.schemas.analytics import AIPerformance, Overview
+from app.schemas.analytics import AIPerformance, Overview, RoutingAnalytics
 from app.schemas.common import error_responses
 from app.services.analytics import AnalyticsService
 
@@ -20,6 +20,17 @@ Days = Annotated[int, Query(ge=1, le=365, description="Trailing window, in days.
 async def overview(member: TenantMembership, session: DbSession, days: Days = 30) -> Overview:
     """Open tickets, volume per day, median first-response and resolution times."""
     return Overview(**await AnalyticsService(session).overview(member, days))
+
+
+@router.get("/routing", summary="Automatic routing")
+async def routing(
+    member: TenantMembership, session: DbSession, days: Days = 30
+) -> RoutingAnalytics:
+    """Routing decisions by outcome (and in shadow mode), the share of tickets assigned
+    automatically and the median time to a first assignment, automatic assignments a
+    person changed within an hour, how often people agreed with shadow decisions, and
+    each agent's workload."""
+    return RoutingAnalytics(**await AnalyticsService(session).routing(member, days))
 
 
 @router.get("/ai-performance", summary="AI performance")

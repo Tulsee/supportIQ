@@ -1,6 +1,7 @@
 # SLA management and automated ticket routing
 
-**Status:** in progress: phases 1-7 done, hardening (analytics, load tests) next (Module 10 in the [implementation plan](../../IMPLEMENTATION_PLAN.MD#15-phase-2-feature-roadmap)).
+**Status:** implemented (phases 1-8, 12 November 2026); the follow-ups are listed in
+section 9 and under phase 8 (Module 10 in the [implementation plan](../../IMPLEMENTATION_PLAN.MD#15-phase-2-feature-roadmap)).
 **Source:** the feature plan "SupportIQ - SLA Management & Automated Ticket Routing",
 adapted to this repository after its Phase 0 audit (12 November 2026). Where this
 document and the original differ, this one records the deviation and the reason.
@@ -293,6 +294,20 @@ minimal before/after.
   (automatic assignments changed by a person within an hour); median time to
   assignment; workload distribution per agent.
 
+**Built** (`GET /analytics/overview` → `sla`, `GET /analytics/routing`, the Analytics
+page): SLA compliance per clock kind with its denominators (phase 4); routing decisions
+by outcome, applied and in shadow mode; the share of tickets opened in the period whose
+first assignment came from routing, and the median wall-clock time to that first
+assignment (overall, by routing, by people); automatic assignments a person reassigned
+or unassigned within an hour; **shadow agreement** (shadow decisions that picked an
+agent, against the agent a person then assigned first); and each admin's and agent's
+current workload against capacity with their assignments in the period by routing and
+by people. "Failed" runs aren't a separate outcome: a run either records a decision or
+changes nothing (assigned or closed meanwhile).
+
+**Not yet:** compliance broken down by priority, team and agent; medians in business
+time; due-soon and breached counts over time; pause reasons.
+
 ## 10. Testing
 
 Everything in the plan's section 15, plus:
@@ -322,7 +337,7 @@ Everything in the plan's section 15, plus:
 | 5 | Teams, members, agent profiles, skills, presence (done, with a team on each ticket, team leads as SLA escalation contacts and a status switch in the user menu) | 2-3 days |
 | 6 | Routing: rules, engine, jobs and sweep, decisions, reroute, simulator (done, with the routing mode setting, `no_agent` alerts and timeline wording; the screens are phase 7) | 3-4 days |
 | 7 | Front end: settings, queue and ticket panels, bell, presence (done; the bell and presence came earlier, reassign-with-reason is left out) | 4-5 days |
-| 8 | Analytics, load and concurrency tests, docs, screenshots, demo data | 2-3 days |
+| 8 | Analytics, load and concurrency tests, docs, screenshots, demo data (done: routing analytics with shadow agreement; tests with real transactions for a burst of routing runs against capacity, two sweeps and two SLA monitors at once; screenshots from a demo organization seeded through the API. The SLA breakdowns in section 9 remain) | 2-3 days |
 
 About 20-27 working days for one developer.
 

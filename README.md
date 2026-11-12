@@ -39,7 +39,8 @@ a labelled benchmark measures how well it works.
 - **AI inspector.** For every run: how the query was classified, each passage's rank
   and score at every stage, the exact prompt, the raw model output and the assessment.
 - **Analytics.** Ticket volume and response times; AI outcomes and their reasons,
-  latency, ratings, and the questions the assistant couldn't answer.
+  latency, ratings, and the questions the assistant couldn't answer; how much routing
+  assigns, how fast, how often people change its choices, and each agent's workload.
 - **Service levels.** Business hours in the organization's time zone, holidays,
   and first-response and resolution targets per priority, counted in business time.
   Each ticket shows its clocks: time left, due soon, breached, paused while waiting
@@ -69,6 +70,16 @@ a labelled benchmark measures how well it works.
 | ![A ticket with the AI's suggested reply and its source](docs/screenshots/ticket.png) | ![The inspector showing relevance, coverage, grounding and the decision](docs/screenshots/inspector.png) |
 
 ![The analytics page: tickets per day, AI activity, outcomes and their reasons](docs/screenshots/analytics.png)
+
+| Ticket queue with SLA badges and teams | Routing rules and the simulator |
+| --- | --- |
+| ![The ticket list: SLA badges such as Breached and Due in 38 min, team and assignee columns](docs/screenshots/queue.png) | ![Routing settings: the mode, three ordered rules, and a simulation explaining which rule matched and why one agent was skipped](docs/screenshots/routing.png) |
+
+| Why a ticket went where it did | Teams and agents |
+| --- | --- |
+| ![A ticket's routing panel: the rule that matched, the agent picked by skill and the one who wasn't eligible](docs/screenshots/ticket-routing.png) | ![Teams with a lead, and agents with status, workload against capacity and skills](docs/screenshots/teams.png) |
+
+![Routing analytics: share assigned automatically, time to assignment, changes by people, outcomes and workload](docs/screenshots/routing-analytics.png)
 
 ## Results
 

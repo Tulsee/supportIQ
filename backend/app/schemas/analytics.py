@@ -1,5 +1,8 @@
 """Analytics responses (Module 7)."""
 
+import uuid
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -112,3 +115,66 @@ class AIPerformance(BaseModel):
         description="Questions most often not answered confidently: what the knowledge base "
         "is missing or gets wrong."
     )
+
+
+# --- Routing (Module 10) ------------------------------------------------------------------
+
+
+class RoutingOutcomes(BaseModel):
+    assigned: int
+    team_only: int = Field(description="The rule's strategy is manual: the team picks it up.")
+    no_agent: int = Field(description="A rule matched, but nobody in the team could take it.")
+    no_rule: int = Field(description="No rule matched.")
+
+
+class RoutingDecisionStats(BaseModel):
+    total: int = Field(description="Decisions carried out in the period (including reroutes).")
+    by_outcome: RoutingOutcomes
+    shadow_total: int = Field(description="Decisions recorded in shadow mode, not carried out.")
+    shadow_by_outcome: RoutingOutcomes
+
+
+class AssignmentStats(BaseModel):
+    """The first assignment of each ticket opened in the period."""
+
+    tickets_assigned: int
+    automatic: int = Field(description="By routing (including reroutes a person asked for).")
+    manual: int = Field(description="By a person, including when they opened the ticket.")
+    automatic_rate: float | None
+    median_minutes: float | None = Field(description="From opening to the first assignment.")
+    median_minutes_automatic: float | None
+    median_minutes_manual: float | None
+
+
+class OverrideStats(BaseModel):
+    automatic: int = Field(description="Automatic assignments made in the period.")
+    changed_within_hour: int = Field(
+        description="Of those, reassigned or unassigned by a person within an hour."
+    )
+    rate: float | None
+
+
+class ShadowStats(BaseModel):
+    decisions: int = Field(description="Shadow decisions that picked an agent.")
+    compared: int = Field(description="Of those, tickets a person then assigned.")
+    agreed: int = Field(description="The person picked the same agent.")
+    rate: float | None = Field(description="agreed / compared.")
+
+
+class AgentWorkload(BaseModel):
+    user_id: uuid.UUID
+    name: str
+    active_tickets: int = Field(description="Now: assigned to them, assigned or in progress.")
+    max_active_tickets: int
+    assigned_automatically: int = Field(description="In the period.")
+    assigned_by_people: int = Field(description="In the period.")
+
+
+class RoutingAnalytics(BaseModel):
+    days: int
+    mode: Literal["off", "shadow", "on"] = Field(description="The routing mode now.")
+    decisions: RoutingDecisionStats
+    assignment: AssignmentStats
+    overrides: OverrideStats
+    shadow: ShadowStats
+    workload: list[AgentWorkload] = Field(description="Every admin and agent, by name.")

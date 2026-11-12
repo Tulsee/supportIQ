@@ -11,6 +11,7 @@ import {
   DataTable,
   type Series,
 } from "@/components/analytics/charts";
+import { RoutingStats } from "@/components/analytics/routing-stats";
 import { SlaCompliance } from "@/components/analytics/sla-compliance";
 import { PageHeader } from "@/components/page-header";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -94,13 +95,23 @@ export function AnalyticsPage() {
     queryFn: () => unwrap(api.GET("/api/v1/analytics/overview", header)),
     placeholderData: keepPreviousData,
   });
+  const routing = useQuery({
+    queryKey: queryKeys.analytics(organization.id, "routing", days),
+    queryFn: () => unwrap(api.GET("/api/v1/analytics/routing", header)),
+    placeholderData: keepPreviousData,
+  });
   const ai = useQuery({
     queryKey: queryKeys.analytics(organization.id, "ai", days),
     queryFn: () => unwrap(api.GET("/api/v1/analytics/ai-performance", header)),
     placeholderData: keepPreviousData,
   });
 
-  const error = overview.error ?? ai.error;
+  const error = overview.error ?? ai.error ?? routing.error;
+  // Shown once routing is in use (or was, in the period).
+  const routingInUse =
+    routing.data &&
+    (routing.data.mode !== "off" ||
+      routing.data.decisions.total + routing.data.decisions.shadow_total > 0);
   return (
     <>
       <PageHeader
@@ -145,6 +156,8 @@ export function AnalyticsPage() {
               <SlaCompliance sla={overview.data.sla} />
             </ChartCard>
           ) : null}
+
+          {routingInUse ? <RoutingStats routing={routing.data!} days={days} /> : null}
 
           <ChartCard title="Tickets per day" description="Opened and resolved, by UTC day.">
             <DailyLines rows={overview.data.daily} series={TICKET_SERIES} label="Tickets opened and resolved per day" />

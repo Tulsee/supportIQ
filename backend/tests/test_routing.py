@@ -826,3 +826,76 @@ def test_the_scheduler_runs_the_sweep() -> None:
     job = celery_app.conf.beat_schedule["routing-sweep"]
     assert job["task"] == "routing.sweep" and job["task"] in celery_app.tasks
     assert "routing.route_ticket" in celery_app.tasks
+
+
+# --- Analytics ------------------------------------------------------------------------------
+
+
+async def test_routing_analytics(
+    api: httpx2.AsyncClient, ws: Workspace, crew: Crew, router: Router
+) -> None:
+    await set_mode(api, ws, "on")
+    await router.online(ws.agent, crew.lead)
+    await add_rule(api, ws, "Everything", crew.team["id"])
+    admin = in_org(ws.admin, ws.org_id)
+
+    async def assign(ticket: dict[str, Any], user: AuthedUser) -> None:
+        response = await api.patch(
+            f"{API}/tickets/{ticket['id']}", json={"assignee_id": user.id}, headers=admin
+        )
+        assert response.status_code == 200, response.text
+
+    walk_in = await api.post(f"{API}/customers", json={"name": "Walk-in"}, headers=admin)
+    customer_id = walk_in.json()["id"]
+    await create_ticket(  # a person picks the assignee when opening it
+        api, ws.agent, ws.org_id, customer_id=customer_id, assignee_id=crew.lead.id
+    )
+    first = await create_ticket(api, ws.customer, ws.org_id)
+    assert (await router.new(first)).assignee_name == "Abe Agent"  # automatic: least loaded
+    changed = await create_ticket(api, ws.customer, ws.org_id)
+    assert (await router.new(changed)).assignee_name == "Lena Lead"  # automatic...
+    await assign(changed, ws.agent)  # ...and changed by a person right away
+
+    # Shadow mode: routing would pick Lena, then Abe; a person picks Lena both times.
+    await set_mode(api, ws, "shadow")
+    for expected in ("Lena Lead", "Abe Agent"):
+        ticket = await create_ticket(api, ws.customer, ws.org_id)
+        assert (await router.new(ticket)).assignee_name == expected
+        await assign(ticket, crew.lead)
+
+    report = await api.get(f"{API}/analytics/routing", headers=in_org(ws.agent, ws.org_id))
+    assert report.status_code == 200, report.text
+    data = report.json()
+    assert data["mode"] == "shadow"
+    assert data["decisions"]["total"] == 2
+    assert data["decisions"]["by_outcome"] == {
+        "assigned": 2,
+        "team_only": 0,
+        "no_agent": 0,
+        "no_rule": 0,
+    }
+    assert data["decisions"]["shadow_by_outcome"]["assigned"] == 2
+    assignment = data["assignment"]
+    assert (assignment["tickets_assigned"], assignment["automatic"], assignment["manual"]) == (
+        5,
+        2,
+        3,
+    )
+    assert assignment["automatic_rate"] == 0.4
+    assert data["overrides"] == {"automatic": 2, "changed_within_hour": 1, "rate": 0.5}
+    assert data["shadow"] == {"decisions": 2, "compared": 2, "agreed": 1, "rate": 0.5}
+    workload = {w["name"]: w for w in data["workload"]}
+    assert set(workload) == {"Ada Admin", "Abe Agent", "Lena Lead"}
+    abe, lena = workload["Abe Agent"], workload["Lena Lead"]
+    assert (abe["active_tickets"], abe["assigned_automatically"], abe["assigned_by_people"]) == (
+        2,
+        1,
+        1,
+    )
+    assert (lena["active_tickets"], lena["assigned_automatically"], lena["assigned_by_people"]) == (
+        3,
+        1,
+        3,
+    )
+    customer = await api.get(f"{API}/analytics/routing", headers=in_org(ws.customer, ws.org_id))
+    assert customer.status_code == 403
