@@ -42,7 +42,7 @@ def _value(metrics: dict[str, Any], section: str, key: str, k: int) -> str:
         low, high = value["ci95"]
         return f"{value['value']:.0%} ({value['successes']}/{value['n']}; {low:.0%}-{high:.0%})"
     if key.endswith("_ms"):
-        return f"{value / 1000:.1f} s"
+        return f"{value:.0f} ms" if value < 1000 else f"{value / 1000:.1f} s"
     if isinstance(value, float):
         return f"{value:.2f}"
     return str(value)

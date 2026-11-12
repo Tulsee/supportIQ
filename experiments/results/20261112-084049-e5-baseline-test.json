@@ -1,0 +1,2043 @@
+{
+  "name": "e5-baseline-test",
+  "started_at": "2026-11-12T08:40:49+05:45",
+  "duration_s": 955.7,
+  "dataset": {
+    "name": "quillon_support_v1",
+    "path": "datasets/evaluation_questions/quillon_support_v1.jsonl",
+    "sha256": "7ea28a7a3b2c83f209117f46620a18dc291701fa18364c2c21972074621ad589",
+    "questions": 29,
+    "selection": {
+      "split": "test",
+      "only": null,
+      "limit": null
+    }
+  },
+  "corpus": {
+    "path": "datasets/sample_documents/quillon",
+    "organization_id": "cbd80992-cf36-4f4b-b930-6436eff1fb75",
+    "documents": [
+      {
+        "file": "account-and-security.md",
+        "sha256": "1ba7a4cb878e3c7640958cba2509b0b0bc83b2182cbaefc8e02f7fa086478b5f",
+        "title": "Your Quillon Account",
+        "chunks": 5
+      },
+      {
+        "file": "contacting-support.md",
+        "sha256": "1c573443b42e5eb34ee07fd7788d25b429c966ebcda31248d2eb789b651fc84f",
+        "title": "Contacting Quillon Support",
+        "chunks": 5
+      },
+      {
+        "file": "error-codes-reference.md",
+        "sha256": "1c92e69979d4ed7899cab6d262b21147361440d6835ef73c0839bee7912fcf3f",
+        "title": "Error Codes Reference",
+        "chunks": 3
+      },
+      {
+        "file": "firmware-release-notes.md",
+        "sha256": "6ca81268b7af8694692ce8d24e88d8b03c11b9bac188d580559c09c1788cc452",
+        "title": "Q3 Firmware Release Notes",
+        "chunks": 5
+      },
+      {
+        "file": "help-center-faq.md",
+        "sha256": "1d36601bd6616c8712de2a34b39189183e8daaee5b036facaf3c5e6259bfba63",
+        "title": "Help Center: Frequently Asked Questions",
+        "chunks": 6
+      },
+      {
+        "file": "q3-router-setup-guide.md",
+        "sha256": "44e0277da260ecac5f4923aed7d35e2cd15b8bd7abc3474df1ab2dde8ec995a1",
+        "title": "Quillon Q3 Mesh Router: Setup Guide",
+        "chunks": 9
+      },
+      {
+        "file": "qc2-camera-guide.md",
+        "sha256": "595994a1bc2a16b116161b377a95752eca5f96b0f6b0c32d1f1c384c8fda1722",
+        "title": "Quillon QC2 Indoor Camera: User Guide",
+        "chunks": 6
+      },
+      {
+        "file": "quillon-secure-plans.md",
+        "sha256": "f24feb19415e1ca88f81c4a8dda26f42cba7cd25eb2a673784c20de4ef97d58f",
+        "title": "Quillon Secure Plans",
+        "chunks": 5
+      },
+      {
+        "file": "returns-and-refunds-policy.md",
+        "sha256": "d8e9f6172190af18f3b30830a04f377db4f3362e67e91882972bc50da85fe780",
+        "title": "Returns and Refunds Policy",
+        "chunks": 5
+      },
+      {
+        "file": "warranty-policy.md",
+        "sha256": "0ebb0e8454cbfc0c9377b5c60e560de0ff34f34ca9e461495f3778c15b74d561",
+        "title": "Limited Warranty",
+        "chunks": 4
+      }
+    ]
+  },
+  "pipeline": {
+    "mode": "answer",
+    "policy": "baseline",
+    "thresholds": null,
+    "strategy": "auto",
+    "rerank": true,
+    "top_k": 5,
+    "embedding_model": "BAAI/bge-small-en-v1.5",
+    "reranker_model": "Xenova/ms-marco-MiniLM-L-6-v2",
+    "chunking": {
+      "size_tokens": 480,
+      "overlap_tokens": 72
+    },
+    "retrieval": {
+      "sparse_top_k": 20,
+      "dense_top_k": 20,
+      "rrf_k": 60,
+      "rerank_candidates": 20,
+      "bm25": {
+        "k1": 1.2,
+        "b": 0.75
+      }
+    },
+    "llm": {
+      "provider": "ollama",
+      "model": "qwen3.5:4b",
+      "model_versions": [
+        "2a654d98e6fba55d452b7043684e9b57a947e393bbffa62485a7aac05ee4eefd"
+      ],
+      "config": {
+        "temperature": 0.1,
+        "max_output_tokens": 1024,
+        "context_tokens": 8192,
+        "think": false,
+        "keep_alive": "10m",
+        "seed": 42
+      },
+      "prompt_version": "grounded-answer-v1"
+    }
+  },
+  "environment": {
+    "git": {
+      "commit": "259fd1b1c20d3c9438facafa0f012ad57838701a",
+      "dirty": true
+    },
+    "python": "3.12.10",
+    "platform": "Windows-11-10.0.26300-SP0",
+    "cpus": 8,
+    "packages": {
+      "fastembed": "0.9.1",
+      "onnxruntime": "1.31.1",
+      "qdrant-client": "1.20.0",
+      "anthropic": "2.8.0",
+      "httpx2": "2.16.0",
+      "sqlalchemy": "2.1.8"
+    }
+  },
+  "metrics": {
+    "overall": {
+      "questions": 29,
+      "retrieval": {
+        "questions": 16,
+        "hit@5": {
+          "value": 1.0,
+          "successes": 16,
+          "n": 16,
+          "ci95": [
+            0.8064,
+            1.0
+          ]
+        },
+        "recall@5": 1.0,
+        "mrr@10": 0.9688,
+        "ndcg@10": 0.9236
+      },
+      "latency": {
+        "p50_ms": 27681.8,
+        "p95_ms": 41214.5,
+        "generation_p50_ms": 27191.3,
+        "generation_p95_ms": 40071.0
+      },
+      "answers": {
+        "coverage": {
+          "value": 1.0,
+          "successes": 16,
+          "n": 16,
+          "ci95": [
+            0.8064,
+            1.0
+          ]
+        },
+        "correctness": {
+          "value": 1.0,
+          "successes": 16,
+          "n": 16,
+          "ci95": [
+            0.8064,
+            1.0
+          ]
+        },
+        "unsupported_answers": {
+          "value": 0.3333,
+          "successes": 8,
+          "n": 24,
+          "ci95": [
+            0.1797,
+            0.5329
+          ]
+        },
+        "unwarranted_answers": {
+          "value": 0.6154,
+          "successes": 8,
+          "n": 13,
+          "ci95": [
+            0.3552,
+            0.8229
+          ]
+        },
+        "abstention_precision": {
+          "value": 1.0,
+          "successes": 5,
+          "n": 5,
+          "ci95": [
+            0.5655,
+            1.0
+          ]
+        },
+        "abstention_recall": {
+          "value": 0.7143,
+          "successes": 5,
+          "n": 7,
+          "ci95": [
+            0.3589,
+            0.9178
+          ]
+        },
+        "citation_precision": {
+          "value": 0.85,
+          "successes": 17,
+          "n": 20,
+          "ci95": [
+            0.6396,
+            0.9476
+          ]
+        },
+        "uncited_answers": {
+          "value": 0.0,
+          "successes": 0,
+          "n": 24,
+          "ci95": [
+            0.0,
+            0.138
+          ]
+        },
+        "invalid_citations": 0,
+        "failures": 0,
+        "decision_accuracy": {
+          "value": 0.7241,
+          "successes": 21,
+          "n": 29,
+          "ci95": [
+            0.5428,
+            0.853
+          ]
+        },
+        "decisions": {
+          "answer": {
+            "answer": 16
+          },
+          "clarify": {
+            "answer": 3
+          },
+          "escalate": {
+            "answer": 3
+          },
+          "abstain": {
+            "answer": 2,
+            "abstain": 5
+          }
+        }
+      },
+      "actions": {
+        "answer": 24,
+        "abstain": 5
+      },
+      "calibration": {
+        "n": 0,
+        "brier": null,
+        "ece": null
+      }
+    },
+    "by_split": {
+      "test": {
+        "questions": 29,
+        "retrieval": {
+          "questions": 16,
+          "hit@5": {
+            "value": 1.0,
+            "successes": 16,
+            "n": 16,
+            "ci95": [
+              0.8064,
+              1.0
+            ]
+          },
+          "recall@5": 1.0,
+          "mrr@10": 0.9688,
+          "ndcg@10": 0.9236
+        },
+        "latency": {
+          "p50_ms": 27681.8,
+          "p95_ms": 41214.5,
+          "generation_p50_ms": 27191.3,
+          "generation_p95_ms": 40071.0
+        },
+        "answers": {
+          "coverage": {
+            "value": 1.0,
+            "successes": 16,
+            "n": 16,
+            "ci95": [
+              0.8064,
+              1.0
+            ]
+          },
+          "correctness": {
+            "value": 1.0,
+            "successes": 16,
+            "n": 16,
+            "ci95": [
+              0.8064,
+              1.0
+            ]
+          },
+          "unsupported_answers": {
+            "value": 0.3333,
+            "successes": 8,
+            "n": 24,
+            "ci95": [
+              0.1797,
+              0.5329
+            ]
+          },
+          "unwarranted_answers": {
+            "value": 0.6154,
+            "successes": 8,
+            "n": 13,
+            "ci95": [
+              0.3552,
+              0.8229
+            ]
+          },
+          "abstention_precision": {
+            "value": 1.0,
+            "successes": 5,
+            "n": 5,
+            "ci95": [
+              0.5655,
+              1.0
+            ]
+          },
+          "abstention_recall": {
+            "value": 0.7143,
+            "successes": 5,
+            "n": 7,
+            "ci95": [
+              0.3589,
+              0.9178
+            ]
+          },
+          "citation_precision": {
+            "value": 0.85,
+            "successes": 17,
+            "n": 20,
+            "ci95": [
+              0.6396,
+              0.9476
+            ]
+          },
+          "uncited_answers": {
+            "value": 0.0,
+            "successes": 0,
+            "n": 24,
+            "ci95": [
+              0.0,
+              0.138
+            ]
+          },
+          "invalid_citations": 0,
+          "failures": 0,
+          "decision_accuracy": {
+            "value": 0.7241,
+            "successes": 21,
+            "n": 29,
+            "ci95": [
+              0.5428,
+              0.853
+            ]
+          },
+          "decisions": {
+            "answer": {
+              "answer": 16
+            },
+            "clarify": {
+              "answer": 3
+            },
+            "escalate": {
+              "answer": 3
+            },
+            "abstain": {
+              "answer": 2,
+              "abstain": 5
+            }
+          }
+        },
+        "actions": {
+          "answer": 24,
+          "abstain": 5
+        },
+        "calibration": {
+          "n": 0,
+          "brier": null,
+          "ece": null
+        }
+      }
+    },
+    "by_category": {
+      "factual": {
+        "questions": 5,
+        "retrieval": {
+          "questions": 5,
+          "hit@5": {
+            "value": 1.0,
+            "successes": 5,
+            "n": 5,
+            "ci95": [
+              0.5655,
+              1.0
+            ]
+          },
+          "recall@5": 1.0,
+          "mrr@10": 1.0,
+          "ndcg@10": 1.0
+        },
+        "latency": {
+          "p50_ms": 37431.7,
+          "p95_ms": 41276.5,
+          "generation_p50_ms": 35559.7,
+          "generation_p95_ms": 39711.2
+        },
+        "answers": {
+          "coverage": {
+            "value": 1.0,
+            "successes": 5,
+            "n": 5,
+            "ci95": [
+              0.5655,
+              1.0
+            ]
+          },
+          "correctness": {
+            "value": 1.0,
+            "successes": 5,
+            "n": 5,
+            "ci95": [
+              0.5655,
+              1.0
+            ]
+          },
+          "unsupported_answers": {
+            "value": 0.0,
+            "successes": 0,
+            "n": 5,
+            "ci95": [
+              0.0,
+              0.4345
+            ]
+          },
+          "unwarranted_answers": {
+            "value": null,
+            "successes": 0,
+            "n": 0,
+            "ci95": null
+          },
+          "abstention_precision": {
+            "value": null,
+            "successes": 0,
+            "n": 0,
+            "ci95": null
+          },
+          "abstention_recall": {
+            "value": null,
+            "successes": 0,
+            "n": 0,
+            "ci95": null
+          },
+          "citation_precision": {
+            "value": 0.8333,
+            "successes": 5,
+            "n": 6,
+            "ci95": [
+              0.4365,
+              0.9699
+            ]
+          },
+          "uncited_answers": {
+            "value": 0.0,
+            "successes": 0,
+            "n": 5,
+            "ci95": [
+              0.0,
+              0.4345
+            ]
+          },
+          "invalid_citations": 0,
+          "failures": 0,
+          "decision_accuracy": {
+            "value": 1.0,
+            "successes": 5,
+            "n": 5,
+            "ci95": [
+              0.5655,
+              1.0
+            ]
+          },
+          "decisions": {
+            "answer": {
+              "answer": 5
+            }
+          }
+        },
+        "actions": {
+          "answer": 5
+        },
+        "calibration": {
+          "n": 0,
+          "brier": null,
+          "ece": null
+        }
+      },
+      "paraphrase": {
+        "questions": 4,
+        "retrieval": {
+          "questions": 4,
+          "hit@5": {
+            "value": 1.0,
+            "successes": 4,
+            "n": 4,
+            "ci95": [
+              0.5101,
+              1.0
+            ]
+          },
+          "recall@5": 1.0,
+          "mrr@10": 0.875,
+          "ndcg@10": 0.9077
+        },
+        "latency": {
+          "p50_ms": 26449.9,
+          "p95_ms": 32431.6,
+          "generation_p50_ms": 25385.2,
+          "generation_p95_ms": 31403.2
+        },
+        "answers": {
+          "coverage": {
+            "value": 1.0,
+            "successes": 4,
+            "n": 4,
+            "ci95": [
+              0.5101,
+              1.0
+            ]
+          },
+          "correctness": {
+            "value": 1.0,
+            "successes": 4,
+            "n": 4,
+            "ci95": [
+              0.5101,
+              1.0
+            ]
+          },
+          "unsupported_answers": {
+            "value": 0.0,
+            "successes": 0,
+            "n": 4,
+            "ci95": [
+              0.0,
+              0.4899
+            ]
+          },
+          "unwarranted_answers": {
+            "value": null,
+            "successes": 0,
+            "n": 0,
+            "ci95": null
+          },
+          "abstention_precision": {
+            "value": null,
+            "successes": 0,
+            "n": 0,
+            "ci95": null
+          },
+          "abstention_recall": {
+            "value": null,
+            "successes": 0,
+            "n": 0,
+            "ci95": null
+          },
+          "citation_precision": {
+            "value": 0.6667,
+            "successes": 4,
+            "n": 6,
+            "ci95": [
+              0.3,
+              0.9032
+            ]
+          },
+          "uncited_answers": {
+            "value": 0.0,
+            "successes": 0,
+            "n": 4,
+            "ci95": [
+              0.0,
+              0.4899
+            ]
+          },
+          "invalid_citations": 0,
+          "failures": 0,
+          "decision_accuracy": {
+            "value": 1.0,
+            "successes": 4,
+            "n": 4,
+            "ci95": [
+              0.5101,
+              1.0
+            ]
+          },
+          "decisions": {
+            "answer": {
+              "answer": 4
+            }
+          }
+        },
+        "actions": {
+          "answer": 4
+        },
+        "calibration": {
+          "n": 0,
+          "brier": null,
+          "ece": null
+        }
+      },
+      "identifier": {
+        "questions": 4,
+        "retrieval": {
+          "questions": 4,
+          "hit@5": {
+            "value": 1.0,
+            "successes": 4,
+            "n": 4,
+            "ci95": [
+              0.5101,
+              1.0
+            ]
+          },
+          "recall@5": 1.0,
+          "mrr@10": 1.0,
+          "ndcg@10": 1.0
+        },
+        "latency": {
+          "p50_ms": 30420.9,
+          "p95_ms": 33939.6,
+          "generation_p50_ms": 28835.4,
+          "generation_p95_ms": 32788.7
+        },
+        "answers": {
+          "coverage": {
+            "value": 1.0,
+            "successes": 4,
+            "n": 4,
+            "ci95": [
+              0.5101,
+              1.0
+            ]
+          },
+          "correctness": {
+            "value": 1.0,
+            "successes": 4,
+            "n": 4,
+            "ci95": [
+              0.5101,
+              1.0
+            ]
+          },
+          "unsupported_answers": {
+            "value": 0.0,
+            "successes": 0,
+            "n": 4,
+            "ci95": [
+              0.0,
+              0.4899
+            ]
+          },
+          "unwarranted_answers": {
+            "value": null,
+            "successes": 0,
+            "n": 0,
+            "ci95": null
+          },
+          "abstention_precision": {
+            "value": null,
+            "successes": 0,
+            "n": 0,
+            "ci95": null
+          },
+          "abstention_recall": {
+            "value": null,
+            "successes": 0,
+            "n": 0,
+            "ci95": null
+          },
+          "citation_precision": {
+            "value": 1.0,
+            "successes": 4,
+            "n": 4,
+            "ci95": [
+              0.5101,
+              1.0
+            ]
+          },
+          "uncited_answers": {
+            "value": 0.0,
+            "successes": 0,
+            "n": 4,
+            "ci95": [
+              0.0,
+              0.4899
+            ]
+          },
+          "invalid_citations": 0,
+          "failures": 0,
+          "decision_accuracy": {
+            "value": 1.0,
+            "successes": 4,
+            "n": 4,
+            "ci95": [
+              0.5101,
+              1.0
+            ]
+          },
+          "decisions": {
+            "answer": {
+              "answer": 4
+            }
+          }
+        },
+        "actions": {
+          "answer": 4
+        },
+        "calibration": {
+          "n": 0,
+          "brier": null,
+          "ece": null
+        }
+      },
+      "multi_part": {
+        "questions": 3,
+        "retrieval": {
+          "questions": 3,
+          "hit@5": {
+            "value": 1.0,
+            "successes": 3,
+            "n": 3,
+            "ci95": [
+              0.4385,
+              1.0
+            ]
+          },
+          "recall@5": 1.0,
+          "mrr@10": 1.0,
+          "ndcg@10": 0.7153
+        },
+        "latency": {
+          "p50_ms": 23240.3,
+          "p95_ms": 25724.3,
+          "generation_p50_ms": 22770.2,
+          "generation_p95_ms": 24686.8
+        },
+        "answers": {
+          "coverage": {
+            "value": 1.0,
+            "successes": 3,
+            "n": 3,
+            "ci95": [
+              0.4385,
+              1.0
+            ]
+          },
+          "correctness": {
+            "value": 1.0,
+            "successes": 3,
+            "n": 3,
+            "ci95": [
+              0.4385,
+              1.0
+            ]
+          },
+          "unsupported_answers": {
+            "value": 0.0,
+            "successes": 0,
+            "n": 3,
+            "ci95": [
+              0.0,
+              0.5615
+            ]
+          },
+          "unwarranted_answers": {
+            "value": null,
+            "successes": 0,
+            "n": 0,
+            "ci95": null
+          },
+          "abstention_precision": {
+            "value": null,
+            "successes": 0,
+            "n": 0,
+            "ci95": null
+          },
+          "abstention_recall": {
+            "value": null,
+            "successes": 0,
+            "n": 0,
+            "ci95": null
+          },
+          "citation_precision": {
+            "value": 1.0,
+            "successes": 4,
+            "n": 4,
+            "ci95": [
+              0.5101,
+              1.0
+            ]
+          },
+          "uncited_answers": {
+            "value": 0.0,
+            "successes": 0,
+            "n": 3,
+            "ci95": [
+              0.0,
+              0.5615
+            ]
+          },
+          "invalid_citations": 0,
+          "failures": 0,
+          "decision_accuracy": {
+            "value": 1.0,
+            "successes": 3,
+            "n": 3,
+            "ci95": [
+              0.4385,
+              1.0
+            ]
+          },
+          "decisions": {
+            "answer": {
+              "answer": 3
+            }
+          }
+        },
+        "actions": {
+          "answer": 3
+        },
+        "calibration": {
+          "n": 0,
+          "brier": null,
+          "ece": null
+        }
+      },
+      "ambiguous": {
+        "questions": 3,
+        "retrieval": {
+          "questions": 0,
+          "hit@5": {
+            "value": null,
+            "successes": 0,
+            "n": 0,
+            "ci95": null
+          },
+          "recall@5": null,
+          "mrr@10": null,
+          "ndcg@10": null
+        },
+        "latency": {
+          "p50_ms": 35137.6,
+          "p95_ms": 116892.3,
+          "generation_p50_ms": 34134.6,
+          "generation_p95_ms": 115068.1
+        },
+        "answers": {
+          "coverage": {
+            "value": null,
+            "successes": 0,
+            "n": 0,
+            "ci95": null
+          },
+          "correctness": {
+            "value": null,
+            "successes": 0,
+            "n": 0,
+            "ci95": null
+          },
+          "unsupported_answers": {
+            "value": 1.0,
+            "successes": 3,
+            "n": 3,
+            "ci95": [
+              0.4385,
+              1.0
+            ]
+          },
+          "unwarranted_answers": {
+            "value": 1.0,
+            "successes": 3,
+            "n": 3,
+            "ci95": [
+              0.4385,
+              1.0
+            ]
+          },
+          "abstention_precision": {
+            "value": null,
+            "successes": 0,
+            "n": 0,
+            "ci95": null
+          },
+          "abstention_recall": {
+            "value": null,
+            "successes": 0,
+            "n": 0,
+            "ci95": null
+          },
+          "citation_precision": {
+            "value": null,
+            "successes": 0,
+            "n": 0,
+            "ci95": null
+          },
+          "uncited_answers": {
+            "value": 0.0,
+            "successes": 0,
+            "n": 3,
+            "ci95": [
+              0.0,
+              0.5615
+            ]
+          },
+          "invalid_citations": 0,
+          "failures": 0,
+          "decision_accuracy": {
+            "value": 0.0,
+            "successes": 0,
+            "n": 3,
+            "ci95": [
+              0.0,
+              0.5615
+            ]
+          },
+          "decisions": {
+            "clarify": {
+              "answer": 3
+            }
+          }
+        },
+        "actions": {
+          "answer": 3
+        },
+        "calibration": {
+          "n": 0,
+          "brier": null,
+          "ece": null
+        }
+      },
+      "conflicting": {
+        "questions": 3,
+        "retrieval": {
+          "questions": 0,
+          "hit@5": {
+            "value": null,
+            "successes": 0,
+            "n": 0,
+            "ci95": null
+          },
+          "recall@5": null,
+          "mrr@10": null,
+          "ndcg@10": null
+        },
+        "latency": {
+          "p50_ms": 39103.8,
+          "p95_ms": 40609.5,
+          "generation_p50_ms": 38138.4,
+          "generation_p95_ms": 39802.0
+        },
+        "answers": {
+          "coverage": {
+            "value": null,
+            "successes": 0,
+            "n": 0,
+            "ci95": null
+          },
+          "correctness": {
+            "value": null,
+            "successes": 0,
+            "n": 0,
+            "ci95": null
+          },
+          "unsupported_answers": {
+            "value": 1.0,
+            "successes": 3,
+            "n": 3,
+            "ci95": [
+              0.4385,
+              1.0
+            ]
+          },
+          "unwarranted_answers": {
+            "value": 1.0,
+            "successes": 3,
+            "n": 3,
+            "ci95": [
+              0.4385,
+              1.0
+            ]
+          },
+          "abstention_precision": {
+            "value": null,
+            "successes": 0,
+            "n": 0,
+            "ci95": null
+          },
+          "abstention_recall": {
+            "value": null,
+            "successes": 0,
+            "n": 0,
+            "ci95": null
+          },
+          "citation_precision": {
+            "value": null,
+            "successes": 0,
+            "n": 0,
+            "ci95": null
+          },
+          "uncited_answers": {
+            "value": 0.0,
+            "successes": 0,
+            "n": 3,
+            "ci95": [
+              0.0,
+              0.5615
+            ]
+          },
+          "invalid_citations": 0,
+          "failures": 0,
+          "decision_accuracy": {
+            "value": 0.0,
+            "successes": 0,
+            "n": 3,
+            "ci95": [
+              0.0,
+              0.5615
+            ]
+          },
+          "decisions": {
+            "escalate": {
+              "answer": 3
+            }
+          }
+        },
+        "actions": {
+          "answer": 3
+        },
+        "calibration": {
+          "n": 0,
+          "brier": null,
+          "ece": null
+        }
+      },
+      "insufficient": {
+        "questions": 3,
+        "retrieval": {
+          "questions": 0,
+          "hit@5": {
+            "value": null,
+            "successes": 0,
+            "n": 0,
+            "ci95": null
+          },
+          "recall@5": null,
+          "mrr@10": null,
+          "ndcg@10": null
+        },
+        "latency": {
+          "p50_ms": 34666.0,
+          "p95_ms": 39259.0,
+          "generation_p50_ms": 32526.3,
+          "generation_p95_ms": 37427.4
+        },
+        "answers": {
+          "coverage": {
+            "value": null,
+            "successes": 0,
+            "n": 0,
+            "ci95": null
+          },
+          "correctness": {
+            "value": null,
+            "successes": 0,
+            "n": 0,
+            "ci95": null
+          },
+          "unsupported_answers": {
+            "value": 1.0,
+            "successes": 2,
+            "n": 2,
+            "ci95": [
+              0.3424,
+              1.0
+            ]
+          },
+          "unwarranted_answers": {
+            "value": 0.6667,
+            "successes": 2,
+            "n": 3,
+            "ci95": [
+              0.2077,
+              0.9385
+            ]
+          },
+          "abstention_precision": {
+            "value": 1.0,
+            "successes": 1,
+            "n": 1,
+            "ci95": [
+              0.2065,
+              1.0
+            ]
+          },
+          "abstention_recall": {
+            "value": 0.3333,
+            "successes": 1,
+            "n": 3,
+            "ci95": [
+              0.0615,
+              0.7923
+            ]
+          },
+          "citation_precision": {
+            "value": null,
+            "successes": 0,
+            "n": 0,
+            "ci95": null
+          },
+          "uncited_answers": {
+            "value": 0.0,
+            "successes": 0,
+            "n": 2,
+            "ci95": [
+              0.0,
+              0.6576
+            ]
+          },
+          "invalid_citations": 0,
+          "failures": 0,
+          "decision_accuracy": {
+            "value": 0.3333,
+            "successes": 1,
+            "n": 3,
+            "ci95": [
+              0.0615,
+              0.7923
+            ]
+          },
+          "decisions": {
+            "abstain": {
+              "answer": 2,
+              "abstain": 1
+            }
+          }
+        },
+        "actions": {
+          "answer": 2,
+          "abstain": 1
+        },
+        "calibration": {
+          "n": 0,
+          "brier": null,
+          "ece": null
+        }
+      },
+      "unanswerable": {
+        "questions": 4,
+        "retrieval": {
+          "questions": 0,
+          "hit@5": {
+            "value": null,
+            "successes": 0,
+            "n": 0,
+            "ci95": null
+          },
+          "recall@5": null,
+          "mrr@10": null,
+          "ndcg@10": null
+        },
+        "latency": {
+          "p50_ms": 25118.0,
+          "p95_ms": 26952.8,
+          "generation_p50_ms": 24389.1,
+          "generation_p95_ms": 26149.2
+        },
+        "answers": {
+          "coverage": {
+            "value": null,
+            "successes": 0,
+            "n": 0,
+            "ci95": null
+          },
+          "correctness": {
+            "value": null,
+            "successes": 0,
+            "n": 0,
+            "ci95": null
+          },
+          "unsupported_answers": {
+            "value": null,
+            "successes": 0,
+            "n": 0,
+            "ci95": null
+          },
+          "unwarranted_answers": {
+            "value": 0.0,
+            "successes": 0,
+            "n": 4,
+            "ci95": [
+              0.0,
+              0.4899
+            ]
+          },
+          "abstention_precision": {
+            "value": 1.0,
+            "successes": 4,
+            "n": 4,
+            "ci95": [
+              0.5101,
+              1.0
+            ]
+          },
+          "abstention_recall": {
+            "value": 1.0,
+            "successes": 4,
+            "n": 4,
+            "ci95": [
+              0.5101,
+              1.0
+            ]
+          },
+          "citation_precision": {
+            "value": null,
+            "successes": 0,
+            "n": 0,
+            "ci95": null
+          },
+          "uncited_answers": {
+            "value": null,
+            "successes": 0,
+            "n": 0,
+            "ci95": null
+          },
+          "invalid_citations": 0,
+          "failures": 0,
+          "decision_accuracy": {
+            "value": 1.0,
+            "successes": 4,
+            "n": 4,
+            "ci95": [
+              0.5101,
+              1.0
+            ]
+          },
+          "decisions": {
+            "abstain": {
+              "abstain": 4
+            }
+          }
+        },
+        "actions": {
+          "abstain": 4
+        },
+        "calibration": {
+          "n": 0,
+          "brier": null,
+          "ece": null
+        }
+      }
+    }
+  },
+  "questions": [
+    {
+      "id": "q002",
+      "category": "factual",
+      "split": "test",
+      "question": "How long is the password reset link valid?",
+      "expected_action": "answer",
+      "run_id": "c820d189-9ab4-4f7e-b881-5a60840cf9dd",
+      "evidence_rank": 1,
+      "latency_ms": 41338.5,
+      "status": "answered",
+      "action": "answer",
+      "answer": "The password reset link is valid for 30 minutes [1].",
+      "missing_facts": [],
+      "correct": true,
+      "unsupported": false,
+      "citations": 1,
+      "relevant_citations": 1,
+      "invalid_citations": 0,
+      "generation_ms": 38047.09,
+      "error": null,
+      "decision": null,
+      "reason": null,
+      "score": null,
+      "signals": null,
+      "draft_correct": true
+    },
+    {
+      "id": "q004",
+      "category": "factual",
+      "split": "test",
+      "question": "What is the restocking fee for opened products?",
+      "expected_action": "answer",
+      "run_id": "e2d048cd-5bf2-4d04-aa56-9569cad79849",
+      "evidence_rank": 1,
+      "latency_ms": 41028.5,
+      "status": "answered",
+      "action": "answer",
+      "answer": "The restocking fee for opened products is 15% [1].\n\nHowever, there is conflicting information regarding the return window; while Passage 1 states opened products can be returned within 14 days with this fee, Passage 5 claims any product can be returned within 60 days for a full refund. The documents do not clarify which policy applies or if the restocking fee still applies under the 60-day window mentioned in Passage 5.",
+      "missing_facts": [],
+      "correct": true,
+      "unsupported": false,
+      "citations": 1,
+      "relevant_citations": 1,
+      "invalid_citations": 0,
+      "generation_ms": 40127.18,
+      "error": null,
+      "decision": null,
+      "reason": null,
+      "score": null,
+      "signals": null,
+      "draft_correct": true
+    },
+    {
+      "id": "q006",
+      "category": "factual",
+      "split": "test",
+      "question": "How long is the warranty on refurbished products?",
+      "expected_action": "answer",
+      "run_id": "c1c79ca6-bdfc-4112-bb43-f9b8ae3951d4",
+      "evidence_rank": 1,
+      "latency_ms": 21196.8,
+      "status": "answered",
+      "action": "answer",
+      "answer": "Refurbished products have a one-year limited warranty [1].",
+      "missing_facts": [],
+      "correct": true,
+      "unsupported": false,
+      "citations": 1,
+      "relevant_citations": 1,
+      "invalid_citations": 0,
+      "generation_ms": 19406.3,
+      "error": null,
+      "decision": null,
+      "reason": null,
+      "score": null,
+      "signals": null,
+      "draft_correct": true
+    },
+    {
+      "id": "q008",
+      "category": "factual",
+      "split": "test",
+      "question": "What is the largest microSD card the QC2 camera supports?",
+      "expected_action": "answer",
+      "run_id": "7e513d94-43b5-4bb3-9ec4-eb5b050f5975",
+      "evidence_rank": 1,
+      "latency_ms": 26925.2,
+      "status": "answered",
+      "action": "answer",
+      "answer": "The QC2 camera supports microSD cards of up to 256 GB [1]. If you encounter error code C-12, ensure you are using a card that is 256 GB or less and formatted as exFAT [3].",
+      "missing_facts": [],
+      "correct": true,
+      "unsupported": false,
+      "citations": 2,
+      "relevant_citations": 1,
+      "invalid_citations": 0,
+      "generation_ms": 26007.65,
+      "error": null,
+      "decision": null,
+      "reason": null,
+      "score": null,
+      "signals": null,
+      "draft_correct": true
+    },
+    {
+      "id": "q010",
+      "category": "factual",
+      "split": "test",
+      "question": "What did firmware version 4.2.1 fix?",
+      "expected_action": "answer",
+      "run_id": "60b85ae2-0f4a-4475-9be5-90ea46ba6ebd",
+      "evidence_rank": 1,
+      "latency_ms": 37431.7,
+      "status": "answered",
+      "action": "answer",
+      "answer": "Firmware version 4.2.1 fixed the issue where devices on the guest network were disconnected every 24 hours [1]. It also improved the stability of satellite nodes after a power cut [1]. The documents do not specify what other issues, if any, this version addressed beyond these two points.",
+      "missing_facts": [],
+      "correct": true,
+      "unsupported": false,
+      "citations": 1,
+      "relevant_citations": 1,
+      "invalid_citations": 0,
+      "generation_ms": 35559.72,
+      "error": null,
+      "decision": null,
+      "reason": null,
+      "score": null,
+      "signals": null,
+      "draft_correct": true
+    },
+    {
+      "id": "q012",
+      "category": "paraphrase",
+      "split": "test",
+      "question": "Can people on my visitor Wi-Fi see my computers and printers?",
+      "expected_action": "answer",
+      "run_id": "a4a0dbb7-158e-4250-a12f-e0bed54002d7",
+      "evidence_rank": 1,
+      "latency_ms": 33269.7,
+      "status": "answered",
+      "action": "answer",
+      "answer": "Yes, devices on your guest network can reach the internet but cannot see devices on your main network [1]. This means they cannot view or access your computers and printers. However, there is a discrepancy in the provided documents regarding the maximum number of devices allowed; one guide states up to 32 devices [1], while another FAQ states up to 16 devices [3].",
+      "missing_facts": [],
+      "correct": true,
+      "unsupported": false,
+      "citations": 2,
+      "relevant_citations": 1,
+      "invalid_citations": 0,
+      "generation_ms": 32146.47,
+      "error": null,
+      "decision": null,
+      "reason": null,
+      "score": null,
+      "signals": null,
+      "draft_correct": true
+    },
+    {
+      "id": "q014",
+      "category": "paraphrase",
+      "split": "test",
+      "question": "Can the indoor camera use my 5 GHz Wi-Fi?",
+      "expected_action": "answer",
+      "run_id": "4bcc188d-9f21-40a9-b436-651a6c678ee7",
+      "evidence_rank": 1,
+      "latency_ms": 25217.9,
+      "status": "answered",
+      "action": "answer",
+      "answer": "No, the Quillon QC2 Indoor Camera cannot join a 5 GHz network; it connects to 2.4 GHz Wi-Fi only [1].",
+      "missing_facts": [],
+      "correct": true,
+      "unsupported": false,
+      "citations": 1,
+      "relevant_citations": 1,
+      "invalid_citations": 0,
+      "generation_ms": 23578.97,
+      "error": null,
+      "decision": null,
+      "reason": null,
+      "score": null,
+      "signals": null,
+      "draft_correct": true
+    },
+    {
+      "id": "q016",
+      "category": "paraphrase",
+      "split": "test",
+      "question": "I switched to a cheaper Secure plan. When does the change kick in?",
+      "expected_action": "answer",
+      "run_id": "2a68689f-8fde-449a-b7d5-6700f4e954d5",
+      "evidence_rank": 1,
+      "latency_ms": 17951.2,
+      "status": "answered",
+      "action": "answer",
+      "answer": "Your downgrade will take effect at the start of your next billing period [1].",
+      "missing_facts": [],
+      "correct": true,
+      "unsupported": false,
+      "citations": 1,
+      "relevant_citations": 1,
+      "invalid_citations": 0,
+      "generation_ms": 17380.18,
+      "error": null,
+      "decision": null,
+      "reason": null,
+      "score": null,
+      "signals": null,
+      "draft_correct": true
+    },
+    {
+      "id": "q018",
+      "category": "paraphrase",
+      "split": "test",
+      "question": "Who pays the postage when I send back something that's broken?",
+      "expected_action": "answer",
+      "run_id": "8f379554-3061-47d6-b4e7-9757926fa5c7",
+      "evidence_rank": 2,
+      "latency_ms": 27681.8,
+      "status": "answered",
+      "action": "answer",
+      "answer": "For defective products, return shipping is free [2]. If the claim is approved under the warranty, we send a replacement and provide a prepaid label for returning the faulty device [1]. For any other return where the product is not defective, the $8.95 cost of the prepaid label is deducted from your refund [2].",
+      "missing_facts": [],
+      "correct": true,
+      "unsupported": false,
+      "citations": 2,
+      "relevant_citations": 1,
+      "invalid_citations": 0,
+      "generation_ms": 27191.33,
+      "error": null,
+      "decision": null,
+      "reason": null,
+      "score": null,
+      "signals": null,
+      "draft_correct": true
+    },
+    {
+      "id": "q020",
+      "category": "identifier",
+      "split": "test",
+      "question": "What does error E-7001 mean?",
+      "expected_action": "answer",
+      "run_id": "b30eb4bd-9ef4-4625-98b4-e95a59e54a20",
+      "evidence_rank": 1,
+      "latency_ms": 34512.1,
+      "status": "answered",
+      "action": "answer",
+      "answer": "Error E-7001 indicates that a firmware update failed its integrity check [1]. The router automatically keeps its previous firmware and will retry the update after 30 minutes. If the update fails three times in a row, you should contact support [1].",
+      "missing_facts": [],
+      "correct": true,
+      "unsupported": false,
+      "citations": 1,
+      "relevant_citations": 1,
+      "invalid_citations": 0,
+      "generation_ms": 33444.74,
+      "error": null,
+      "decision": null,
+      "reason": null,
+      "score": null,
+      "signals": null,
+      "draft_correct": true
+    },
+    {
+      "id": "q022",
+      "category": "identifier",
+      "split": "test",
+      "question": "What should I do about E-101?",
+      "expected_action": "answer",
+      "run_id": "1614f251-c8fc-4074-b734-8a1bc2d0803f",
+      "evidence_rank": 1,
+      "latency_ms": 30695.7,
+      "status": "answered",
+      "action": "answer",
+      "answer": "To resolve error E-101, ensure the Ethernet cable from your modem is plugged into the yellow WAN port instead of a grey LAN port [1].",
+      "missing_facts": [],
+      "correct": true,
+      "unsupported": false,
+      "citations": 1,
+      "relevant_citations": 1,
+      "invalid_citations": 0,
+      "generation_ms": 29071.28,
+      "error": null,
+      "decision": null,
+      "reason": null,
+      "score": null,
+      "signals": null,
+      "draft_correct": true
+    },
+    {
+      "id": "q024",
+      "category": "identifier",
+      "split": "test",
+      "question": "What is error C-44?",
+      "expected_action": "answer",
+      "run_id": "9b16a8f2-a7c4-4045-9299-0a1ed38f3b5f",
+      "evidence_rank": 1,
+      "latency_ms": 30146.0,
+      "status": "answered",
+      "action": "answer",
+      "answer": "Error C-44 indicates that the camera is too far from the router [1]. To fix this, you should move the camera or add a satellite node nearby [1].",
+      "missing_facts": [],
+      "correct": true,
+      "unsupported": false,
+      "citations": 1,
+      "relevant_citations": 1,
+      "invalid_citations": 0,
+      "generation_ms": 28599.49,
+      "error": null,
+      "decision": null,
+      "reason": null,
+      "score": null,
+      "signals": null,
+      "draft_correct": true
+    },
+    {
+      "id": "q026",
+      "category": "identifier",
+      "split": "test",
+      "question": "What changed in firmware 4.1.3?",
+      "expected_action": "answer",
+      "run_id": "09a5bf55-ea51-42df-ad03-c1e9047ee8ce",
+      "evidence_rank": 1,
+      "latency_ms": 21677.7,
+      "status": "answered",
+      "action": "answer",
+      "answer": "In firmware version 4.1.3, the following changes were made:\n*   A problem where the status light stayed amber after the internet connection came back was fixed [1].\n*   Parental controls scheduling was improved [1].",
+      "missing_facts": [],
+      "correct": true,
+      "unsupported": false,
+      "citations": 1,
+      "relevant_citations": 1,
+      "invalid_citations": 0,
+      "generation_ms": 20533.66,
+      "error": null,
+      "decision": null,
+      "reason": null,
+      "score": null,
+      "signals": null,
+      "draft_correct": true
+    },
+    {
+      "id": "q028",
+      "category": "multi_part",
+      "split": "test",
+      "question": "What is the warranty on a new router, and does it cover damage from a power surge?",
+      "expected_action": "answer",
+      "run_id": "9e716a1c-ef65-4731-8bc3-8b6219533358",
+      "evidence_rank": 1,
+      "latency_ms": 18961.6,
+      "status": "answered",
+      "action": "answer",
+      "answer": "New Quillon products have a two-year limited warranty that covers defects in materials and workmanship under normal use [3]. The warranty does not cover damage from power surges [1].",
+      "missing_facts": [],
+      "correct": true,
+      "unsupported": false,
+      "citations": 2,
+      "relevant_citations": 2,
+      "invalid_citations": 0,
+      "generation_ms": 17934.1,
+      "error": null,
+      "decision": null,
+      "reason": null,
+      "score": null,
+      "signals": null,
+      "draft_correct": true
+    },
+    {
+      "id": "q030",
+      "category": "multi_part",
+      "split": "test",
+      "question": "How do I turn on two-step verification, and how many recovery codes do I get?",
+      "expected_action": "answer",
+      "run_id": "2d038642-637a-459c-a798-a29e8ca4e322",
+      "evidence_rank": 1,
+      "latency_ms": 26000.3,
+      "status": "answered",
+      "action": "answer",
+      "answer": "To turn on two-step verification, go to Account, then Security [1]. When you enable it, you will receive 10 one-time recovery codes that you should store somewhere safe [1].",
+      "missing_facts": [],
+      "correct": true,
+      "unsupported": false,
+      "citations": 1,
+      "relevant_citations": 1,
+      "invalid_citations": 0,
+      "generation_ms": 24899.78,
+      "error": null,
+      "decision": null,
+      "reason": null,
+      "score": null,
+      "signals": null,
+      "draft_correct": true
+    },
+    {
+      "id": "q032",
+      "category": "multi_part",
+      "split": "test",
+      "question": "Is there a free trial of Secure Plus, and will I be charged if I cancel before it ends?",
+      "expected_action": "answer",
+      "run_id": "4b629349-f53e-4a61-8bf2-b0fcd93df68c",
+      "evidence_rank": 1,
+      "latency_ms": 23240.3,
+      "status": "answered",
+      "action": "answer",
+      "answer": "Yes, every new Q3 router includes a 30-day free trial of Secure Plus [1]. You will not be charged if you cancel before the trial ends [1].",
+      "missing_facts": [],
+      "correct": true,
+      "unsupported": false,
+      "citations": 1,
+      "relevant_citations": 1,
+      "invalid_citations": 0,
+      "generation_ms": 22770.2,
+      "error": null,
+      "decision": null,
+      "reason": null,
+      "score": null,
+      "signals": null,
+      "draft_correct": true
+    },
+    {
+      "id": "q034",
+      "category": "ambiguous",
+      "split": "test",
+      "question": "How long do I have?",
+      "expected_action": "clarify",
+      "run_id": "981bc353-92bf-4342-9428-23319923d867",
+      "evidence_rank": null,
+      "latency_ms": 22299.9,
+      "status": "answered",
+      "action": "answer",
+      "answer": "You have 60 days to return your Quillon product for a full refund [3]. Refunds are issued to the original payment method within 5 to 7 business days after we receive the returned product [2]. If you are asking about deleting your account, that can be done immediately via the Privacy section of your Account page [4].",
+      "missing_facts": null,
+      "correct": null,
+      "unsupported": true,
+      "citations": 3,
+      "relevant_citations": 0,
+      "invalid_citations": 0,
+      "generation_ms": 21933.19,
+      "error": null,
+      "decision": null,
+      "reason": null,
+      "score": null,
+      "signals": null,
+      "draft_correct": null
+    },
+    {
+      "id": "q036",
+      "category": "ambiguous",
+      "split": "test",
+      "question": "Is it covered?",
+      "expected_action": "clarify",
+      "run_id": "687f5770-fa9f-4b94-ac1d-a2defa5bfeaf",
+      "evidence_rank": null,
+      "latency_ms": 35137.6,
+      "status": "answered",
+      "action": "answer",
+      "answer": "The warranty covers defects in materials and workmanship under normal use for two years on new products or one year on refurbished products [3]. However, the warranty does not cover damage from power surges, water damage, accidents, cosmetic wear, or repairs made by anyone other than Quillon [1]. Additionally, Quillon Secure subscriptions are not covered by this policy [2].",
+      "missing_facts": null,
+      "correct": null,
+      "unsupported": true,
+      "citations": 3,
+      "relevant_citations": 0,
+      "invalid_citations": 0,
+      "generation_ms": 34134.58,
+      "error": null,
+      "decision": null,
+      "reason": null,
+      "score": null,
+      "signals": null,
+      "draft_correct": null
+    },
+    {
+      "id": "q038",
+      "category": "ambiguous",
+      "split": "test",
+      "question": "What does the error code mean?",
+      "expected_action": "clarify",
+      "run_id": "b8108fa3-a861-4385-ac23-b7107f99c109",
+      "evidence_rank": null,
+      "latency_ms": 125976.1,
+      "status": "answered",
+      "action": "answer",
+      "answer": "The specific meaning of an error code depends on which code you are seeing, as different codes indicate different problems [1].\n\n*   **C-12** means the camera does not recognize the microSD card; use a card of 256 GB or less formatted as exFAT [4].\n*   **C-31** means the camera could not upload a recording to the cloud; check that the camera is online and your Quillon Secure plan includes cloud recording [4].\n*   **C-44** means the camera is too far from the router; move the camera or add a satellite node nearby [4].\n*   **E-101** means no WAN cable is detected; ensure the Ethernet cable is plugged into the yellow WAN port, not a grey LAN port [5].\n*   **E-102** means internet login failed due to incorrect PPPoE credentials; re-enter the username and password from your provider [5].\n*   **E-204** means the router did not receive an IP address from the modem; restart the modem, wait two minutes, then restart the router [5].\n*   **E-310** means a satellite node lost its connection to the router; move the node closer and wait five minutes for it to reconnect [5].\n*   **E-4012** means the cooling fan has stopped; turn the router off and contact support for a replacement under warranty [5].\n*   **E-5020** means the power supply is overheating; unplug the router for one hour and ensure vents are not covered [5].\n*   **E-7001** means a firmware update failed its integrity check; the router will retry the update after 30 minutes, or contact support if it fails three times in a row [5].\n\nIf you see a flashing red light on your device, it indicates a hardware fault or a failed firmware update and you should check the error code in the app for more details [2].",
+      "missing_facts": null,
+      "correct": null,
+      "unsupported": true,
+      "citations": 4,
+      "relevant_citations": 0,
+      "invalid_citations": 0,
+      "generation_ms": 124060.67,
+      "error": null,
+      "decision": null,
+      "reason": null,
+      "score": null,
+      "signals": null,
+      "draft_correct": null
+    },
+    {
+      "id": "q040",
+      "category": "conflicting",
+      "split": "test",
+      "question": "How long does it take to get my refund?",
+      "expected_action": "escalate",
+      "run_id": "b350fd4f-2b7d-4e27-888c-a3131f967227",
+      "evidence_rank": 1,
+      "latency_ms": 35115.2,
+      "status": "answered",
+      "action": "answer",
+      "answer": "Refunds can take up to 14 business days to appear on your statement [1]. Refunds are issued to the original payment method within 5 to 7 business days after we receive the returned product [2]. You will receive an email when the refund is issued [2].",
+      "missing_facts": null,
+      "correct": null,
+      "unsupported": true,
+      "citations": 2,
+      "relevant_citations": 2,
+      "invalid_citations": 0,
+      "generation_ms": 34501.9,
+      "error": null,
+      "decision": null,
+      "reason": null,
+      "score": null,
+      "signals": null,
+      "draft_correct": null
+    },
+    {
+      "id": "q042",
+      "category": "conflicting",
+      "split": "test",
+      "question": "How many devices can connect to the guest network at the same time?",
+      "expected_action": "escalate",
+      "run_id": "4fef2c2a-98b6-43e0-8e56-9a47717dc13b",
+      "evidence_rank": 1,
+      "latency_ms": 39103.8,
+      "status": "answered",
+      "action": "answer",
+      "answer": "According to the Help Center FAQ, up to 16 devices can be connected to the guest network at once [1]. However, the Quillon Q3 Mesh Router Setup Guide states that up to 32 devices can use the guest network at the same time [2]. There is a discrepancy between these two documents regarding the specific limit for the Q3 router.",
+      "missing_facts": null,
+      "correct": null,
+      "unsupported": true,
+      "citations": 2,
+      "relevant_citations": 2,
+      "invalid_citations": 0,
+      "generation_ms": 38138.45,
+      "error": null,
+      "decision": null,
+      "reason": null,
+      "score": null,
+      "signals": null,
+      "draft_correct": null
+    },
+    {
+      "id": "q044",
+      "category": "conflicting",
+      "split": "test",
+      "question": "How many days of cloud video history does Secure Plus keep?",
+      "expected_action": "escalate",
+      "run_id": "a88663f0-078b-4c7f-be03-adc33b4ac214",
+      "evidence_rank": 1,
+      "latency_ms": 40776.8,
+      "status": "answered",
+      "action": "answer",
+      "answer": "Secure Plus keeps 14 days of cloud video history [2]. However, the documents state that Secure Family offers 60 days of cloud video history [1], and this information is not available for other plans.",
+      "missing_facts": null,
+      "correct": null,
+      "unsupported": true,
+      "citations": 2,
+      "relevant_citations": 2,
+      "invalid_citations": 0,
+      "generation_ms": 39986.85,
+      "error": null,
+      "decision": null,
+      "reason": null,
+      "score": null,
+      "signals": null,
+      "draft_correct": null
+    },
+    {
+      "id": "q046",
+      "category": "insufficient",
+      "split": "test",
+      "question": "Can I return a router I bought from a third-party retailer to Quillon?",
+      "expected_action": "abstain",
+      "run_id": "8e00334b-aed6-41e6-b713-104dbac7e92b",
+      "evidence_rank": null,
+      "latency_ms": 34666.0,
+      "status": "answered",
+      "action": "answer",
+      "answer": "The documents do not cover returns for products purchased from third-party retailers. They only state that you can return unopened Quillon products within 30 days of delivery [2].",
+      "missing_facts": null,
+      "correct": null,
+      "unsupported": true,
+      "citations": 1,
+      "relevant_citations": 0,
+      "invalid_citations": 0,
+      "generation_ms": 32526.3,
+      "error": null,
+      "decision": null,
+      "reason": null,
+      "score": null,
+      "signals": null,
+      "draft_correct": null
+    },
+    {
+      "id": "q048",
+      "category": "insufficient",
+      "split": "test",
+      "question": "Which internet providers use PPPoE?",
+      "expected_action": "abstain",
+      "run_id": "db836c17-fbca-4761-abc3-202f11925096",
+      "evidence_rank": null,
+      "latency_ms": 39769.4,
+      "status": "answered",
+      "action": "answer",
+      "answer": "The provided documents do not specify which internet providers use PPPoE. They only state that if an internet provider uses PPPoE and rejects the username or password, you should re-enter those credentials under Settings, then Internet [1].",
+      "missing_facts": null,
+      "correct": null,
+      "unsupported": true,
+      "citations": 1,
+      "relevant_citations": 0,
+      "invalid_citations": 0,
+      "generation_ms": 37971.97,
+      "error": null,
+      "decision": null,
+      "reason": null,
+      "score": null,
+      "signals": null,
+      "draft_correct": null
+    },
+    {
+      "id": "q050",
+      "category": "insufficient",
+      "split": "test",
+      "question": "What is the web address of the Quillon status page?",
+      "expected_action": "abstain",
+      "run_id": "e3da6fb4-1093-447f-81b6-399dce9a8351",
+      "evidence_rank": null,
+      "latency_ms": 19084.0,
+      "status": "declined",
+      "action": "abstain",
+      "answer": "I couldn't find this in the knowledge base.",
+      "missing_facts": null,
+      "correct": null,
+      "unsupported": false,
+      "citations": 0,
+      "relevant_citations": 0,
+      "invalid_citations": 0,
+      "generation_ms": 18431.0,
+      "error": null,
+      "decision": null,
+      "reason": null,
+      "score": null,
+      "signals": null,
+      "draft_correct": null
+    },
+    {
+      "id": "q052",
+      "category": "unanswerable",
+      "split": "test",
+      "question": "Can you recommend a good laptop for video editing?",
+      "expected_action": "abstain",
+      "run_id": "e605e242-5bff-481f-80e9-c1ac3aad511d",
+      "evidence_rank": null,
+      "latency_ms": 27151.9,
+      "status": "declined",
+      "action": "abstain",
+      "answer": "I couldn't find this in the knowledge base.",
+      "missing_facts": null,
+      "correct": null,
+      "unsupported": false,
+      "citations": 0,
+      "relevant_citations": 0,
+      "invalid_citations": 0,
+      "generation_ms": 26345.15,
+      "error": null,
+      "decision": null,
+      "reason": null,
+      "score": null,
+      "signals": null,
+      "draft_correct": null
+    },
+    {
+      "id": "q054",
+      "category": "unanswerable",
+      "split": "test",
+      "question": "Who is the CEO of Quillon?",
+      "expected_action": "abstain",
+      "run_id": "deeee8dc-9daa-493d-bad6-ef0356f4c536",
+      "evidence_rank": null,
+      "latency_ms": 24073.2,
+      "status": "declined",
+      "action": "abstain",
+      "answer": "I couldn't find this in the knowledge base.",
+      "missing_facts": null,
+      "correct": null,
+      "unsupported": false,
+      "citations": 0,
+      "relevant_citations": 0,
+      "invalid_citations": 0,
+      "generation_ms": 23278.22,
+      "error": null,
+      "decision": null,
+      "reason": null,
+      "score": null,
+      "signals": null,
+      "draft_correct": null
+    },
+    {
+      "id": "q056",
+      "category": "unanswerable",
+      "split": "test",
+      "question": "What will the weather be in Toronto tomorrow?",
+      "expected_action": "abstain",
+      "run_id": "d961f4e9-1359-489f-a6e6-9b8a38a6b3c8",
+      "evidence_rank": null,
+      "latency_ms": 25824.7,
+      "status": "declined",
+      "action": "abstain",
+      "answer": "I couldn't find this in the knowledge base.",
+      "missing_facts": null,
+      "correct": null,
+      "unsupported": false,
+      "citations": 0,
+      "relevant_citations": 0,
+      "invalid_citations": 0,
+      "generation_ms": 25039.05,
+      "error": null,
+      "decision": null,
+      "reason": null,
+      "score": null,
+      "signals": null,
+      "draft_correct": null
+    },
+    {
+      "id": "q058",
+      "category": "unanswerable",
+      "split": "test",
+      "question": "Does Quillon ship to Antarctica?",
+      "expected_action": "abstain",
+      "run_id": "c35cfbba-1b7e-443f-8647-9192ac023a76",
+      "evidence_rank": null,
+      "latency_ms": 24411.3,
+      "status": "declined",
+      "action": "abstain",
+      "answer": "I couldn't find this in the knowledge base.",
+      "missing_facts": null,
+      "correct": null,
+      "unsupported": false,
+      "citations": 0,
+      "relevant_citations": 0,
+      "invalid_citations": 0,
+      "generation_ms": 23739.2,
+      "error": null,
+      "decision": null,
+      "reason": null,
+      "score": null,
+      "signals": null,
+      "draft_correct": null
+    }
+  ]
+}

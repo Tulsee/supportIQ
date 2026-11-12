@@ -47,4 +47,8 @@ split:
 3. `evaluate --policy assessed --split test --name assessed-test`, and compare it with
    the baseline's test split.
 
-Reports of finished studies are in `reports/`.
+Reports of finished studies are in `reports/`:
+
+- [`quillon-v1-evaluation.md`](reports/quillon-v1-evaluation.md): E1-E6 on the Quillon
+  benchmark v1 (retrieval, decisions, calibration, latency, error analysis and
+  limitations), with the generated comparison tables beside it.

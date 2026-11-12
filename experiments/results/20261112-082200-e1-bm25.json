@@ -1,0 +1,964 @@
+{
+  "name": "e1-bm25",
+  "started_at": "2026-11-12T08:22:00+05:45",
+  "duration_s": 1.7,
+  "dataset": {
+    "name": "quillon_support_v1",
+    "path": "datasets/evaluation_questions/quillon_support_v1.jsonl",
+    "sha256": "7ea28a7a3b2c83f209117f46620a18dc291701fa18364c2c21972074621ad589",
+    "questions": 58,
+    "selection": {
+      "split": "all",
+      "only": null,
+      "limit": null
+    }
+  },
+  "corpus": {
+    "path": "datasets/sample_documents/quillon",
+    "organization_id": "cbd80992-cf36-4f4b-b930-6436eff1fb75",
+    "documents": [
+      {
+        "file": "account-and-security.md",
+        "sha256": "1ba7a4cb878e3c7640958cba2509b0b0bc83b2182cbaefc8e02f7fa086478b5f",
+        "title": "Your Quillon Account",
+        "chunks": 5
+      },
+      {
+        "file": "contacting-support.md",
+        "sha256": "1c573443b42e5eb34ee07fd7788d25b429c966ebcda31248d2eb789b651fc84f",
+        "title": "Contacting Quillon Support",
+        "chunks": 5
+      },
+      {
+        "file": "error-codes-reference.md",
+        "sha256": "1c92e69979d4ed7899cab6d262b21147361440d6835ef73c0839bee7912fcf3f",
+        "title": "Error Codes Reference",
+        "chunks": 3
+      },
+      {
+        "file": "firmware-release-notes.md",
+        "sha256": "6ca81268b7af8694692ce8d24e88d8b03c11b9bac188d580559c09c1788cc452",
+        "title": "Q3 Firmware Release Notes",
+        "chunks": 5
+      },
+      {
+        "file": "help-center-faq.md",
+        "sha256": "1d36601bd6616c8712de2a34b39189183e8daaee5b036facaf3c5e6259bfba63",
+        "title": "Help Center: Frequently Asked Questions",
+        "chunks": 6
+      },
+      {
+        "file": "q3-router-setup-guide.md",
+        "sha256": "44e0277da260ecac5f4923aed7d35e2cd15b8bd7abc3474df1ab2dde8ec995a1",
+        "title": "Quillon Q3 Mesh Router: Setup Guide",
+        "chunks": 9
+      },
+      {
+        "file": "qc2-camera-guide.md",
+        "sha256": "595994a1bc2a16b116161b377a95752eca5f96b0f6b0c32d1f1c384c8fda1722",
+        "title": "Quillon QC2 Indoor Camera: User Guide",
+        "chunks": 6
+      },
+      {
+        "file": "quillon-secure-plans.md",
+        "sha256": "f24feb19415e1ca88f81c4a8dda26f42cba7cd25eb2a673784c20de4ef97d58f",
+        "title": "Quillon Secure Plans",
+        "chunks": 5
+      },
+      {
+        "file": "returns-and-refunds-policy.md",
+        "sha256": "d8e9f6172190af18f3b30830a04f377db4f3362e67e91882972bc50da85fe780",
+        "title": "Returns and Refunds Policy",
+        "chunks": 5
+      },
+      {
+        "file": "warranty-policy.md",
+        "sha256": "0ebb0e8454cbfc0c9377b5c60e560de0ff34f34ca9e461495f3778c15b74d561",
+        "title": "Limited Warranty",
+        "chunks": 4
+      }
+    ]
+  },
+  "pipeline": {
+    "mode": "retrieval",
+    "policy": null,
+    "thresholds": null,
+    "strategy": "sparse",
+    "rerank": false,
+    "top_k": 5,
+    "embedding_model": "BAAI/bge-small-en-v1.5",
+    "reranker_model": null,
+    "chunking": {
+      "size_tokens": 480,
+      "overlap_tokens": 72
+    },
+    "retrieval": {
+      "sparse_top_k": 20,
+      "dense_top_k": 20,
+      "rrf_k": 60,
+      "rerank_candidates": 20,
+      "bm25": {
+        "k1": 1.2,
+        "b": 0.75
+      }
+    },
+    "llm": null
+  },
+  "environment": {
+    "git": {
+      "commit": "259fd1b1c20d3c9438facafa0f012ad57838701a",
+      "dirty": false
+    },
+    "python": "3.12.10",
+    "platform": "Windows-11-10.0.26300-SP0",
+    "cpus": 8,
+    "packages": {
+      "fastembed": "0.9.1",
+      "onnxruntime": "1.31.1",
+      "qdrant-client": "1.20.0",
+      "anthropic": "2.8.0",
+      "httpx2": "2.16.0",
+      "sqlalchemy": "2.1.8"
+    }
+  },
+  "metrics": {
+    "overall": {
+      "questions": 58,
+      "retrieval": {
+        "questions": 32,
+        "hit@5": {
+          "value": 0.9688,
+          "successes": 31,
+          "n": 32,
+          "ci95": [
+            0.8426,
+            0.9945
+          ]
+        },
+        "recall@5": 0.9688,
+        "mrr@10": 0.8917,
+        "ndcg@10": 0.8746
+      },
+      "latency": {
+        "p50_ms": 4.3,
+        "p95_ms": 6.6,
+        "generation_p50_ms": null,
+        "generation_p95_ms": null
+      }
+    },
+    "by_split": {
+      "dev": {
+        "questions": 29,
+        "retrieval": {
+          "questions": 16,
+          "hit@5": {
+            "value": 1.0,
+            "successes": 16,
+            "n": 16,
+            "ci95": [
+              0.8064,
+              1.0
+            ]
+          },
+          "recall@5": 1.0,
+          "mrr@10": 0.8771,
+          "ndcg@10": 0.8832
+        },
+        "latency": {
+          "p50_ms": 4.5,
+          "p95_ms": 6.6,
+          "generation_p50_ms": null,
+          "generation_p95_ms": null
+        }
+      },
+      "test": {
+        "questions": 29,
+        "retrieval": {
+          "questions": 16,
+          "hit@5": {
+            "value": 0.9375,
+            "successes": 15,
+            "n": 16,
+            "ci95": [
+              0.7167,
+              0.9889
+            ]
+          },
+          "recall@5": 0.9375,
+          "mrr@10": 0.9062,
+          "ndcg@10": 0.8661
+        },
+        "latency": {
+          "p50_ms": 4.2,
+          "p95_ms": 6.2,
+          "generation_p50_ms": null,
+          "generation_p95_ms": null
+        }
+      }
+    },
+    "by_category": {
+      "factual": {
+        "questions": 10,
+        "retrieval": {
+          "questions": 10,
+          "hit@5": {
+            "value": 1.0,
+            "successes": 10,
+            "n": 10,
+            "ci95": [
+              0.7225,
+              1.0
+            ]
+          },
+          "recall@5": 1.0,
+          "mrr@10": 1.0,
+          "ndcg@10": 1.0
+        },
+        "latency": {
+          "p50_ms": 5.4,
+          "p95_ms": 12.1,
+          "generation_p50_ms": null,
+          "generation_p95_ms": null
+        }
+      },
+      "paraphrase": {
+        "questions": 8,
+        "retrieval": {
+          "questions": 8,
+          "hit@5": {
+            "value": 0.875,
+            "successes": 7,
+            "n": 8,
+            "ci95": [
+              0.5291,
+              0.9776
+            ]
+          },
+          "recall@5": 0.875,
+          "mrr@10": 0.6917,
+          "ndcg@10": 0.7359
+        },
+        "latency": {
+          "p50_ms": 4.4,
+          "p95_ms": 4.8,
+          "generation_p50_ms": null,
+          "generation_p95_ms": null
+        }
+      },
+      "identifier": {
+        "questions": 8,
+        "retrieval": {
+          "questions": 8,
+          "hit@5": {
+            "value": 1.0,
+            "successes": 8,
+            "n": 8,
+            "ci95": [
+              0.6756,
+              1.0
+            ]
+          },
+          "recall@5": 1.0,
+          "mrr@10": 0.9375,
+          "ndcg@10": 0.9539
+        },
+        "latency": {
+          "p50_ms": 4.3,
+          "p95_ms": 5.3,
+          "generation_p50_ms": null,
+          "generation_p95_ms": null
+        }
+      },
+      "multi_part": {
+        "questions": 6,
+        "retrieval": {
+          "questions": 6,
+          "hit@5": {
+            "value": 1.0,
+            "successes": 6,
+            "n": 6,
+            "ci95": [
+              0.6097,
+              1.0
+            ]
+          },
+          "recall@5": 1.0,
+          "mrr@10": 0.9167,
+          "ndcg@10": 0.7451
+        },
+        "latency": {
+          "p50_ms": 4.3,
+          "p95_ms": 4.9,
+          "generation_p50_ms": null,
+          "generation_p95_ms": null
+        }
+      },
+      "ambiguous": {
+        "questions": 6,
+        "retrieval": {
+          "questions": 0,
+          "hit@5": {
+            "value": null,
+            "successes": 0,
+            "n": 0,
+            "ci95": null
+          },
+          "recall@5": null,
+          "mrr@10": null,
+          "ndcg@10": null
+        },
+        "latency": {
+          "p50_ms": 3.9,
+          "p95_ms": 5.6,
+          "generation_p50_ms": null,
+          "generation_p95_ms": null
+        }
+      },
+      "conflicting": {
+        "questions": 6,
+        "retrieval": {
+          "questions": 0,
+          "hit@5": {
+            "value": null,
+            "successes": 0,
+            "n": 0,
+            "ci95": null
+          },
+          "recall@5": null,
+          "mrr@10": null,
+          "ndcg@10": null
+        },
+        "latency": {
+          "p50_ms": 4.1,
+          "p95_ms": 5.1,
+          "generation_p50_ms": null,
+          "generation_p95_ms": null
+        }
+      },
+      "insufficient": {
+        "questions": 6,
+        "retrieval": {
+          "questions": 0,
+          "hit@5": {
+            "value": null,
+            "successes": 0,
+            "n": 0,
+            "ci95": null
+          },
+          "recall@5": null,
+          "mrr@10": null,
+          "ndcg@10": null
+        },
+        "latency": {
+          "p50_ms": 5.0,
+          "p95_ms": 6.2,
+          "generation_p50_ms": null,
+          "generation_p95_ms": null
+        }
+      },
+      "unanswerable": {
+        "questions": 8,
+        "retrieval": {
+          "questions": 0,
+          "hit@5": {
+            "value": null,
+            "successes": 0,
+            "n": 0,
+            "ci95": null
+          },
+          "recall@5": null,
+          "mrr@10": null,
+          "ndcg@10": null
+        },
+        "latency": {
+          "p50_ms": 3.0,
+          "p95_ms": 4.1,
+          "generation_p50_ms": null,
+          "generation_p95_ms": null
+        }
+      }
+    }
+  },
+  "questions": [
+    {
+      "id": "q001",
+      "category": "factual",
+      "split": "dev",
+      "question": "What does a solid amber light on the Q3 router mean?",
+      "expected_action": "answer",
+      "run_id": "c3482c9c-91da-40b6-8a01-64c41ba212a4",
+      "evidence_rank": 1,
+      "latency_ms": 15.0
+    },
+    {
+      "id": "q002",
+      "category": "factual",
+      "split": "test",
+      "question": "How long is the password reset link valid?",
+      "expected_action": "answer",
+      "run_id": "04db3942-5416-46b2-970c-2d6ee13b8555",
+      "evidence_rank": 1,
+      "latency_ms": 5.8
+    },
+    {
+      "id": "q003",
+      "category": "factual",
+      "split": "dev",
+      "question": "How many satellite nodes can a Q3 network have?",
+      "expected_action": "answer",
+      "run_id": "29a1279c-6c05-47c0-815e-c8b6ad607227",
+      "evidence_rank": 1,
+      "latency_ms": 4.5
+    },
+    {
+      "id": "q004",
+      "category": "factual",
+      "split": "test",
+      "question": "What is the restocking fee for opened products?",
+      "expected_action": "answer",
+      "run_id": "c09ac789-e8d9-46b1-8651-596151149720",
+      "evidence_rank": 1,
+      "latency_ms": 4.5
+    },
+    {
+      "id": "q005",
+      "category": "factual",
+      "split": "dev",
+      "question": "How much does Secure Family cost?",
+      "expected_action": "answer",
+      "run_id": "5e3a3e4b-3746-4a8e-87b4-2104b7341902",
+      "evidence_rank": 1,
+      "latency_ms": 5.4
+    },
+    {
+      "id": "q006",
+      "category": "factual",
+      "split": "test",
+      "question": "How long is the warranty on refurbished products?",
+      "expected_action": "answer",
+      "run_id": "a65a7c5d-67ff-4958-aebf-c371e21a2385",
+      "evidence_rank": 1,
+      "latency_ms": 8.6
+    },
+    {
+      "id": "q007",
+      "category": "factual",
+      "split": "dev",
+      "question": "How far does the QC2 camera's night vision reach?",
+      "expected_action": "answer",
+      "run_id": "f1aefada-50bd-4305-a446-a301042b545e",
+      "evidence_rank": 1,
+      "latency_ms": 7.1
+    },
+    {
+      "id": "q008",
+      "category": "factual",
+      "split": "test",
+      "question": "What is the largest microSD card the QC2 camera supports?",
+      "expected_action": "answer",
+      "run_id": "0970f2e0-47dc-4455-a4e4-1ec1788679d8",
+      "evidence_rank": 1,
+      "latency_ms": 4.2
+    },
+    {
+      "id": "q009",
+      "category": "factual",
+      "split": "dev",
+      "question": "How many household members can the account owner invite?",
+      "expected_action": "answer",
+      "run_id": "c1ca1dd6-ef16-495b-8b17-edf2b2fb0f71",
+      "evidence_rank": 1,
+      "latency_ms": 5.5
+    },
+    {
+      "id": "q010",
+      "category": "factual",
+      "split": "test",
+      "question": "What did firmware version 4.2.1 fix?",
+      "expected_action": "answer",
+      "run_id": "e5d5bfb2-cafd-4d2b-88fb-0b5d044b64cd",
+      "evidence_rank": 1,
+      "latency_ms": 4.4
+    },
+    {
+      "id": "q011",
+      "category": "paraphrase",
+      "split": "dev",
+      "question": "My router's light keeps blinking red. What's going on?",
+      "expected_action": "answer",
+      "run_id": "d6a2e697-05d1-4171-b69d-9d444d0c068b",
+      "evidence_rank": 1,
+      "latency_ms": 4.2
+    },
+    {
+      "id": "q012",
+      "category": "paraphrase",
+      "split": "test",
+      "question": "Can people on my visitor Wi-Fi see my computers and printers?",
+      "expected_action": "answer",
+      "run_id": "b5ac9a84-fcf6-45cd-b2d5-edc351098656",
+      "evidence_rank": 1,
+      "latency_ms": 4.5
+    },
+    {
+      "id": "q013",
+      "category": "paraphrase",
+      "split": "dev",
+      "question": "If I close my Quillon account, how soon is my camera footage removed?",
+      "expected_action": "answer",
+      "run_id": "856ee9fc-c72f-4bec-b9a4-6286f3b4feba",
+      "evidence_rank": 5,
+      "latency_ms": 4.3
+    },
+    {
+      "id": "q014",
+      "category": "paraphrase",
+      "split": "test",
+      "question": "Can the indoor camera use my 5 GHz Wi-Fi?",
+      "expected_action": "answer",
+      "run_id": "598ddfca-c1b2-4a6e-b0c5-5613d8e6e297",
+      "evidence_rank": 1,
+      "latency_ms": 4.6
+    },
+    {
+      "id": "q015",
+      "category": "paraphrase",
+      "split": "dev",
+      "question": "How do I wipe everything on my mesh router and start over?",
+      "expected_action": "answer",
+      "run_id": "bece5a60-fe94-4374-8362-22cd9a498395",
+      "evidence_rank": 3,
+      "latency_ms": 5.0
+    },
+    {
+      "id": "q016",
+      "category": "paraphrase",
+      "split": "test",
+      "question": "I switched to a cheaper Secure plan. When does the change kick in?",
+      "expected_action": "answer",
+      "run_id": "671dfab0-e16a-4674-b102-8e7d0f8865b7",
+      "evidence_rank": 1,
+      "latency_ms": 4.0
+    },
+    {
+      "id": "q017",
+      "category": "paraphrase",
+      "split": "dev",
+      "question": "Will I lose my settings if I just power cycle the router?",
+      "expected_action": "answer",
+      "run_id": "124e6493-e1d4-444a-abbd-4adeba9a804b",
+      "evidence_rank": 1,
+      "latency_ms": 3.9
+    },
+    {
+      "id": "q018",
+      "category": "paraphrase",
+      "split": "test",
+      "question": "Who pays the postage when I send back something that's broken?",
+      "expected_action": "answer",
+      "run_id": "14b3f78c-e7cc-420c-b7e5-0b0ed99a02f2",
+      "evidence_rank": null,
+      "latency_ms": 4.6
+    },
+    {
+      "id": "q019",
+      "category": "identifier",
+      "split": "dev",
+      "question": "E-204",
+      "expected_action": "answer",
+      "run_id": "de5f4858-7f2c-4cf6-a8dc-c04a4a0495cf",
+      "evidence_rank": 1,
+      "latency_ms": 5.4
+    },
+    {
+      "id": "q020",
+      "category": "identifier",
+      "split": "test",
+      "question": "What does error E-7001 mean?",
+      "expected_action": "answer",
+      "run_id": "f49003fc-5f36-4fa3-8f6d-a27c699ffca2",
+      "evidence_rank": 2,
+      "latency_ms": 5.3
+    },
+    {
+      "id": "q021",
+      "category": "identifier",
+      "split": "dev",
+      "question": "C-12 on my camera",
+      "expected_action": "answer",
+      "run_id": "6e1180d1-a81c-43c5-b43b-a30e527176e2",
+      "evidence_rank": 1,
+      "latency_ms": 3.6
+    },
+    {
+      "id": "q022",
+      "category": "identifier",
+      "split": "test",
+      "question": "What should I do about E-101?",
+      "expected_action": "answer",
+      "run_id": "db3c02d0-663f-42c0-b040-fc161ff46b03",
+      "evidence_rank": 1,
+      "latency_ms": 3.6
+    },
+    {
+      "id": "q023",
+      "category": "identifier",
+      "split": "dev",
+      "question": "How do I fix E-102?",
+      "expected_action": "answer",
+      "run_id": "1581ca28-fc65-42f6-a779-71e073796f87",
+      "evidence_rank": 1,
+      "latency_ms": 4.4
+    },
+    {
+      "id": "q024",
+      "category": "identifier",
+      "split": "test",
+      "question": "What is error C-44?",
+      "expected_action": "answer",
+      "run_id": "6f54a8e2-21f7-4736-9c7f-9167d9683b3e",
+      "evidence_rank": 1,
+      "latency_ms": 3.6
+    },
+    {
+      "id": "q025",
+      "category": "identifier",
+      "split": "dev",
+      "question": "What's included in Secure Basic?",
+      "expected_action": "answer",
+      "run_id": "f3bb2bb8-8717-4386-bed3-9541d2bff651",
+      "evidence_rank": 1,
+      "latency_ms": 4.7
+    },
+    {
+      "id": "q026",
+      "category": "identifier",
+      "split": "test",
+      "question": "What changed in firmware 4.1.3?",
+      "expected_action": "answer",
+      "run_id": "f423bd40-a0b2-409b-a2ac-7d9ccedf4674",
+      "evidence_rank": 1,
+      "latency_ms": 4.2
+    },
+    {
+      "id": "q027",
+      "category": "multi_part",
+      "split": "dev",
+      "question": "How much is Secure Plus, and how many cameras does its cloud video cover?",
+      "expected_action": "answer",
+      "run_id": "33def8db-bce2-4675-ad07-00970a7992cc",
+      "evidence_rank": 2,
+      "latency_ms": 4.4
+    },
+    {
+      "id": "q028",
+      "category": "multi_part",
+      "split": "test",
+      "question": "What is the warranty on a new router, and does it cover damage from a power surge?",
+      "expected_action": "answer",
+      "run_id": "a0708dc8-7d81-4c41-9492-5470e20e2173",
+      "evidence_rank": 1,
+      "latency_ms": 4.2
+    },
+    {
+      "id": "q029",
+      "category": "multi_part",
+      "split": "dev",
+      "question": "How do I start a return, and who pays for the shipping label if the item isn't defective?",
+      "expected_action": "answer",
+      "run_id": "cf0b8d28-37f7-4175-ad89-13e9a70544cb",
+      "evidence_rank": 1,
+      "latency_ms": 4.1
+    },
+    {
+      "id": "q030",
+      "category": "multi_part",
+      "split": "test",
+      "question": "How do I turn on two-step verification, and how many recovery codes do I get?",
+      "expected_action": "answer",
+      "run_id": "4988a7ac-9a09-4b27-94b4-ac05914b2c3c",
+      "evidence_rank": 1,
+      "latency_ms": 4.1
+    },
+    {
+      "id": "q031",
+      "category": "multi_part",
+      "split": "dev",
+      "question": "What do I need for a warranty claim, and can Secure Family subscribers get a replacement before sending the faulty one back?",
+      "expected_action": "answer",
+      "run_id": "3ac23b92-3f9b-447d-920d-fd65543e3c5f",
+      "evidence_rank": 1,
+      "latency_ms": 4.5
+    },
+    {
+      "id": "q032",
+      "category": "multi_part",
+      "split": "test",
+      "question": "Is there a free trial of Secure Plus, and will I be charged if I cancel before it ends?",
+      "expected_action": "answer",
+      "run_id": "62f23c00-c6fb-4f5d-a3f5-b90099eb1f18",
+      "evidence_rank": 1,
+      "latency_ms": 5.0
+    },
+    {
+      "id": "q033",
+      "category": "ambiguous",
+      "split": "dev",
+      "question": "How do I reset it?",
+      "expected_action": "clarify",
+      "run_id": "51942b45-9351-4562-aa70-3121969f6907",
+      "evidence_rank": 1,
+      "latency_ms": 6.0
+    },
+    {
+      "id": "q034",
+      "category": "ambiguous",
+      "split": "test",
+      "question": "How long do I have?",
+      "expected_action": "clarify",
+      "run_id": "86e5b190-48ad-4eaf-a35d-5ab30fb729b1",
+      "evidence_rank": null,
+      "latency_ms": 4.0
+    },
+    {
+      "id": "q035",
+      "category": "ambiguous",
+      "split": "dev",
+      "question": "How many devices are supported?",
+      "expected_action": "clarify",
+      "run_id": "dc2be6d8-9b0c-4b7d-95a4-cf478378b4e7",
+      "evidence_rank": null,
+      "latency_ms": 4.6
+    },
+    {
+      "id": "q036",
+      "category": "ambiguous",
+      "split": "test",
+      "question": "Is it covered?",
+      "expected_action": "clarify",
+      "run_id": "bfc8a8e5-b024-4f8d-9090-24fb840efbdd",
+      "evidence_rank": null,
+      "latency_ms": 3.7
+    },
+    {
+      "id": "q037",
+      "category": "ambiguous",
+      "split": "dev",
+      "question": "How much does it cost?",
+      "expected_action": "clarify",
+      "run_id": "8350ceaf-16b6-43f7-9dff-51b7becf6911",
+      "evidence_rank": null,
+      "latency_ms": 3.5
+    },
+    {
+      "id": "q038",
+      "category": "ambiguous",
+      "split": "test",
+      "question": "What does the error code mean?",
+      "expected_action": "clarify",
+      "run_id": "c7648f0c-77d4-4b5d-81e2-33551d7b6d31",
+      "evidence_rank": null,
+      "latency_ms": 3.8
+    },
+    {
+      "id": "q039",
+      "category": "conflicting",
+      "split": "dev",
+      "question": "How many days do I have to return an unopened router for a full refund?",
+      "expected_action": "escalate",
+      "run_id": "aeeaa02a-0747-42af-9f3f-3ee1dcff5c3e",
+      "evidence_rank": 1,
+      "latency_ms": 4.5
+    },
+    {
+      "id": "q040",
+      "category": "conflicting",
+      "split": "test",
+      "question": "How long does it take to get my refund?",
+      "expected_action": "escalate",
+      "run_id": "37c5e0ce-5b26-4aff-89e2-c95db70bc60f",
+      "evidence_rank": 1,
+      "latency_ms": 3.8
+    },
+    {
+      "id": "q041",
+      "category": "conflicting",
+      "split": "dev",
+      "question": "What are your phone support hours?",
+      "expected_action": "escalate",
+      "run_id": "35fd579b-20ee-4470-a052-fdba85271ac0",
+      "evidence_rank": 1,
+      "latency_ms": 5.3
+    },
+    {
+      "id": "q042",
+      "category": "conflicting",
+      "split": "test",
+      "question": "How many devices can connect to the guest network at the same time?",
+      "expected_action": "escalate",
+      "run_id": "f8724959-c93a-4125-b0a2-43adc572d0d8",
+      "evidence_rank": 1,
+      "latency_ms": 4.0
+    },
+    {
+      "id": "q043",
+      "category": "conflicting",
+      "split": "dev",
+      "question": "What time do automatic firmware updates install on the Q3?",
+      "expected_action": "escalate",
+      "run_id": "59792313-0145-4d44-a853-1e2491dee461",
+      "evidence_rank": 1,
+      "latency_ms": 4.2
+    },
+    {
+      "id": "q044",
+      "category": "conflicting",
+      "split": "test",
+      "question": "How many days of cloud video history does Secure Plus keep?",
+      "expected_action": "escalate",
+      "run_id": "e0da6f5e-aa0f-4e70-8bae-8c5cdf7019f6",
+      "evidence_rank": 1,
+      "latency_ms": 4.1
+    },
+    {
+      "id": "q045",
+      "category": "insufficient",
+      "split": "dev",
+      "question": "What is the maximum Wi-Fi speed of the Q3 router in Mbps?",
+      "expected_action": "abstain",
+      "run_id": "81eb916e-c70b-4629-82af-11dec3119c24",
+      "evidence_rank": null,
+      "latency_ms": 5.0
+    },
+    {
+      "id": "q046",
+      "category": "insufficient",
+      "split": "test",
+      "question": "Can I return a router I bought from a third-party retailer to Quillon?",
+      "expected_action": "abstain",
+      "run_id": "b3e18f75-02e1-4c40-8204-7baadff97e9a",
+      "evidence_rank": null,
+      "latency_ms": 6.5
+    },
+    {
+      "id": "q047",
+      "category": "insufficient",
+      "split": "dev",
+      "question": "How long does the QC2 keep recordings on the microSD card before overwriting them?",
+      "expected_action": "abstain",
+      "run_id": "434ea1f4-03d3-4d96-aaa5-bb259757c751",
+      "evidence_rank": null,
+      "latency_ms": 5.3
+    },
+    {
+      "id": "q048",
+      "category": "insufficient",
+      "split": "test",
+      "question": "Which internet providers use PPPoE?",
+      "expected_action": "abstain",
+      "run_id": "1f6a3c77-e425-4617-8e65-cd7f22746ad1",
+      "evidence_rank": null,
+      "latency_ms": 5.0
+    },
+    {
+      "id": "q049",
+      "category": "insufficient",
+      "split": "dev",
+      "question": "How do I set up port forwarding on the Q3?",
+      "expected_action": "abstain",
+      "run_id": "41836e97-9bcc-4863-80e5-0dd037d2d69b",
+      "evidence_rank": null,
+      "latency_ms": 3.9
+    },
+    {
+      "id": "q050",
+      "category": "insufficient",
+      "split": "test",
+      "question": "What is the web address of the Quillon status page?",
+      "expected_action": "abstain",
+      "run_id": "405d3a05-0800-4745-bcf7-446e778a67d0",
+      "evidence_rank": null,
+      "latency_ms": 4.2
+    },
+    {
+      "id": "q051",
+      "category": "unanswerable",
+      "split": "dev",
+      "question": "What is the capital of Australia?",
+      "expected_action": "abstain",
+      "run_id": "4b230763-f851-42b4-933b-f2dba8e7fec8",
+      "evidence_rank": null,
+      "latency_ms": 2.4
+    },
+    {
+      "id": "q052",
+      "category": "unanswerable",
+      "split": "test",
+      "question": "Can you recommend a good laptop for video editing?",
+      "expected_action": "abstain",
+      "run_id": "5fb12356-e2aa-4cb9-b015-43db3370c3f1",
+      "evidence_rank": null,
+      "latency_ms": 4.0
+    },
+    {
+      "id": "q053",
+      "category": "unanswerable",
+      "split": "dev",
+      "question": "How do I bake sourdough bread?",
+      "expected_action": "abstain",
+      "run_id": "e902a67c-d529-42ed-8069-75ee91351d77",
+      "evidence_rank": null,
+      "latency_ms": 1.4
+    },
+    {
+      "id": "q054",
+      "category": "unanswerable",
+      "split": "test",
+      "question": "Who is the CEO of Quillon?",
+      "expected_action": "abstain",
+      "run_id": "ff9aec07-49bb-4841-b660-c240f9db038f",
+      "evidence_rank": null,
+      "latency_ms": 3.7
+    },
+    {
+      "id": "q055",
+      "category": "unanswerable",
+      "split": "dev",
+      "question": "Is the Q3 router compatible with Apple HomeKit?",
+      "expected_action": "abstain",
+      "run_id": "a8f3a478-13af-4c27-b9af-003714234c5a",
+      "evidence_rank": null,
+      "latency_ms": 4.1
+    },
+    {
+      "id": "q056",
+      "category": "unanswerable",
+      "split": "test",
+      "question": "What will the weather be in Toronto tomorrow?",
+      "expected_action": "abstain",
+      "run_id": "3e44655f-47f9-4b83-b35e-c46f39038830",
+      "evidence_rank": null,
+      "latency_ms": 1.5
+    },
+    {
+      "id": "q057",
+      "category": "unanswerable",
+      "split": "dev",
+      "question": "Translate 'good morning' into French.",
+      "expected_action": "abstain",
+      "run_id": "2430f0b0-147e-4bdf-a558-a0f30c4ee807",
+      "evidence_rank": null,
+      "latency_ms": 1.4
+    },
+    {
+      "id": "q058",
+      "category": "unanswerable",
+      "split": "test",
+      "question": "Does Quillon ship to Antarctica?",
+      "expected_action": "abstain",
+      "run_id": "ee262f95-c4a6-4885-9618-76cf4e38139e",
+      "evidence_rank": null,
+      "latency_ms": 3.8
+    }
+  ]
+}
