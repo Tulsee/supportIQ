@@ -42,6 +42,7 @@ class TicketCreate(BaseModel):
     priority: TicketPriority | None = Field(default=None, description="Staff only.")
     assignee_id: uuid.UUID | None = Field(default=None, description="Staff only.")
     category_id: uuid.UUID | None = Field(default=None, description="Staff only.")
+    team_id: uuid.UUID | None = Field(default=None, description="Staff only.")
 
 
 class TicketUpdate(BaseModel):
@@ -55,11 +56,19 @@ class TicketUpdate(BaseModel):
     category_id: uuid.UUID | None = Field(
         default=None, description="An active category of the organization; null clears it."
     )
+    team_id: uuid.UUID | None = Field(
+        default=None, description="An active team of the organization; null clears it."
+    )
 
 
 class CategorySummary(BaseModel):
     id: uuid.UUID
     key: str
+    name: str
+
+
+class TeamSummary(BaseModel):
+    id: uuid.UUID
     name: str
 
 
@@ -72,6 +81,7 @@ class TicketRead(BaseModel):
     customer: CustomerSummary
     assignee: PersonSummary | None
     category: CategorySummary | None = Field(description="Staff only; null for customers.")
+    team: TeamSummary | None = Field(description="Staff only; null for customers.")
     allowed_statuses: list[TicketStatus] = Field(
         description="Statuses this ticket can move to next (lifecycle rules)."
     )
@@ -97,6 +107,7 @@ class TicketRead(BaseModel):
                 if ticket.category
                 else None
             ),
+            team=TeamSummary(id=ticket.team.id, name=ticket.team.name) if ticket.team else None,
             allowed_statuses=allowed_statuses,
             created_at=ticket.created_at,
             updated_at=ticket.updated_at,

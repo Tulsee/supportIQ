@@ -1,6 +1,6 @@
 # SLA management and automated ticket routing
 
-**Status:** planned (Module 10 in the [implementation plan](../../IMPLEMENTATION_PLAN.MD#15-phase-2-feature-roadmap)).
+**Status:** in progress: phases 1-5 done, routing next (Module 10 in the [implementation plan](../../IMPLEMENTATION_PLAN.MD#15-phase-2-feature-roadmap)).
 **Source:** the feature plan "SupportIQ - SLA Management & Automated Ticket Routing",
 adapted to this repository after its Phase 0 audit (12 November 2026). Where this
 document and the original differ, this one records the deviation and the reason.
@@ -44,7 +44,8 @@ LLM-chosen assignees, workforce scheduling, cross-tenant assignment.
 | Clocks unique per ticket and type | Unique per ticket, type **and cycle** | A reopened ticket starts a new resolution cycle without rewriting the first (decision 7) |
 | Calendar referenced by ID only | Clocks store a `calendar_snapshot` (time zone, hours, holidays) | Deadlines are recomputed on resume and priority change; using the calendar *as it was* keeps history reproducible when an admin edits hours later |
 | `SCREAMING_CASE` error codes | Lowercase snake case (`sla_policy_not_found`, `routing_rule_invalid`, `agent_not_eligible`, `assignment_conflict`) in the existing `{"error": {...}}` shape | Repository convention |
-| Separate presence heartbeat endpoint | The app's existing ticket WebSocket refreshes a Redis key (`presence:{org}:{user}`, 90 s TTL); the agent's chosen status lives in the database | No extra polling; a closed tab expires on its own |
+| Separate presence heartbeat endpoint | The app's existing ticket WebSocket marks staff as seen (on connect, then every 30 s) in one Redis sorted set per organization (`supportiq:presence:{org}`, user → last seen); seen within 90 s = online. The agent's chosen status lives in the database | No extra polling; a closed tab expires on its own; two tabs don't undo each other; one read lists everyone online |
+| SLA alerts: resolution at risk to the assignee *and* team leads; breaches to leads *and* admins | The same rule for both clocks: due soon to the assignee, or the escalation contacts if unassigned; breach to the assignee and the escalation contacts. Escalation contacts = the leads of the ticket's active team, else the admins | Leads replace admins rather than adding to them, so admins aren't paged for every team's tickets; admins still hear about tickets nobody leads |
 | Durable job outbox | Ticket and its clocks commit together; the routing job is enqueued after commit; a beat task routes `open` tickets with no decision after 2 minutes | Same reliability with the existing patterns |
 | Team lead organization role | `team_members.role` = `member` or `lead` | Avoids changing organization RBAC |
 
@@ -148,13 +149,17 @@ real-time events go out after commit; their failure never rolls back a state cha
 | --- | --- |
 | `ticket_categories` | `key`, `name`, `description`, `is_active`; `tickets.category_id` (nullable) |
 | `teams` | `name`, `description`, `is_active`; `tickets.team_id` (nullable) |
-| `team_members` | `team_id`, `user_id`, `role` (`member`, `lead`), `is_active`; unique (team, user) |
-| `agent_profiles` | `user_id`, `status` (`available`, `busy`, `away`, `offline`), `max_active_tickets` (default 10), `last_assigned_at` |
+| `team_members` | `team_id`, `user_id`, `role` (`member`, `lead`); unique (team, user). Removed rather than deactivated (the audit log keeps the history) |
+| `agent_profiles` | `user_id`, `status` (`available`, `busy`, `away`), `status_changed_at`, `max_active_tickets` (default 10, 0-200; 0 = no automatic assignments); `last_assigned_at` comes with routing (phase 6). No row = the defaults |
 | `agent_skills` | `user_id`, `skill` (slug), `level` (1-5); unique (organization, user, skill) |
 
-**Eligible** = staff member of the organization, active member of the target team,
-status `available`, presence key fresh in Redis, every required skill at or above its
-level, and active workload (decision 4) below capacity.
+**Eligible** = staff member of the organization, member of the (active) target team,
+status `available`, online (seen in the last 90 seconds), every required skill at or
+above its level, and active workload (decision 4) below capacity.
+
+`offline` is not a status anyone chooses: it's what the app shows when someone has no
+open connection. Teams have case-insensitive unique names. Someone who leaves the
+organization, or becomes a customer, loses their team memberships, skills and profile.
 
 ### Rules
 
@@ -200,9 +205,11 @@ Same conventions as today: `/api/v1`, `X-Organization-Id`, staff-only unless sta
 | `GET /tickets/{id}/sla` | Clocks, pauses, states | staff |
 | `POST /tickets/{id}/sla/pause`, `.../resume` | Manual pause | admin |
 | `GET/POST /categories`, `PATCH /categories/{id}` | Categories | admin |
-| `GET/POST /teams`, `PATCH /teams/{id}`, `PUT /teams/{id}/members` | Teams | admin |
-| `GET/PUT /agents/{user_id}/profile` | Capacity and skills | admin |
-| `PUT /me/presence` | Own status | staff |
+| `GET/POST /teams`, `PATCH /teams/{id}`, `PUT /teams/{id}/members` | Teams (GET: staff) | admin |
+| `GET /agents` | Staff with status, presence, workload, skills and teams | staff |
+| `PUT /agents/{user_id}/profile` | Capacity and skills | admin |
+| `GET /agents/me`, `PUT /agents/me/presence` | Own status | staff |
+| `PATCH /tickets/{id}` with `team_id`, `GET /tickets?team_id=` | A ticket's team | staff |
 | `GET/POST /routing/rules`, `PATCH /routing/rules/{id}`, `PUT /routing/rules/order` | Rules | admin |
 | `POST /routing/simulate` | Dry run | admin |
 | `GET /tickets/{id}/routing` | Decisions and explanation | staff |
@@ -270,7 +277,7 @@ Everything in the plan's section 15, plus:
 | 2 | SLA configuration: calendars, policies, business-time calculator and its tests, seed defaults (done) | 2-3 days |
 | 3 | Ticket clocks: lifecycle hooks, pauses, cycles, `GET /tickets/{id}/sla`, first-response analytics fix (done, with the ticket's SLA panel) | 2-3 days |
 | 4 | Monitoring: evaluator, notifications, escalation, timeline events (done; admins stand in for team leads until phase 5; compliance in analytics brought forward from phase 8) | 2 days |
-| 5 | Teams, members, agent profiles, skills, presence | 2-3 days |
+| 5 | Teams, members, agent profiles, skills, presence (done, with a team on each ticket, team leads as SLA escalation contacts and a status switch in the user menu) | 2-3 days |
 | 6 | Routing: rules, engine, jobs and sweep, decisions, reroute, simulator | 3-4 days |
 | 7 | Front end: settings, queue and ticket panels, bell, presence | 4-5 days |
 | 8 | Analytics, load and concurrency tests, docs, screenshots, demo data | 2-3 days |

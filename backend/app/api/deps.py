@@ -47,6 +47,7 @@ from app.repositories.organizations import OrganizationRepository
 from app.repositories.users import UserRepository
 from app.services.notifications import NotificationService
 from app.websocket.broker import EventBroker, RedisEventBroker
+from app.websocket.presence import PresenceTracker, RedisPresence
 from app.workers.heartbeat import RedisWorkerRegistry, WorkerRegistry
 from app.workers.queue import (
     CeleryIngestionQueue,
@@ -70,6 +71,10 @@ def get_client_ip(request: Request) -> str:
 
 def get_event_broker() -> EventBroker:
     return RedisEventBroker(get_redis())
+
+
+def get_presence() -> PresenceTracker:
+    return RedisPresence(get_redis())
 
 
 def get_ingestion_queue() -> IngestionQueue:
@@ -106,6 +111,7 @@ def get_vector_store(embedder: Annotated[Embedder, Depends(get_embedder_dep)]) -
 
 RateLimiterDep = Annotated[RateLimiter, Depends(get_rate_limiter)]
 EventBrokerDep = Annotated[EventBroker, Depends(get_event_broker)]
+PresenceDep = Annotated[PresenceTracker, Depends(get_presence)]
 StorageDep = Annotated[ObjectStorage, Depends(get_object_storage)]
 IngestionQueueDep = Annotated[IngestionQueue, Depends(get_ingestion_queue)]
 NotificationMailerDep = Annotated[NotificationMailer, Depends(get_notification_mailer)]

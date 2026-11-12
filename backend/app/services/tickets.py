@@ -26,6 +26,7 @@ from app.models import (
     MessageAuthorType,
     NotificationKind,
     OrganizationMember,
+    Team,
     Ticket,
     TicketCategory,
     TicketEvent,
@@ -73,6 +74,10 @@ def _person(user: User | None) -> dict[str, str] | None:
 
 def _category(category: TicketCategory | None) -> dict[str, str] | None:
     return {"id": str(category.id), "name": category.name} if category else None
+
+
+def _team(team: Team | None) -> dict[str, str] | None:
+    return {"id": str(team.id), "name": team.name} if team else None
 
 
 def is_staff(member: OrganizationMember) -> bool:
@@ -129,7 +134,9 @@ class TicketService:
     ) -> tuple[list[Ticket], int]:
         if not is_staff(member):
             # Customers only ever see their own tickets (RLS enforces this too).
-            filters = replace(filters, only_for_user_id=user.id, assignee=None)
+            filters = replace(
+                filters, only_for_user_id=user.id, assignee=None, category_id=None, team_id=None
+            )
         return await self.tickets.find(
             member.organization_id, filters, current_user_id=user.id, limit=limit, offset=offset
         )
@@ -185,7 +192,13 @@ class TicketService:
                 raise AppError("Customer not found in this organization", code="invalid_customer")
             author_type = MessageAuthorType.AGENT
         else:
-            if data.customer_id or data.priority or data.assignee_id or data.category_id:
+            if (
+                data.customer_id
+                or data.priority
+                or data.assignee_id
+                or data.category_id
+                or data.team_id
+            ):
                 raise PermissionDeniedError("Customers can only set a ticket's subject and message")
             customer = await CustomerService(self.session).ensure_for_member(member, user)
             author_type = MessageAuthorType.CUSTOMER
@@ -204,6 +217,7 @@ class TicketService:
         ticket.customer = customer
         ticket.assignee = None
         ticket.category = None
+        ticket.team = None
         message = TicketMessage(
             organization_id=member.organization_id,
             author_id=user.id,
@@ -216,6 +230,8 @@ class TicketService:
         self._record(ticket, user.id, TicketEventType.CREATED, {})
         if data.category_id is not None:
             await self._set_category(ticket, user.id, data.category_id)
+        if data.team_id is not None:
+            await self._set_team(ticket, user.id, data.team_id)
         if data.assignee_id is not None:
             await self._assign(ticket, user.id, data.assignee_id)
         await self.sla.start(ticket)
@@ -257,6 +273,8 @@ class TicketService:
             await self._assign(ticket, user.id, data.assignee_id)
         if "category_id" in fields:
             await self._set_category(ticket, user.id, data.category_id)
+        if "team_id" in fields:
+            await self._set_team(ticket, user.id, data.team_id)
         if "status" in fields and data.status is not None and data.status != ticket.status:
             await self._transition(ticket, user.id, data.status)
 
@@ -367,6 +385,25 @@ class TicketService:
             actor_id,
             TicketEventType.CATEGORY_CHANGED,
             {"from": _category(previous), "to": _category(category)},
+        )
+
+    async def _set_team(
+        self, ticket: Ticket, actor_id: uuid.UUID | None, team_id: uuid.UUID | None
+    ) -> None:
+        if team_id == ticket.team_id:
+            return
+        team = None
+        if team_id is not None:
+            team = await self.session.get(Team, team_id)
+            if team is None or team.organization_id != ticket.organization_id or not team.is_active:
+                raise AppError("Choose an active team of this organization", code="invalid_team")
+        previous = ticket.team
+        ticket.team = team
+        self._record(
+            ticket,
+            actor_id,
+            TicketEventType.TEAM_CHANGED,
+            {"from": _team(previous), "to": _team(team)},
         )
 
     async def _notify_reply(self, ticket: Ticket, message: TicketMessage, author: User) -> None:

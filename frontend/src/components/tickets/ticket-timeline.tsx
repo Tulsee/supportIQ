@@ -44,6 +44,14 @@ function describe(event: TicketEvent, audience: "staff" | "customer", byMe: bool
       const from = data.from as Person;
       return from ? `unassigned ${from.name}` : "unassigned the ticket";
     }
+    case "team_changed": {
+      const to = data.to as { name: string } | null;
+      const from = data.from as { name: string } | null;
+      if (!to) return from ? `took the ticket off the ${from.name} team` : "cleared the team";
+      return from
+        ? `moved the ticket from the ${from.name} team to ${to.name}`
+        : `gave the ticket to the ${to.name} team`;
+    }
     case "category_changed": {
       const to = data.to as { name: string } | null;
       const from = data.from as { name: string } | null;

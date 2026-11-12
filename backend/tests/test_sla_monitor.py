@@ -12,7 +12,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.sla_monitor import evaluate_sla_clocks
 from app.websocket.broker import InMemoryEventBroker
-from tests.factories import API, RecordingMailer, Workspace, create_ticket, in_org
+from tests.factories import (
+    API,
+    Outbox,
+    RecordingMailer,
+    Workspace,
+    add_member,
+    create_ticket,
+    create_user,
+    in_org,
+)
 
 pytestmark = pytest.mark.anyio
 
@@ -114,6 +123,61 @@ async def test_unassigned_tickets_alert_the_admins(
         ("sla_at_risk", f"First response due soon on #{ticket['number']}")
     ]
     assert await notices(api, ws, ws.agent) == []
+
+
+async def test_team_leads_replace_the_admins(
+    api: httpx2.AsyncClient,
+    ws: Workspace,
+    sla: None,
+    db_session: AsyncSession,
+    outbox: Outbox,
+) -> None:
+    lead = await create_user(api, full_name="Lena Lead")
+    await add_member(api, outbox, ws.admin, ws.org_id, lead, "agent")
+    admin = in_org(ws.admin, ws.org_id)
+    led = (await api.post(f"{API}/teams", json={"name": "Billing"}, headers=admin)).json()
+    await api.put(
+        f"{API}/teams/{led['id']}/members",
+        json={"members": [{"user_id": lead.id, "role": "lead"}, {"user_id": ws.agent.id}]},
+        headers=admin,
+    )
+    leaderless = (await api.post(f"{API}/teams", json={"name": "Returns"}, headers=admin)).json()
+    tickets = {}
+    for name, team in (("led", led), ("leaderless", leaderless)):
+        tickets[name] = await create_ticket(api, ws.customer, ws.org_id, subject=name)
+        await api.patch(
+            f"{API}/tickets/{tickets[name]['id']}", json={"team_id": team["id"]}, headers=admin
+        )
+
+    await evaluate_sla_clocks(db_session, now=at(2026, 11, 16, 12, 5))
+    led_number, other_number = tickets["led"]["number"], tickets["leaderless"]["number"]
+    assert await notices(api, ws, lead) == [
+        ("sla_at_risk", f"First response due soon on #{led_number}")
+    ]
+    assert await notices(api, ws, ws.agent) == []  # team members aren't alerted
+    # No lead: the admins stand in.
+    assert await notices(api, ws, ws.admin) == [
+        ("sla_at_risk", f"First response due soon on #{other_number}")
+    ]
+
+    # Assigned: the assignee and the lead hear about the breach, not the admins.
+    await api.patch(
+        f"{API}/tickets/{tickets['led']['id']}", json={"assignee_id": ws.agent.id}, headers=admin
+    )
+    await evaluate_sla_clocks(db_session, now=at(2026, 11, 16, 13, 5))
+    breach = ("sla_breached", f"SLA breached: first response on #{led_number}")
+    assert (await notices(api, ws, lead))[0] == breach
+    assert (await notices(api, ws, ws.agent))[0] == breach
+    assert breach not in await notices(api, ws, ws.admin)
+
+    # Once the team is deactivated, its tickets go back to the admins.
+    late = await create_ticket(api, ws.customer, ws.org_id, subject="late")
+    await api.patch(f"{API}/tickets/{late['id']}", json={"team_id": led["id"]}, headers=admin)
+    await api.patch(f"{API}/teams/{led['id']}", json={"is_active": False}, headers=admin)
+    await evaluate_sla_clocks(db_session, now=at(2026, 11, 16, 13, 10))
+    late_alerts = [n for n in await notices(api, ws, ws.admin) if f"#{late['number']}" in n[1]]
+    assert late_alerts == [("sla_breached", f"SLA breached: first response on #{late['number']}")]
+    assert not [n for n in await notices(api, ws, lead) if f"#{late['number']}" in n[1]]
 
 
 async def test_met_and_paused_clocks_are_left_alone(

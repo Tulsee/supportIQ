@@ -46,6 +46,8 @@ export const AUDIT_ENTITY_LABELS = {
   document: "Documents",
   category: "Categories",
   sla: "Service levels",
+  team: "Teams",
+  agent: "Agents",
 } as const;
 
 export type AuditEntityType = keyof typeof AUDIT_ENTITY_LABELS;

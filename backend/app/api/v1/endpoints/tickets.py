@@ -61,6 +61,7 @@ async def list_tickets(
     ] = None,
     customer_id: uuid.UUID | None = None,
     category_id: Annotated[uuid.UUID | None, Query(description="Staff only.")] = None,
+    team_id: Annotated[uuid.UUID | None, Query(description="Staff only.")] = None,
     search: Annotated[
         str | None,
         Query(
@@ -78,6 +79,7 @@ async def list_tickets(
         assignee=assignee,
         customer_id=customer_id,
         category_id=category_id,
+        team_id=team_id,
         search=search.strip() if search and search.strip() else None,
         sort=sort,
     )

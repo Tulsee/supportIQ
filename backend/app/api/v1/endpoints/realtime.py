@@ -19,6 +19,9 @@ Protocol:
 Staff receive every event of the organization. Customers receive only events on
 their own tickets, and never staff-only ones (internal notes, assignment changes).
 ``notification.created`` goes only to its recipient, on the organization-wide socket.
+
+A staff member's open socket also keeps them "online" (see
+``app/websocket/presence.py``): marked when it's ready, then every 30 seconds.
 """
 
 import asyncio
@@ -33,14 +36,16 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import DbSession, EventBrokerDep
+from app.api.deps import DbSession, EventBrokerDep, PresenceDep
 from app.core.database import set_rls_context
 from app.core.security import InvalidTokenError, decode_access_claims, utcnow
 from app.repositories.organizations import OrganizationRepository
 from app.repositories.tickets import TicketRepository
 from app.repositories.users import UserRepository
 from app.services.authorization import STAFF_ROLES
+from app.websocket import presence as presence_settings
 from app.websocket.broker import EventBroker, TicketEvent
+from app.websocket.presence import PresenceTracker
 
 router = APIRouter(prefix="/ws", tags=["realtime"])
 
@@ -116,9 +121,17 @@ async def _authenticate(
 
 
 async def _pump(
-    websocket: WebSocket, events: AsyncIterator[TicketEvent], subscriber: Subscriber
+    websocket: WebSocket,
+    events: AsyncIterator[TicketEvent],
+    subscriber: Subscriber,
+    presence: PresenceTracker,
 ) -> bool:
     """Forward events until the client leaves (False) or its token expires (True)."""
+
+    async def stay_present() -> None:
+        while True:
+            await anyio.sleep(presence_settings.REFRESH_SECONDS)
+            await presence.touch(subscriber.organization_id, subscriber.user_id)
 
     async def forward() -> None:
         try:
@@ -142,11 +155,17 @@ async def _pump(
 
             tasks.start_soon(then_stop, forward)
             tasks.start_soon(then_stop, until_client_leaves)
+            if subscriber.staff:
+                tasks.start_soon(stay_present)
     return deadline.cancelled_caught
 
 
 async def _serve(
-    websocket: WebSocket, session: AsyncSession, broker: EventBroker, ticket_id: uuid.UUID | None
+    websocket: WebSocket,
+    session: AsyncSession,
+    broker: EventBroker,
+    presence: PresenceTracker,
+    ticket_id: uuid.UUID | None,
 ) -> None:
     await websocket.accept()
     try:
@@ -163,21 +182,27 @@ async def _serve(
 
     # Subscribe before announcing "ready", so nothing published after it is missed.
     async with broker.subscribe(subscriber.organization_id) as events:
+        if subscriber.staff:
+            await presence.touch(subscriber.organization_id, subscriber.user_id)
         await websocket.send_json({"type": "ready"})
-        expired = await _pump(websocket, events, subscriber)
+        expired = await _pump(websocket, events, subscriber, presence)
     if expired:
         await websocket.close(code=CLOSE_UNAUTHORIZED, reason="Access token expired")
 
 
 @router.websocket("/tickets")
 async def organization_tickets(
-    websocket: WebSocket, session: DbSession, broker: EventBrokerDep
+    websocket: WebSocket, session: DbSession, broker: EventBrokerDep, presence: PresenceDep
 ) -> None:
-    await _serve(websocket, session, broker, ticket_id=None)
+    await _serve(websocket, session, broker, presence, ticket_id=None)
 
 
 @router.websocket("/tickets/{ticket_id}")
 async def single_ticket(
-    ticket_id: uuid.UUID, websocket: WebSocket, session: DbSession, broker: EventBrokerDep
+    ticket_id: uuid.UUID,
+    websocket: WebSocket,
+    session: DbSession,
+    broker: EventBrokerDep,
+    presence: PresenceDep,
 ) -> None:
-    await _serve(websocket, session, broker, ticket_id=ticket_id)
+    await _serve(websocket, session, broker, presence, ticket_id=ticket_id)

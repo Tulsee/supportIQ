@@ -46,6 +46,7 @@ from app.api.deps import (
     get_llm_client_dep,
     get_nli_model_dep,
     get_notification_mailer,
+    get_presence,
     get_rate_limiter,
     get_reranker_dep,
     get_vector_store,
@@ -59,6 +60,7 @@ from app.core.storage import LocalObjectStorage, get_object_storage
 from app.main import app
 from app.services.ingestion import IngestionService, Outcome
 from app.websocket.broker import InMemoryEventBroker
+from app.websocket.presence import InMemoryPresence
 from tests.factories import (
     TEST_INGESTION_LIMITS,
     Outbox,
@@ -168,6 +170,12 @@ def broker() -> InMemoryEventBroker:
     return InMemoryEventBroker()
 
 
+@pytest.fixture
+def presence() -> InMemoryPresence:
+    """Who's online, kept in the test process (no Redis)."""
+    return InMemoryPresence()
+
+
 # --- Knowledge base: in-process stand-ins for storage, embeddings, Qdrant, the queue --
 
 
@@ -253,6 +261,7 @@ def make_client(
     rate_limiter: InMemoryRateLimiter,
     outbox: Outbox,
     broker: InMemoryEventBroker,
+    presence: InMemoryPresence,
     storage: LocalObjectStorage,
     embedder: HashingEmbedder,
     vector_store: QdrantVectorStore,
@@ -282,6 +291,7 @@ def make_client(
             get_rate_limiter: lambda: rate_limiter,
             get_email_sender: lambda: outbox,
             get_event_broker: lambda: broker,
+            get_presence: lambda: presence,
             get_object_storage: lambda: storage,
             get_embedder_dep: lambda: embedder,
             get_vector_store: lambda: vector_store,

@@ -39,6 +39,15 @@ from app.models.sla import (
     TicketSlaClock,
     TicketSlaPause,
 )
+from app.models.team import (
+    DEFAULT_MAX_ACTIVE_TICKETS,
+    AgentProfile,
+    AgentSkill,
+    AgentStatus,
+    Team,
+    TeamMember,
+    TeamRole,
+)
 from app.models.ticket import (
     CUSTOMER_VISIBLE_EVENTS,
     MessageAuthorType,
@@ -56,11 +65,15 @@ from app.models.user import User
 __all__ = [
     "ACTIVE_INGESTION",
     "CUSTOMER_VISIBLE_EVENTS",
+    "DEFAULT_MAX_ACTIVE_TICKETS",
     "AIAnswer",
     "AIDecision",
     "AIFeedback",
     "AIRun",
     "AIRunKind",
+    "AgentProfile",
+    "AgentSkill",
+    "AgentStatus",
     "AnswerStatus",
     "AuditLogEntry",
     "Base",
@@ -88,6 +101,9 @@ __all__ = [
     "SlaClockKind",
     "SlaClockState",
     "SlaPolicy",
+    "Team",
+    "TeamMember",
+    "TeamRole",
     "Ticket",
     "TicketCategory",
     "TicketCounter",

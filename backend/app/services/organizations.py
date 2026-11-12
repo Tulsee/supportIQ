@@ -20,6 +20,7 @@ from app.schemas.organizations import (
 )
 from app.services import audit
 from app.services.authorization import STAFF_ROLES, require_role
+from app.services.teams import forget_agent
 from app.services.tickets import TicketService
 
 SLUG_TAKEN = "Organization slug is already taken"
@@ -126,8 +127,9 @@ class OrganizationService:
         if member.role == OrgRole.ADMIN and data.role != OrgRole.ADMIN:
             await self._ensure_not_last_admin(actor.organization_id)
         if member.role in STAFF_ROLES and data.role not in STAFF_ROLES:
-            # Only staff can own tickets.
+            # Only staff can own tickets, belong to teams or have skills.
             await TicketService(self.session).unassign_member(actor, member.user_id)
+            await forget_agent(self.session, actor.organization_id, member.user_id)
         if member.role != data.role:
             await audit.record(
                 self.session,
@@ -151,6 +153,7 @@ class OrganizationService:
         # Before the membership goes: the actor may be removing themselves, and
         # only staff may update tickets.
         await TicketService(self.session).unassign_member(actor, member.user_id)
+        await forget_agent(self.session, actor.organization_id, member.user_id)
         await audit.record(
             self.session,
             organization_id=actor.organization_id,

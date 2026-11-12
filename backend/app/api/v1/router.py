@@ -16,6 +16,7 @@ from app.api.v1.endpoints import (
     organizations,
     realtime,
     sla,
+    teams,
     ticket_ai,
     tickets,
     users,
@@ -32,6 +33,8 @@ api_router.include_router(customers.router)
 api_router.include_router(tickets.router)
 api_router.include_router(categories.router)
 api_router.include_router(sla.router)
+api_router.include_router(teams.router)
+api_router.include_router(teams.agents_router)
 api_router.include_router(ticket_ai.router)
 api_router.include_router(documents.router)
 api_router.include_router(ai.router)

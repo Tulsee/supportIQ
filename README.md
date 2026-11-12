@@ -44,7 +44,11 @@ a labelled benchmark measures how well it works.
   and first-response and resolution targets per priority, counted in business time.
   Each ticket shows its clocks: time left, due soon, breached, paused while waiting
   for the customer, and a new cycle when it's reopened. A monitor flags deadlines that
-  are near or missed, notifies the assignee and admins, and analytics report compliance.
+  are near or missed, notifies the assignee and the ticket's team leads (admins when
+  there's no lead), and analytics report compliance.
+- **Teams and agents.** Teams with members and leads, a capacity limit and skills
+  (levels 1 to 5) per agent, and each agent's status (available, busy or away) with
+  presence that follows their open app. The groundwork for automatic routing.
 - **Notifications and audit log.** A live notification bell (assignments, customer
   replies, AI escalations, and replies to customers), optional email per kind, and an
   append-only log of administrative changes.

@@ -44,6 +44,7 @@ class TicketFilters:
     assignee: Literal["me", "unassigned"] | uuid.UUID | None = None
     customer_id: uuid.UUID | None = None
     category_id: uuid.UUID | None = None
+    team_id: uuid.UUID | None = None
     search: str | None = None
     sort: TicketSortKey = "-updated_at"
     # Customers: restrict to the customer records linked to this user.
@@ -105,6 +106,7 @@ class TicketRepository:
                 joinedload(Ticket.customer),
                 joinedload(Ticket.assignee),
                 joinedload(Ticket.category),
+                joinedload(Ticket.team),
             )
             .where(Ticket.id == ticket_id, Ticket.organization_id == organization_id)
         )
@@ -139,6 +141,8 @@ class TicketRepository:
             conditions.append(Ticket.customer_id == filters.customer_id)
         if filters.category_id:
             conditions.append(Ticket.category_id == filters.category_id)
+        if filters.team_id:
+            conditions.append(Ticket.team_id == filters.team_id)
         if filters.search:
             conditions.append(_search_condition(filters.search))
         return conditions
@@ -165,6 +169,7 @@ class TicketRepository:
                 joinedload(Ticket.customer),
                 joinedload(Ticket.assignee),
                 joinedload(Ticket.category),
+                joinedload(Ticket.team),
             )
             .where(*conditions)
             .order_by(*order, Ticket.id)
@@ -206,6 +211,7 @@ class TicketRepository:
                 joinedload(Ticket.customer),
                 joinedload(Ticket.assignee),
                 joinedload(Ticket.category),
+                joinedload(Ticket.team),
             )
             .where(
                 Ticket.organization_id == organization_id,

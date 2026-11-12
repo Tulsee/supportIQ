@@ -57,6 +57,7 @@ async def auto_close_resolved(
                     joinedload(Ticket.customer),
                     joinedload(Ticket.assignee),
                     joinedload(Ticket.category),
+                    joinedload(Ticket.team),
                 )
                 .order_by(Ticket.resolved_at)
                 .limit(batch)

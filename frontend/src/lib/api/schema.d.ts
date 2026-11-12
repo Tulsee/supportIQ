@@ -709,6 +709,139 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/teams": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List teams with their members */
+        get: operations["list_teams_api_v1_teams_get"];
+        put?: never;
+        /**
+         * Add a team (admin)
+         * @description 409 `team_exists` if the name is taken in this organization (ignoring case).
+         */
+        post: operations["create_team_api_v1_teams_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/teams/{team_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Rename, describe or (de)activate a team (admin) */
+        patch: operations["update_team_api_v1_teams__team_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/teams/{team_id}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set a team's members and leads (admin)
+         * @description Replaces the whole membership. 400 `invalid_team_member` if someone isn't an
+         *     admin or agent of the organization.
+         */
+        put: operations["set_team_members_api_v1_teams__team_id__members_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List admins and agents with status, workload and skills */
+        get: operations["list_agents_api_v1_agents_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agents/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Your own status, workload and skills */
+        get: operations["get_me_api_v1_agents_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agents/me/presence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set your status: available, busy or away
+         * @description Routing only picks agents who are available and have the app open.
+         */
+        put: operations["set_presence_api_v1_agents_me_presence_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/agents/{user_id}/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set an agent's capacity and skills (admin)
+         * @description 404 `agent_not_found` if the user isn't an admin or agent of the organization.
+         */
+        put: operations["update_agent_profile_api_v1_agents__user_id__profile_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/tickets/{ticket_id}/ai/suggestion": {
         parameters: {
             query?: never;
@@ -1370,6 +1503,91 @@ export interface components {
             is_active?: boolean | null;
             /** Is Superadmin */
             is_superadmin?: boolean | null;
+        };
+        /**
+         * AgentProfileUpdate
+         * @description Only the fields provided are changed; ``skills`` replaces the whole list.
+         */
+        AgentProfileUpdate: {
+            /**
+             * Max Active Tickets
+             * @description Tickets assigned or in progress before routing skips this agent (0: no automatic assignments; manual assignment still works).
+             */
+            max_active_tickets?: number | null;
+            /** Skills */
+            skills?: components["schemas"]["SkillLevel-Input"][] | null;
+        };
+        /**
+         * AgentRead
+         * @description A staff member as routing sees them.
+         */
+        AgentRead: {
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Full Name */
+            full_name: string;
+            /** Email */
+            email: string;
+            /** @description Their role in the organization (admin or agent). */
+            role: components["schemas"]["OrgRole"];
+            /** @description What they said they're doing. */
+            status: components["schemas"]["AgentStatus"];
+            /** Status Changed At */
+            status_changed_at: string | null;
+            /**
+             * Online
+             * @description Has the app open (seen in the last 90 seconds).
+             */
+            online: boolean;
+            /**
+             * Last Seen At
+             * @description Only while online.
+             */
+            last_seen_at: string | null;
+            /**
+             * Presence
+             * @description `status` while online, otherwise `offline`.
+             * @enum {string}
+             */
+            presence: "available" | "busy" | "away" | "offline";
+            /** Max Active Tickets */
+            max_active_tickets: number;
+            /**
+             * Active Tickets
+             * @description Assigned to them and assigned or in progress.
+             */
+            active_tickets: number;
+            /**
+             * Skills
+             * @description By skill name.
+             */
+            skills: components["schemas"]["SkillLevel-Output"][];
+            /**
+             * Teams
+             * @description Active teams only.
+             */
+            teams: components["schemas"]["AgentTeam"][];
+        };
+        /**
+         * AgentStatus
+         * @description What the agent says they're doing. Whether they're online at all comes from
+         *     their open connection to the app (see ``app.websocket.presence``).
+         * @enum {string}
+         */
+        AgentStatus: "available" | "busy" | "away";
+        /** AgentTeam */
+        AgentTeam: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            role: components["schemas"]["TeamRole"];
         };
         /** AnswerRead */
         AnswerRead: {
@@ -2753,6 +2971,10 @@ export interface components {
             /** Is Active */
             is_active?: boolean | null;
         };
+        /** PresenceUpdate */
+        PresenceUpdate: {
+            status: components["schemas"]["AgentStatus"];
+        };
         /** ReadinessResponse */
         ReadinessResponse: {
             /**
@@ -2841,6 +3063,32 @@ export interface components {
             document: components["schemas"]["DocumentSummary"] | null;
             /** @description The passage; null if it has been replaced by a re-index since the run. */
             chunk: components["schemas"]["ChunkRead"] | null;
+        };
+        /** SkillLevel */
+        "SkillLevel-Input": {
+            /**
+             * Skill
+             * @description A short slug such as `refunds` (lower case).
+             */
+            skill: string;
+            /**
+             * Level
+             * @description 1 = basic, 5 = expert.
+             */
+            level: number;
+        };
+        /** SkillLevel */
+        "SkillLevel-Output": {
+            /**
+             * Skill
+             * @description A short slug such as `refunds` (lower case).
+             */
+            skill: string;
+            /**
+             * Level
+             * @description 1 = basic, 5 = expert.
+             */
+            level: number;
         };
         /**
          * SlaClockKind
@@ -3008,6 +3256,101 @@ export interface components {
             /** Score */
             score: number;
         };
+        /** TeamCreate */
+        TeamCreate: {
+            /**
+             * Name
+             * @description Unique in the organization, ignoring case.
+             */
+            name: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+        };
+        /** TeamMemberIn */
+        TeamMemberIn: {
+            /**
+             * User Id
+             * Format: uuid
+             * @description An admin or agent of the organization.
+             */
+            user_id: string;
+            /**
+             * @description Leads also receive the team's SLA alerts.
+             * @default member
+             */
+            role: components["schemas"]["TeamRole"];
+        };
+        /** TeamMemberRead */
+        TeamMemberRead: {
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Full Name */
+            full_name: string;
+            /** Email */
+            email: string;
+            role: components["schemas"]["TeamRole"];
+        };
+        /**
+         * TeamMembersUpdate
+         * @description The team's complete membership: people left out are removed.
+         */
+        TeamMembersUpdate: {
+            /** Members */
+            members: components["schemas"]["TeamMemberIn"][];
+        };
+        /** TeamRead */
+        TeamRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description: string;
+            /** Is Active */
+            is_active: boolean;
+            /**
+             * Members
+             * @description Leads first, then by name.
+             */
+            members: components["schemas"]["TeamMemberRead"][];
+        };
+        /**
+         * TeamRole
+         * @enum {string}
+         */
+        TeamRole: "member" | "lead";
+        /** TeamSummary */
+        TeamSummary: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+        };
+        /**
+         * TeamUpdate
+         * @description Only the fields provided are changed. Deactivate instead of deleting: tickets
+         *     keep their team, and members are kept for when it's reactivated.
+         */
+        TeamUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Is Active */
+            is_active?: boolean | null;
+        };
         /** TicketAIRead */
         TicketAIRead: {
             /** @description The newest reply suggestion. */
@@ -3058,12 +3401,17 @@ export interface components {
              * @description Staff only.
              */
             category_id?: string | null;
+            /**
+             * Team Id
+             * @description Staff only.
+             */
+            team_id?: string | null;
         };
         /**
          * TicketEventType
          * @enum {string}
          */
-        TicketEventType: "created" | "status_changed" | "priority_changed" | "subject_changed" | "assigned" | "unassigned" | "ai_escalated" | "category_changed" | "sla_at_risk" | "sla_breached";
+        TicketEventType: "created" | "status_changed" | "priority_changed" | "subject_changed" | "assigned" | "unassigned" | "ai_escalated" | "category_changed" | "sla_at_risk" | "sla_breached" | "team_changed";
         /**
          * TicketPriority
          * @enum {string}
@@ -3089,6 +3437,8 @@ export interface components {
             assignee: components["schemas"]["PersonSummary"] | null;
             /** @description Staff only; null for customers. */
             category: components["schemas"]["CategorySummary"] | null;
+            /** @description Staff only; null for customers. */
+            team: components["schemas"]["TeamSummary"] | null;
             /**
              * Allowed Statuses
              * @description Statuses this ticket can move to next (lifecycle rules).
@@ -3169,6 +3519,11 @@ export interface components {
              * @description An active category of the organization; null clears it.
              */
             category_id?: string | null;
+            /**
+             * Team Id
+             * @description An active team of the organization; null clears it.
+             */
+            team_id?: string | null;
         };
         /** TokenResponse */
         TokenResponse: {
@@ -4930,6 +5285,8 @@ export interface operations {
                 customer_id?: string | null;
                 /** @description Staff only. */
                 category_id?: string | null;
+                /** @description Staff only. */
+                team_id?: string | null;
                 /** @description Ticket number (#42), customer name or email, or words in the subject or messages. */
                 search?: string | null;
                 sort?: "-updated_at" | "-created_at" | "created_at" | "-priority";
@@ -6577,6 +6934,543 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_teams_api_v1_teams_get: {
+        parameters: {
+            query?: {
+                /** @description Also deactivated ones. */
+                include_inactive?: boolean;
+            };
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamRead"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    create_team_api_v1_teams_post: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TeamCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    update_team_api_v1_teams__team_id__patch: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path: {
+                team_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TeamUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    set_team_members_api_v1_teams__team_id__members_put: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path: {
+                team_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TeamMembersUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_agents_api_v1_agents_get: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRead"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_me_api_v1_agents_me_get: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    set_presence_api_v1_agents_me_presence_put: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PresenceUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    update_agent_profile_api_v1_agents__user_id__profile_put: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AgentProfileUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AgentRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -8691,7 +9585,7 @@ export interface operations {
         parameters: {
             query?: {
                 /** @description Only this kind of entity. */
-                entity_type?: ("organization" | "member" | "invitation" | "document" | "category" | "sla") | null;
+                entity_type?: ("organization" | "member" | "invitation" | "document" | "category" | "sla" | "team" | "agent") | null;
                 /** @description Maximum items to return. */
                 limit?: number;
                 /** @description Number of items to skip. */

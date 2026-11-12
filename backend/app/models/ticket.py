@@ -23,6 +23,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin, str_enum_type
 from app.models.customer import Customer
+from app.models.team import Team
 from app.models.user import User
 
 # Full-text search configuration for subjects and message bodies.
@@ -61,6 +62,7 @@ class TicketEventType(enum.StrEnum):
     CATEGORY_CHANGED = "category_changed"  # staff only
     SLA_AT_RISK = "sla_at_risk"  # the SLA monitor: a deadline is near (staff only)
     SLA_BREACHED = "sla_breached"  # the SLA monitor: a deadline passed (staff only)
+    TEAM_CHANGED = "team_changed"  # staff only
 
 
 # Events a customer may see on their own tickets (also enforced by RLS).
@@ -151,12 +153,17 @@ class Ticket(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     category_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("ticket_categories.id", ondelete="SET NULL"), index=True
     )
+    # The team responsible (set by staff, later by routing). Staff-only (RLS).
+    team_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("teams.id", ondelete="SET NULL"), index=True
+    )
     search_vector: Mapped[str] = _search_vector("subject")
 
     customer: Mapped[Customer] = relationship(lazy="raise")
     assignee: Mapped[User | None] = relationship(foreign_keys=[assignee_id], lazy="raise")
     # Staff-only (RLS): loads as None for customers.
     category: Mapped[TicketCategory | None] = relationship(lazy="raise")
+    team: Mapped[Team | None] = relationship(lazy="raise")
 
 
 class TicketMessage(UUIDPrimaryKeyMixin, TimestampMixin, Base):

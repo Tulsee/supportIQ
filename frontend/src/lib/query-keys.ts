@@ -65,6 +65,8 @@ export const queryKeys = {
     filters
       ? (["organizations", orgId, "categories", filters] as const)
       : (["organizations", orgId, "categories"] as const),
+  agents: (orgId: string) => ["organizations", orgId, "agents"] as const,
+  agentMe: (orgId: string) => ["organizations", orgId, "agents", "me"] as const,
   notifications: (orgId: string, filters?: object) =>
     filters
       ? (["organizations", orgId, "notifications", "list", filters] as const)

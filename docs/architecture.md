@@ -118,10 +118,32 @@ stateDiagram-v2
   `SLA_MONITOR_INTERVAL_SECONDS`, also `python -m app.cli sla-check`) claims running
   clocks past their warning time or deadline (`FOR UPDATE SKIP LOCKED`), records the
   transition once (at the warning time or deadline itself), adds a staff-only ticket
-  event and notifies: due soon to the assignee (admins if unassigned), breaches to the
-  assignee and admins, by email by default. Analytics report compliance for clocks
+  event and notifies: due soon to the assignee (or, if unassigned, the escalation
+  contacts), breaches to both, by email by default. Escalation contacts are the leads
+  of the ticket's team, or the admins when it has no active team or the team has no
+  lead. Analytics report compliance for clocks
   started in the period: met on time / (on time + late + overdue), with clocks still in
   time, cancelled ones and reopened cycles reported separately.
+
+## Teams and agents
+
+Module 10, phase 5 (`app/services/teams.py`, `app/websocket/presence.py`), the
+groundwork for routing:
+
+- **Teams** (`teams`, `team_members` with role `member` or `lead`), managed by admins
+  and audited; deactivated rather than deleted. A ticket can belong to one team
+  (`tickets.team_id`, staff-only, a `team_changed` timeline event).
+- **Agents**: per staff member and organization, `agent_profiles` (status
+  `available`, `busy` or `away`; `max_active_tickets`, default 10) and `agent_skills`
+  (slug and level 1-5). Workload counts tickets assigned to them that are `assigned`
+  or `in_progress`; waiting for the customer doesn't count. `GET /agents` shows it all.
+- **Presence**: a staff member's open WebSocket marks them seen when it's ready and
+  every 30 seconds, in one Redis sorted set per organization; seen in the last 90
+  seconds = online. Effective presence is their status while online, otherwise
+  `offline`. If Redis is down nobody is online (routing will then leave tickets
+  unassigned rather than guess).
+- Leaving the organization, or moving to the customer role, removes someone's team
+  memberships, skills and profile. All four tables are staff-only under RLS.
 
 ## Notifications and audit log
 

@@ -2,9 +2,10 @@
 
 It finds running clocks whose warning time or deadline has passed and records the
 transition once: ``at_risk_at`` (the warning time) or ``breached_at`` (the deadline),
-a staff-only ticket event, and notifications. Due soon goes to the assignee (or the
-organization's admins if nobody is assigned); a breach goes to the assignee and the
-admins. Team leads replace admins once teams exist (phase 5).
+a staff-only ticket event, and notifications. Due soon goes to the assignee, or to
+the ticket's escalation contacts if nobody is assigned; a breach goes to both. The
+escalation contacts are the leads of the ticket's team, or the organization's admins
+when the ticket has no active team or the team has no lead.
 
 Safe to run twice at once: clocks are claimed with ``FOR UPDATE SKIP LOCKED``, and
 notifications carry a dedupe key per clock and transition. Notifications and
@@ -27,8 +28,6 @@ from app.core.database import set_rls_context
 from app.core.security import utcnow
 from app.models import (
     NotificationKind,
-    OrganizationMember,
-    OrgRole,
     SlaClockKind,
     SlaClockState,
     Ticket,
@@ -37,6 +36,7 @@ from app.models import (
     TicketSlaClock,
 )
 from app.services.notifications import NewNotification, NotificationService
+from app.services.teams import escalation_contacts
 from app.websocket.broker import EventBroker
 from app.websocket.broker import TicketEvent as RealtimeEvent
 from app.workers.queue import NotificationMailer
@@ -51,16 +51,6 @@ LABELS = {SlaClockKind.FIRST_RESPONSE: "First response", SlaClockKind.RESOLUTION
 class MonitorResult:
     at_risk: int = 0
     breached: int = 0
-
-
-async def _admin_ids(session: AsyncSession, organization_id: uuid.UUID) -> list[uuid.UUID]:
-    rows = await session.scalars(
-        select(OrganizationMember.user_id).where(
-            OrganizationMember.organization_id == organization_id,
-            OrganizationMember.role == OrgRole.ADMIN,
-        )
-    )
-    return list(rows.all())
 
 
 def _notices(
@@ -123,7 +113,7 @@ async def evaluate_sla_clocks(
         if not rows:
             break
         notifications = NotificationService(session, events=events, mailer=mailer)
-        admins: dict[uuid.UUID, list[uuid.UUID]] = {}
+        contacts: dict[tuple[uuid.UUID, uuid.UUID | None], list[uuid.UUID]] = {}
         for clock, ticket in rows:
             is_breach = clock.due_at <= now and clock.breached_at is None
             if is_breach:
@@ -148,11 +138,11 @@ async def evaluate_sla_clocks(
                     },
                 )
             )
-            if ticket.organization_id not in admins:
-                admins[ticket.organization_id] = await _admin_ids(session, ticket.organization_id)
-            org_admins = admins[ticket.organization_id]
+            scope = (ticket.organization_id, ticket.team_id)
+            if scope not in contacts:
+                contacts[scope] = await escalation_contacts(session, *scope)
             assignee = [ticket.assignee_id] if ticket.assignee_id else []
-            recipients = assignee + org_admins if is_breach else (assignee or org_admins)
+            recipients = assignee + contacts[scope] if is_breach else (assignee or contacts[scope])
             await notifications.add(
                 ticket.organization_id, _notices(clock, ticket, is_breach, recipients)
             )

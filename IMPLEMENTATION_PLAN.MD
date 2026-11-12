@@ -1931,8 +1931,9 @@ policies, setup and preview, Settings → Service levels) implemented the same d
 Phase 3 (ticket clocks: start, first response, pauses, reopen cycles,
 priority changes, cancellation, `GET /tickets/{id}/sla`, the ticket's SLA panel)
 implemented the same day, and phase 4 (the monitor, due-soon and breach notifications,
-timeline events, SLA compliance in analytics). Next: teams, skills and presence
-(phase 5), then routing.
+timeline events, SLA compliance in analytics), and phase 5 (teams with members and
+leads, agent capacity and skills, status and presence, a team on each ticket; team
+leads receive SLA alerts). Next: automatic routing (phase 6).
 
 Specified in [docs/features/sla-and-automated-routing.md](docs/features/sla-and-automated-routing.md),
 adapted from the feature plan after auditing this repository. In short:

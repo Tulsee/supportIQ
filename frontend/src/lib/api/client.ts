@@ -38,6 +38,9 @@ export type NotificationKind = Schemas["NotificationKind"];
 export type NotificationDelivery = Schemas["NotificationDelivery"];
 export type AuditEntry = Schemas["AuditEntryRead"];
 export type Category = Schemas["CategoryRead"];
+export type Team = Schemas["TeamRead"];
+export type Agent = Schemas["AgentRead"];
+export type AgentStatus = Agent["status"];
 export type OrganizationSettings = Schemas["OrganizationSettings"];
 
 /**
