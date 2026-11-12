@@ -32,6 +32,7 @@ organized AI engine
 13. [Portfolio completion checklist](#13-portfolio-completion-checklist)
 14. [Implementation priorities and final
     recommendations](#14-implementation-priorities-and-final-recommendations)
+15. [Phase 2: feature roadmap](#15-phase-2-feature-roadmap)
 
 ---
 
@@ -1726,42 +1727,46 @@ or p95 latency only when the benchmark supports the claim.
 
 # 13. Portfolio completion checklist
 
-Use this checklist to track the implementation.
+Use this checklist to track the implementation. Status as of 12 November 2026
+(Modules 1-8 implemented; see the README and the
+[evaluation report](experiments/reports/quillon-v1-evaluation.md)).
 
 ## Full-stack application
 
-- [ ] User authentication and organization management.
-- [ ] Role-based access control and tenant isolation.
-- [ ] Customer and ticket management.
-- [ ] Real-time messaging.
-- [ ] Responsive admin dashboard.
+- [x] User authentication and organization management.
+- [x] Role-based access control and tenant isolation (PostgreSQL row-level security).
+- [x] Customer and ticket management.
+- [x] Real-time messaging (WebSocket ticket updates).
+- [x] Responsive admin dashboard.
 
 ## AI engineering
 
-- [ ] PDF/DOCX document ingestion.
-- [ ] BM25 and dense retrieval.
-- [ ] Hybrid retrieval and reranking.
-- [ ] Adaptive retrieval selection.
-- [ ] Evidence sufficiency assessment.
-- [ ] Citation-backed generation.
-- [ ] Human escalation and abstention.
+- [x] PDF/DOCX document ingestion (also Markdown and text; OCR for scanned pages,
+      English and Nepali).
+- [x] BM25 and dense retrieval.
+- [x] Hybrid retrieval and reranking.
+- [x] Adaptive retrieval selection.
+- [x] Evidence sufficiency assessment.
+- [x] Citation-backed generation.
+- [x] Human escalation and abstention.
 
 ## Research and evaluation
 
-- [ ] Benchmark dataset with documented provenance.
-- [ ] Baseline comparison experiments.
-- [ ] Retrieval and answer-quality metrics.
-- [ ] Confidence calibration and abstention evaluation.
-- [ ] Reproducible experiment configurations.
-- [ ] Error analysis and limitations report.
+- [x] Benchmark dataset with documented provenance (58 questions; the plan's
+      150-300 is still open).
+- [x] Baseline comparison experiments (E1-E6).
+- [x] Retrieval and answer-quality metrics.
+- [x] Confidence calibration and abstention evaluation.
+- [x] Reproducible experiment configurations.
+- [x] Error analysis and limitations report.
 
 ## Deployment and portfolio
 
-- [ ] Docker-based local setup.
-- [ ] Automated tests and CI/CD.
+- [x] Docker-based local setup.
+- [ ] Automated tests and CI/CD (CI done; no deployment pipeline yet).
 - [ ] Deployed working demonstration.
-- [ ] Architecture and API documentation.
-- [ ] GitHub README and screenshots.
+- [x] Architecture and API documentation.
+- [x] GitHub README and screenshots.
 - [ ] Demonstration video.
 - [ ] Resume entry updated with verified results.
 
@@ -1844,3 +1849,223 @@ evaluation rather than attempting to implement every possible feature.
 **Primary objective:** Build a product that a Full-stack/Backend
 interviewer can evaluate as a real software system and an AI Engineer
 interviewer can evaluate as a reproducible applied-AI system.
+
+---
+
+# 15. Phase 2: feature roadmap
+
+Modules 1-8 are implemented. Phase 2 takes SupportIQ from "an assistant that answers
+from documents" to "a help desk that runs on service levels", while keeping the
+project's theme: every automated decision is explainable, measured, and hands over to a
+person when it isn't sure.
+
+## 15.1 Principles
+
+- **Extend, don't duplicate.** New features reuse tickets, `ticket_events`, the
+  real-time broker, Celery and the analytics service.
+- **Deterministic where it can be, AI where it helps, people decide.** Rules, clocks
+  and assignment are pure, tested functions. AI proposes (categories, drafts, findings)
+  with a confidence and abstains when unsure; it never silently changes priority,
+  assignment or published documents.
+- **Tenant isolation in the database.** Every new tenant table gets row-level security
+  and grants in its migration, and cross-tenant tests.
+- **Every feature ships with its metric,** and every AI feature with an evaluation set,
+  as Modules 4-8 did.
+
+## 15.2 Overview
+
+| Module | Feature | Priority | Depends on | Estimate |
+| --- | --- | --- | --- | --- |
+| 9 | Notifications and audit log | P0 (foundation) | - | 2-3 days |
+| 10 | [SLA management and automated routing](docs/features/sla-and-automated-routing.md) | P0 | 9 | 18-24 days |
+| 11 | AI ticket triage with abstention | P1 | 10 (categories) | 5-7 days |
+| 12 | Customer self-service assistant | P1 | 9 | 5-7 days |
+| 13 | Knowledge base quality loop | P1 | 9 | 5-6 days |
+| 14 | Agent productivity: macros, similar tickets, CSAT, saved views | P2 | 9 | 6-8 days |
+| 15 | Email channel and integrations | P2 | 9 | 6-8 days |
+| 16 | Multilingual retrieval and handwriting OCR | P2, decisions pending | - | 4-6 days |
+| 17 | Production operations | P0 for the portfolio | - | 3-5 days |
+
+Recommended order: deploy what exists first (the first part of Module 17), so each new
+feature lands on a live demo; then 9 → 10, with 11 running in shadow mode next to
+routing; then 12 and 13; P2 modules as time allows.
+
+| Weeks | Work |
+| --- | --- |
+| 9-10 | Deployment (Module 17, part 1); Module 9; Module 10 SLA phases (configuration, clocks, monitoring) |
+| 11-12 | Module 10 routing and front end; Module 11 in shadow mode |
+| 13-14 | Module 12; Module 13 |
+| 15+ | Modules 14-16; observability and backups (Module 17, part 2) |
+
+## 15.3 Module 9 - Notifications and audit log
+
+**Why:** SLA warnings, routing failures, assignments and AI escalations need to reach
+people, and settings changes need an accountable history. Neither exists yet (only
+invitation emails and the ticket timeline).
+
+- **Notifications:** `notifications` (user, kind, ticket, title, body, data, `dedupe_key`
+  unique per user, `read_at`), readable only by their recipient (RLS). Delivered in the
+  app (bell with unread count, pushed as `notification.created` on a per-user channel of
+  the existing broker) and optionally by email through Celery with retries. Simple
+  per-user preferences per kind: in app, email, or off.
+- **First kinds:** assigned to you; customer replied on your ticket; the AI escalated
+  your ticket; SLA at risk or breached (Module 10).
+- **Audit log:** `audit_log` (actor, entity type and id, action, minimal before/after),
+  append-only: the API role is granted INSERT and SELECT only. Admin page under
+  Settings with filters. First entries: role changes, invitations, member removal,
+  document deletion, then every Module 10 setting.
+- **Done when:** assignments and replies appear in the bell live; repeated events don't
+  duplicate notifications; an email failure doesn't block anything; audit rows can't
+  be updated or deleted by the API role (tested in SQL).
+
+## 15.4 Module 10 - SLA management and automated routing
+
+Specified in [docs/features/sla-and-automated-routing.md](docs/features/sla-and-automated-routing.md),
+adapted from the feature plan after auditing this repository. In short:
+
+- Business calendars (IANA time zone, weekly hours, holidays) and SLA policies per
+  priority; first-response and resolution clocks per ticket in business minutes, with
+  pauses for `waiting_for_customer`, cycles on reopen, and breach history that is never
+  erased.
+- A Celery beat evaluator for at-risk and breach transitions, with notifications and
+  escalation, safe to run twice.
+- Ticket categories, teams with leads, agent skills, capacity and presence; ordered
+  declarative routing rules; least-loaded, round-robin and skill-match strategies; an
+  unassigned fallback; a recorded explanation for every decision; a dry-run simulator.
+- SLA compliance and routing metrics in analytics, with stated denominators.
+- Also fixes the first-response metric, which today counts the opening message of a
+  staff-created ticket as the first reply.
+
+## 15.5 Module 11 - AI ticket triage with abstention
+
+**Why:** routing rules need a category (and later a language) that customers don't
+choose reliably. This is the same uncertainty-aware approach as Module 5, applied to
+classification.
+
+- **What it predicts** for each new ticket, after commit in a Celery job: category (one
+  of the organization's categories, or "unsure"), a suggested priority, the language,
+  and urgency cues ("outage", "can't log in").
+- **How:** two signals. (1) The LLM with JSON-schema output constrained to the
+  organization's category keys. (2) A nearest-neighbour vote over embeddings of past
+  tickets whose category an agent set or confirmed. The category is applied only when
+  the two agree or the combined confidence clears a threshold tuned on a dev split;
+  otherwise it stays empty and routing reports `manual_review`. Priority is only ever
+  suggested, never applied.
+- **Storage:** `ticket_triage` (prediction, confidence, signals, model, applied or not,
+  and the agent's correction). Corrections become labels for the neighbour vote and the
+  evaluation set.
+- **Evaluation (experiments T1-T4):** a labelled triage set (150+ tickets across the
+  categories, including ambiguous ones); accuracy and macro-F1 on applied predictions,
+  coverage, risk-coverage curves, calibration; LLM only vs neighbours only vs combined
+  vs combined with abstention.
+- **UI:** a "Suggested: Billing (92%)" chip on the ticket with accept and change; triage
+  accuracy from corrections in analytics.
+- **Done when:** shadow-mode results are reported, and routing uses applied categories.
+
+## 15.6 Module 12 - Customer self-service assistant
+
+**Why:** the plan's demonstration starts with "a customer asks a question". Today only
+staff can ask the assistant.
+
+- **Customer Ask page** in the customer portal: the same retrieval, generation and
+  evidence policy with `audience="customer"`, and a stricter policy (partial answers
+  abstain).
+- **Document visibility:** a new `documents.visibility` (`internal` or `public`);
+  customer questions retrieve only public documents. Tested: internal text never
+  appears in a customer answer.
+- **Handoff:** when the assistant declines or escalates, or the customer says it didn't
+  help, "Contact support" opens a ticket with the question and the conversation
+  attached; staff see the AI attempt in the ticket (internal).
+- **Privacy and safety:** per-customer rate limits; documents treated as data, not
+  instructions (prompt-injection tests); customers see only their own conversations
+  (RLS); an organization setting to keep customer questions on the local model.
+- **Metrics:** self-service resolution counted only when the customer confirms "this
+  answered my question"; handoff rate; answer ratings.
+- **Later (P2):** an embeddable widget for an external website, with an
+  organization-scoped public key.
+
+## 15.7 Module 13 - Knowledge base quality loop
+
+**Why:** the evaluation's most common escalation cause was documents that contradict
+each other, and the analytics page already lists knowledge gaps. This module acts on
+both.
+
+- **Contradiction scanner:** a periodic job takes pairs of highly similar chunks from
+  *different* documents (Qdrant neighbours), asks the model with a structured schema
+  whether they make conflicting claims about the same thing, and records findings
+  (documents, passages, explanation; open, dismissed or resolved) for admins.
+  Evaluated against the six planted contradictions in the Quillon set plus
+  non-conflicting pairs: precision and recall.
+- **Gap to article:** cluster the knowledge-gap questions, find resolved tickets whose
+  agent replies answered them, and draft an article that cites those tickets. An admin
+  edits and publishes it as a new document; the gap questions are re-asked afterwards
+  to measure the effect.
+- **Freshness:** optional owner and review date per document, with reminders through
+  notifications, and "never cited" documents flagged.
+- **Done when:** the scanner's precision and recall on the planted conflicts are
+  reported, and a gap can become a published document in the UI.
+
+## 15.8 Module 14 - Agent productivity
+
+- **Macros:** an organization library of reply templates with variables
+  (`{{customer.name}}`, `{{ticket.number}}`) and optional actions (set status or
+  priority), inserted from the reply box.
+- **Similar tickets and duplicates:** ticket subjects and first messages embedded in
+  their own Qdrant collection; similar open and resolved tickets shown on the ticket;
+  merge duplicates (recorded in both timelines).
+- **Customer satisfaction:** a one-question rating when a ticket is resolved (in the
+  portal and by email link); analytics by agent, team, and whether the AI was involved.
+- **Saved views:** per-user saved ticket filters (status, priority, SLA state, team,
+  category).
+
+## 15.9 Module 15 - Email channel and integrations
+
+- **Inbound email:** a support address per organization; messages arrive through an
+  inbound-mail webhook or IMAP polling (Celery beat) and become tickets or replies
+  (threaded by `Message-ID`/`In-Reply-To` and a token in the reply address);
+  attachments to object storage; auto-reply loop protection.
+- **Outbound:** agent replies are emailed to the customer, and replies by email thread
+  back into the ticket. Mailpit covers development.
+- **Webhooks and API keys:** signed (HMAC) outgoing webhooks for `ticket.created`,
+  `ticket.resolved` and `sla.breached`, with retries and SSRF protection; hashed,
+  scoped, organization-level API keys.
+
+## 15.10 Module 16 - Multilingual retrieval and handwriting OCR
+
+Both need a decision before work starts (recorded in the README's limitations).
+
+- **Nepali retrieval:** a multilingual embedding model and reranker as an organization
+  setting (each embedding model already gets its own Qdrant collection), and keyword
+  search for Devanagari using PostgreSQL's `simple` configuration. Evaluated on a Nepali
+  question set over translated Quillon documents; the English E1-E5 results must not
+  regress.
+- **Handwriting:** opt-in reading of pages flagged as unreadable with a vision model
+  (Claude or a local one), with cost and latency recorded and the extracted text marked
+  as machine-read.
+
+## 15.11 Module 17 - Production operations
+
+- **Part 1, deployment:** one VM with the existing Docker Compose setup and Caddy HTTPS;
+  production settings (secrets, secure cookies, new database passwords); the Claude
+  provider or a GPU for the model; a seeded demo organization; continuous delivery from
+  GitHub Actions (build and push images, deploy on tag).
+- **Part 2, operations:** nightly backups of PostgreSQL, Qdrant snapshots and object
+  storage, with a tested restore; Prometheus metrics (request latency, queue depth,
+  ingestion time, AI decisions, SLA evaluator lag) and OpenTelemetry traces; alerts for
+  a missing worker, evaluator lag and error rates; dependency audits (`pip-audit`,
+  `npm audit`) and security headers in CI and Caddy.
+
+## 15.12 Phase 2 success criteria
+
+- SLA compliance and routing metrics are live in analytics, with stated denominators.
+- Every automatic assignment has a recorded explanation; manual override rates are
+  reported.
+- Triage reports accuracy, coverage and risk-coverage curves, and abstains when unsure.
+- The contradiction scanner's precision and recall on the planted conflicts are
+  reported.
+- A public demo runs on HTTPS with backups.
+- The existing test suites and the E1-E6 experiments still pass unchanged.
+
+**Out of scope for Phase 2:** an LLM choosing assignees, predictive breach models before
+there is data to train them, workforce scheduling, billing, and splitting into
+microservices.

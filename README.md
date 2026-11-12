@@ -250,3 +250,11 @@ docs/             Architecture notes and screenshots
   quality in Nepali hasn't been measured.
 - The benchmark is small (58 questions) and synthetic; see the report's limitations.
 - Single-node deployment; not load-tested.
+
+## Roadmap
+
+Next: notifications and an audit log, then
+[SLA management and automated ticket routing](docs/features/sla-and-automated-routing.md),
+AI ticket triage that abstains when unsure, a customer self-service assistant, and a
+knowledge-base contradiction scanner. The full plan is in section 15 of
+[IMPLEMENTATION_PLAN.MD](IMPLEMENTATION_PLAN.MD#15-phase-2-feature-roadmap).
