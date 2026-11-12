@@ -46,6 +46,15 @@ async def _purge_expired() -> int:
     return 0
 
 
+async def _auto_close() -> int:
+    from app.services.automation import auto_close_resolved
+
+    async with SessionLocal() as session:
+        closed = await auto_close_resolved(session)
+    print(f"Closed {closed} resolved tickets past their organization's auto-close window")
+    return 0
+
+
 def _export_openapi(output: Path | None) -> int:
     """Write the API contract (no server or database needed). The frontend's typed
     client is generated from it, and CI checks that the two stay in sync."""
@@ -222,6 +231,8 @@ async def _run(args: argparse.Namespace) -> int:
             return await _set_superadmin(args.email, True)
         if args.command == "revoke-superadmin":
             return await _set_superadmin(args.email, False)
+        if args.command == "auto-close":
+            return await _auto_close()
         return await _purge_expired()
     finally:
         await engine.dispose()
@@ -291,6 +302,9 @@ def main(argv: list[str] | None = None) -> int:
     revoke = commands.add_parser("revoke-superadmin", help="Remove super admin from a user")
     revoke.add_argument("email")
     commands.add_parser("purge-expired", help="Delete expired refresh tokens and stale invitations")
+    commands.add_parser(
+        "auto-close", help="Close resolved tickets past their organization's auto-close window"
+    )
     export = commands.add_parser("export-openapi", help="Write the OpenAPI document as JSON")
     export.add_argument("--output", type=Path, help="File to write (default: stdout)")
     _add_evaluate(commands)

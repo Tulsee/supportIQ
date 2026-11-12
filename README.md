@@ -16,8 +16,10 @@ a labelled benchmark measures how well it works.
 ## Features
 
 - **Help desk.** Organizations with admin, agent and customer roles, email
-  invitations, customers, tickets (status, priority, assignment, internal notes) and
-  live updates over WebSockets.
+  invitations, customers, tickets (status, priority, category, assignment, internal
+  notes) and live updates over WebSockets. Customers can close their own requests, and
+  resolved tickets nobody replies to close automatically after a configurable number of
+  days.
 - **Knowledge base.** Upload PDF, DOCX, Markdown or text. A background worker extracts
   the text (with OCR for scanned pages, in English and Nepali), splits it into
   sections, embeds it and indexes it. Documents are versioned.
@@ -81,6 +83,7 @@ flowchart LR
     api --> s3[(S3 storage)]
     api --> llm[Ollama or Claude]
     redis -->|jobs| worker[Celery worker]
+    scheduler[Celery beat] -->|scheduled jobs| redis
     worker --> pg
     worker --> qdrant
     worker --> s3
@@ -91,7 +94,7 @@ flowchart LR
 | Front end | Next.js 16, React 19, TypeScript, TanStack Query, Tailwind CSS, shadcn/ui |
 | API | FastAPI, Pydantic, async SQLAlchemy, Alembic |
 | Data | PostgreSQL 18 with row-level security, Redis, Qdrant, S3-compatible storage (RustFS) |
-| Jobs | Celery |
+| Jobs | Celery (worker and beat scheduler) |
 | AI | FastEmbed (bge-small-en-v1.5), ms-marco-MiniLM-L-6-v2 reranker, RapidOCR, Ollama or the Anthropic API |
 
 Tenant isolation is enforced by PostgreSQL row-level security: the API connects as a
@@ -163,6 +166,7 @@ uv run alembic upgrade head
 # waiting forever on the app's open WebSocket connections.
 uv run uvicorn app.main:app --reload --timeout-graceful-shutdown 3
 uv run celery -A app.workers.celery_app worker --loglevel=info --pool=solo   # second terminal
+uv run celery -A app.workers.celery_app beat --loglevel=info   # third terminal: scheduled jobs
 
 cd frontend
 npm ci

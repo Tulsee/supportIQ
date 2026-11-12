@@ -26,7 +26,8 @@ flowchart LR
 | Component | Code | Role |
 | --- | --- | --- |
 | API | `backend/app/` | REST under `/api/v1`, WebSockets for live ticket updates, answering and search in the request |
-| Worker | `backend/app/workers/` | Document ingestion: extraction, OCR, chunking, embedding, indexing |
+| Worker | `backend/app/workers/` | Document ingestion, notification emails, and scheduled jobs |
+| Scheduler | `backend/app/workers/celery_app.py` | Celery beat: puts periodic jobs on the queue (auto-closing resolved tickets; SLA checks next). Run exactly one |
 | AI engine | `backend/ai_engine/` | Ingestion, chunking, embeddings, BM25/dense retrieval and fusion, reranking, prompts, citation checks, evidence signals and the decision policy, evaluation metrics |
 | Web app | `frontend/src/` | Next.js App Router, TanStack Query, typed API client generated from the OpenAPI document |
 | Proxy | `infrastructure/docker/caddy/` | Serves the app and the API from one origin (Docker setup) |
@@ -58,6 +59,37 @@ Ticket changes are published to Redis (one channel per organization) after each
 commit and pushed to connected browsers over WebSockets (`/api/v1/ws/tickets`). An
 event only says which ticket changed; the browser refetches through the REST API, so
 a socket can never reveal more than an API call would.
+
+## Ticket lifecycle and scheduled jobs
+
+```mermaid
+stateDiagram-v2
+    [*] --> open
+    open --> assigned: someone is assigned
+    assigned --> in_progress
+    in_progress --> waiting_for_customer
+    waiting_for_customer --> in_progress: customer replies
+    in_progress --> resolved
+    resolved --> in_progress: customer replies
+    resolved --> closed: closed, or N days without a reply
+    open --> closed: staff, or the customer
+    assigned --> closed
+    in_progress --> closed
+    waiting_for_customer --> closed
+    closed --> [*]
+```
+
+- Closing is final: closed tickets take no replies and can't be reopened. Staff can
+  close any open ticket; customers can close their own requests.
+- **Auto-close:** the scheduler runs `tickets.auto_close` every
+  `AUTO_CLOSE_INTERVAL_MINUTES` (30). It closes resolved tickets nobody has replied to
+  for the organization's `auto_close_after_days` (Settings → Organization, default 7,
+  0 = off), across organizations under the RLS bypass, in batches with
+  `FOR UPDATE SKIP LOCKED`, so two schedulers never close a ticket twice. The timeline
+  records it as an automatic change. `python -m app.cli auto-close` runs it on demand.
+- **Categories** are defined per organization (Settings → Categories), set by staff,
+  invisible to customers (RLS), and deactivated rather than deleted. Routing rules
+  (Module 10) will match on them.
 
 ## Notifications and audit log
 
@@ -152,7 +184,7 @@ The main tables, all scoped to an organization:
 | Area | Tables |
 | --- | --- |
 | Accounts | `users`, `organizations`, `organization_members`, `organization_invitations`, `refresh_tokens` |
-| Support | `customers`, `tickets`, `ticket_messages`, `ticket_events`, `ticket_counters` |
+| Support | `customers`, `tickets`, `ticket_messages`, `ticket_events`, `ticket_counters`, `ticket_categories` |
 | Knowledge base | `documents`, `document_chunks` (text, metadata, full-text vector; embeddings in Qdrant) |
 | AI | `ai_runs`, `retrieval_results`, `ai_answers`, `citations`, `evidence_assessments`, `ai_feedback` |
 | Notifications and audit | `notifications`, `notification_preferences`, `audit_log` |

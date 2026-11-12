@@ -5,7 +5,7 @@ from typing import Self
 from pydantic import BaseModel, Field, model_validator
 
 from app.models import Organization
-from app.schemas.organizations import OrganizationRead
+from app.schemas.organizations import OrganizationRead, OrganizationSettings
 
 
 class AdminUserUpdate(BaseModel):
@@ -30,6 +30,7 @@ class AdminOrganizationRead(OrganizationRead):
             id=organization.id,
             name=organization.name,
             slug=organization.slug,
+            settings=OrganizationSettings.model_validate(organization.settings or {}),
             created_at=organization.created_at,
             member_count=member_count,
         )

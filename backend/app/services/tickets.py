@@ -27,6 +27,7 @@ from app.models import (
     NotificationKind,
     OrganizationMember,
     Ticket,
+    TicketCategory,
     TicketEvent,
     TicketEventType,
     TicketMessage,
@@ -67,6 +68,10 @@ def _label(status: TicketStatus) -> str:
 
 def _person(user: User | None) -> dict[str, str] | None:
     return {"id": str(user.id), "name": user.full_name} if user else None
+
+
+def _category(category: TicketCategory | None) -> dict[str, str] | None:
+    return {"id": str(category.id), "name": category.name} if category else None
 
 
 def is_staff(member: OrganizationMember) -> bool:
@@ -178,7 +183,7 @@ class TicketService:
                 raise AppError("Customer not found in this organization", code="invalid_customer")
             author_type = MessageAuthorType.AGENT
         else:
-            if data.customer_id or data.priority or data.assignee_id:
+            if data.customer_id or data.priority or data.assignee_id or data.category_id:
                 raise PermissionDeniedError("Customers can only set a ticket's subject and message")
             customer = await CustomerService(self.session).ensure_for_member(member, user)
             author_type = MessageAuthorType.CUSTOMER
@@ -196,6 +201,7 @@ class TicketService:
         )
         ticket.customer = customer
         ticket.assignee = None
+        ticket.category = None
         message = TicketMessage(
             organization_id=member.organization_id,
             author_id=user.id,
@@ -206,6 +212,8 @@ class TicketService:
         message.ticket = ticket
         self.tickets.add(ticket, message)
         self._record(ticket, user.id, TicketEventType.CREATED, {})
+        if data.category_id is not None:
+            await self._set_category(ticket, user.id, data.category_id)
         if data.assignee_id is not None:
             await self._assign(ticket, user.id, data.assignee_id)
         await self.session.commit()
@@ -243,6 +251,8 @@ class TicketService:
         # a status in the same request (e.g. IN_PROGRESS) can follow.
         if "assignee_id" in fields:
             await self._assign(ticket, user.id, data.assignee_id)
+        if "category_id" in fields:
+            await self._set_category(ticket, user.id, data.category_id)
         if "status" in fields and data.status is not None and data.status != ticket.status:
             self._transition(ticket, user.id, data.status)
 
@@ -327,6 +337,31 @@ class TicketService:
         return len(tickets)
 
     # --- Helpers --------------------------------------------------------------------
+
+    async def _set_category(
+        self, ticket: Ticket, actor_id: uuid.UUID, category_id: uuid.UUID | None
+    ) -> None:
+        if category_id == ticket.category_id:
+            return
+        category = None
+        if category_id is not None:
+            category = await self.session.get(TicketCategory, category_id)
+            if (
+                category is None
+                or category.organization_id != ticket.organization_id
+                or not category.is_active
+            ):
+                raise AppError(
+                    "Choose an active category of this organization", code="invalid_category"
+                )
+        previous = ticket.category
+        ticket.category = category
+        self._record(
+            ticket,
+            actor_id,
+            TicketEventType.CATEGORY_CHANGED,
+            {"from": _category(previous), "to": _category(category)},
+        )
 
     async def _notify_reply(self, ticket: Ticket, message: TicketMessage, author: User) -> None:
         """A customer reply tells the assignee; a public staff reply tells the
@@ -424,7 +459,13 @@ class TicketService:
             )
         self._set_status(ticket, actor_id, to)
 
-    def _set_status(self, ticket: Ticket, actor_id: uuid.UUID | None, to: TicketStatus) -> None:
+    def _set_status(
+        self,
+        ticket: Ticket,
+        actor_id: uuid.UUID | None,
+        to: TicketStatus,
+        extra: dict[str, Any] | None = None,
+    ) -> None:
         previous = ticket.status
         ticket.status = to
         if to == S.RESOLVED:
@@ -433,7 +474,12 @@ class TicketService:
             ticket.resolved_at = None  # reopened
         if to == S.CLOSED:
             ticket.closed_at = utcnow()
-        self._record(ticket, actor_id, TicketEventType.STATUS_CHANGED, {"from": previous, "to": to})
+        self._record(
+            ticket,
+            actor_id,
+            TicketEventType.STATUS_CHANGED,
+            {"from": previous, "to": to, **(extra or {})},
+        )
 
     def _record(
         self,

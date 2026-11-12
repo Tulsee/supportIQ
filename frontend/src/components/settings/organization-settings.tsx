@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 import { PageHeader } from "@/components/page-header";
+import { TicketSettingsCard } from "@/components/settings/ticket-settings-card";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -44,7 +45,7 @@ export function OrganizationSettings() {
       unwrap(
         api.PATCH("/api/v1/organizations/{org_id}", {
           params: { path: { org_id: organization.id } },
-          body: values,
+          body: { name: values.name },
         }),
       ),
     onSuccess: async (updated) => {
@@ -95,6 +96,9 @@ export function OrganizationSettings() {
           ) : null}
         </form>
       </Card>
+      <div className="mt-6">
+        <TicketSettingsCard />
+      </div>
     </>
   );
 }

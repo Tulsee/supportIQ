@@ -40,6 +40,7 @@ x-backend: &backend
     # Ollama running on the host (the default), or set DOCKER_OLLAMA_URL.
     OLLAMA_URL: ${DOCKER_OLLAMA_URL:-http://host.docker.internal:11434}
     MODEL_CACHE_DIR: /models
+    AUTO_CLOSE_INTERVAL_MINUTES: ${AUTO_CLOSE_INTERVAL_MINUTES:-30}
   extra_hosts:
     - "host.docker.internal:host-gateway"  # Linux; Docker Desktop resolves it already
   volumes:
@@ -164,6 +165,17 @@ services:
         condition: service_started
       object-storage:
         condition: service_started
+
+  # Celery beat: puts periodic jobs (auto-closing resolved tickets, later SLA
+  # checks) on the queue for the worker. Run exactly one.
+  scheduler:
+    <<: *backend
+    profiles: ["app"]
+    pull_policy: never
+    command: ["celery", "-A", "app.workers.celery_app", "beat", "--loglevel=info", "--schedule", "/tmp/celerybeat-schedule"]
+    depends_on:
+      redis:
+        condition: service_healthy
 
   web:
     profiles: ["app"]

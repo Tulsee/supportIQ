@@ -5,6 +5,7 @@ import uuid
 
 from celery import Task
 
+from app.services.automation import run_auto_close_job
 from app.services.ingestion import TransientIngestionError, run_ingestion_job
 from app.services.notifications import run_email_job
 from app.workers.celery_app import celery_app
@@ -43,3 +44,9 @@ def ingest_document(self: Task, document_id: str, ingestion_id: str) -> str:
 )
 def email_notifications(notification_ids: list[str]) -> int:
     return asyncio.run(run_email_job([uuid.UUID(i) for i in notification_ids]))
+
+
+@celery_app.task(name="tickets.auto_close", ignore_result=True)
+def auto_close_tickets() -> int:
+    """Close resolved tickets past their organization's auto-close window."""
+    return asyncio.run(run_auto_close_job())

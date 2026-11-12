@@ -58,6 +58,7 @@ class TicketEventType(enum.StrEnum):
     ASSIGNED = "assigned"
     UNASSIGNED = "unassigned"
     AI_ESCALATED = "ai_escalated"  # the AI couldn't draft a supported reply (staff only)
+    CATEGORY_CHANGED = "category_changed"  # staff only
 
 
 # Events a customer may see on their own tickets (also enforced by RLS).
@@ -90,6 +91,23 @@ class TicketCounter(Base):
         ForeignKey("organizations.id", ondelete="CASCADE"), primary_key=True
     )
     last_number: Mapped[int] = mapped_column(Integer)
+
+
+class TicketCategory(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """What a ticket is about (billing, returns, ...), defined per organization. Staff
+    set it; routing rules (Module 10) and analytics use it. Categories are
+    deactivated rather than deleted, so old tickets keep theirs."""
+
+    __tablename__ = "ticket_categories"
+    __table_args__ = (UniqueConstraint("organization_id", "key"),)
+
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="CASCADE"), index=True
+    )
+    key: Mapped[str] = mapped_column(String(50))  # stable slug, used by routing rules
+    name: Mapped[str] = mapped_column(String(100))
+    description: Mapped[str] = mapped_column(String(300), default="", server_default="")
+    is_active: Mapped[bool] = mapped_column(default=True, server_default=text("true"))
 
 
 class Ticket(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -128,10 +146,15 @@ class Ticket(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    category_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("ticket_categories.id", ondelete="SET NULL"), index=True
+    )
     search_vector: Mapped[str] = _search_vector("subject")
 
     customer: Mapped[Customer] = relationship(lazy="raise")
     assignee: Mapped[User | None] = relationship(foreign_keys=[assignee_id], lazy="raise")
+    # Staff-only (RLS): loads as None for customers.
+    category: Mapped[TicketCategory | None] = relationship(lazy="raise")
 
 
 class TicketMessage(UUIDPrimaryKeyMixin, TimestampMixin, Base):

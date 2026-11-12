@@ -55,6 +55,7 @@ async def list_tickets(
         Query(description="`me`, `unassigned`, or a user id (staff only)."),
     ] = None,
     customer_id: uuid.UUID | None = None,
+    category_id: Annotated[uuid.UUID | None, Query(description="Staff only.")] = None,
     search: Annotated[
         str | None,
         Query(
@@ -71,6 +72,7 @@ async def list_tickets(
         priorities=priority or (),
         assignee=assignee,
         customer_id=customer_id,
+        category_id=category_id,
         search=search.strip() if search and search.strip() else None,
         sort=sort,
     )

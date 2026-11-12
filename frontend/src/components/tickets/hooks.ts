@@ -2,7 +2,7 @@
 
 import { type QueryClient, useQuery } from "@tanstack/react-query";
 
-import { api, unwrap, type Member } from "@/lib/api/client";
+import { api, tenant, unwrap, type Category, type Member } from "@/lib/api/client";
 import { useActiveOrganization } from "@/lib/org/org-provider";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -31,6 +31,28 @@ export function useAssignableMembers(): { members: Member[]; isPending: boolean 
   });
   const members = (query.data?.items ?? []).filter((m) => m.role !== "customer");
   return { members, isPending: enabled && query.isPending };
+}
+
+/** The organization's ticket categories (staff only). With `includeInactive`, also
+ * deactivated ones (to show a ticket's current category, or to manage them). */
+export function useCategories(includeInactive = false): {
+  categories: Category[];
+  isPending: boolean;
+} {
+  const organization = useActiveOrganization();
+  const enabled = organization.role !== "customer";
+  const params = { include_inactive: includeInactive };
+  const query = useQuery({
+    queryKey: queryKeys.categories(organization.id, params),
+    queryFn: () =>
+      unwrap(
+        api.GET("/api/v1/categories", {
+          params: { query: params, header: tenant(organization.id) },
+        }),
+      ),
+    enabled,
+  });
+  return { categories: query.data ?? [], isPending: enabled && query.isPending };
 }
 
 /**

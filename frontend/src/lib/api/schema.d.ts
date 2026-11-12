@@ -492,6 +492,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List ticket categories */
+        get: operations["list_categories_api_v1_categories_get"];
+        put?: never;
+        /**
+         * Add a ticket category (admin)
+         * @description 409 `category_exists` if the key is taken in this organization.
+         */
+        post: operations["create_category_api_v1_categories_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/categories/{category_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Rename, describe or (de)activate a category (admin) */
+        patch: operations["update_category_api_v1_categories__category_id__patch"];
+        trace?: never;
+    };
     "/api/v1/tickets/{ticket_id}/ai/suggestion": {
         parameters: {
             query?: never;
@@ -1135,6 +1173,7 @@ export interface components {
             name: string;
             /** Slug */
             slug: string;
+            settings: components["schemas"]["OrganizationSettings"];
             /**
              * Created At
              * Format: date-time
@@ -1414,6 +1453,62 @@ export interface components {
              * @description PDF, DOCX, TXT, or Markdown.
              */
             file: string;
+        };
+        /** CategoryCreate */
+        CategoryCreate: {
+            /** Name */
+            name: string;
+            /**
+             * Key
+             * @description Stable identifier used by routing rules; generated from the name when omitted. Can't be changed later.
+             */
+            key?: string | null;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+        };
+        /** CategoryRead */
+        CategoryRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Key */
+            key: string;
+            /** Name */
+            name: string;
+            /** Description */
+            description: string;
+            /** Is Active */
+            is_active: boolean;
+        };
+        /** CategorySummary */
+        CategorySummary: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Key */
+            key: string;
+            /** Name */
+            name: string;
+        };
+        /**
+         * CategoryUpdate
+         * @description Only the fields provided are changed. Deactivate instead of deleting: tickets
+         *     keep their category.
+         */
+        CategoryUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Is Active */
+            is_active?: boolean | null;
         };
         /** ChangePasswordRequest */
         ChangePasswordRequest: {
@@ -2097,10 +2192,28 @@ export interface components {
              */
             slug?: string | null;
         };
-        /** OrganizationUpdate */
+        /** OrganizationSettings */
+        OrganizationSettings: {
+            /**
+             * Auto Close After Days
+             * @description Resolved tickets with no reply for this many days are closed automatically. 0 turns it off.
+             * @default 7
+             */
+            auto_close_after_days: number;
+        };
+        /** OrganizationSettingsUpdate */
+        OrganizationSettingsUpdate: {
+            /** Auto Close After Days */
+            auto_close_after_days?: number | null;
+        };
+        /**
+         * OrganizationUpdate
+         * @description Admin only. Only the fields provided are changed.
+         */
         OrganizationUpdate: {
             /** Name */
-            name: string;
+            name?: string | null;
+            settings?: components["schemas"]["OrganizationSettingsUpdate"] | null;
         };
         /** OrganizationWithRole */
         OrganizationWithRole: {
@@ -2113,6 +2226,7 @@ export interface components {
             name: string;
             /** Slug */
             slug: string;
+            settings: components["schemas"]["OrganizationSettings"];
             /**
              * Created At
              * Format: date-time
@@ -2468,12 +2582,17 @@ export interface components {
              * @description Staff only.
              */
             assignee_id?: string | null;
+            /**
+             * Category Id
+             * @description Staff only.
+             */
+            category_id?: string | null;
         };
         /**
          * TicketEventType
          * @enum {string}
          */
-        TicketEventType: "created" | "status_changed" | "priority_changed" | "subject_changed" | "assigned" | "unassigned" | "ai_escalated";
+        TicketEventType: "created" | "status_changed" | "priority_changed" | "subject_changed" | "assigned" | "unassigned" | "ai_escalated" | "category_changed";
         /**
          * TicketPriority
          * @enum {string}
@@ -2497,6 +2616,8 @@ export interface components {
             priority: components["schemas"]["TicketPriority"];
             customer: components["schemas"]["CustomerSummary"];
             assignee: components["schemas"]["PersonSummary"] | null;
+            /** @description Staff only; null for customers. */
+            category: components["schemas"]["CategorySummary"] | null;
             /**
              * Allowed Statuses
              * @description Statuses this ticket can move to next (lifecycle rules).
@@ -2559,6 +2680,11 @@ export interface components {
             priority?: components["schemas"]["TicketPriority"] | null;
             /** Assignee Id */
             assignee_id?: string | null;
+            /**
+             * Category Id
+             * @description An active category of the organization; null clears it.
+             */
+            category_id?: string | null;
         };
         /** TokenResponse */
         TokenResponse: {
@@ -4318,6 +4444,8 @@ export interface operations {
                 /** @description `me`, `unassigned`, or a user id (staff only). */
                 assignee?: ("me" | "unassigned") | string | null;
                 customer_id?: string | null;
+                /** @description Staff only. */
+                category_id?: string | null;
                 /** @description Ticket number (#42), customer name or email, or words in the subject or messages. */
                 search?: string | null;
                 sort?: "-updated_at" | "-created_at" | "created_at" | "-priority";
@@ -4996,6 +5124,223 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_categories_api_v1_categories_get: {
+        parameters: {
+            query?: {
+                /** @description Also deactivated ones. */
+                include_inactive?: boolean;
+            };
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryRead"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    create_category_api_v1_categories_post: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CategoryCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    update_category_api_v1_categories__category_id__patch: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path: {
+                category_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CategoryUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CategoryRead"];
                 };
             };
             /** @description Unauthorized */
@@ -7141,7 +7486,7 @@ export interface operations {
         parameters: {
             query?: {
                 /** @description Only this kind of entity. */
-                entity_type?: ("organization" | "member" | "invitation" | "document") | null;
+                entity_type?: ("organization" | "member" | "invitation" | "document" | "category") | null;
                 /** @description Maximum items to return. */
                 limit?: number;
                 /** @description Number of items to skip. */

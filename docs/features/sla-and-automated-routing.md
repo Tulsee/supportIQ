@@ -261,7 +261,7 @@ Everything in the plan's section 15, plus:
 | Phase | Scope | Estimate |
 | --- | --- | --- |
 | 0 | Repository audit (this document) | done |
-| 1 | Foundations: notifications and audit log (Module 9), Celery beat + `scheduler` service, categories, `tzdata` | 3-4 days |
+| 1 | Foundations: notifications and audit log (Module 9), Celery beat + `scheduler` service, categories, organization settings (done; also auto-close); `tzdata` moves to phase 2 | 3-4 days |
 | 2 | SLA configuration: calendars, policies, business-time calculator and its tests, seed defaults | 2-3 days |
 | 3 | Ticket clocks: lifecycle hooks, pauses, cycles, `GET /tickets/{id}/sla`, first-response analytics fix | 2-3 days |
 | 4 | Monitoring: evaluator, notifications, escalation, timeline events | 2 days |

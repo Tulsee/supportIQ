@@ -9,7 +9,12 @@ import { toast } from "sonner";
 
 import { CloseTicketButton } from "@/components/tickets/close-ticket-button";
 import { Conversation } from "@/components/tickets/conversation";
-import { LIVE_QUERY, refreshTickets, useAssignableMembers } from "@/components/tickets/hooks";
+import {
+  LIVE_QUERY,
+  refreshTickets,
+  useAssignableMembers,
+  useCategories,
+} from "@/components/tickets/hooks";
 import { NewRequestDialog } from "@/components/tickets/new-request-dialog";
 import { ReplyBox, type ReplyDraft } from "@/components/tickets/reply-box";
 import { TicketAIPanel } from "@/components/tickets/ticket-ai-panel";
@@ -38,6 +43,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { PRIORITIES, PRIORITY_LABELS, STATUS_LABELS, formatDateTime } from "@/lib/tickets";
 
 const UNASSIGNED = "unassigned";
+const NO_CATEGORY = "none";
 const MESSAGES_PAGE = { limit: 100 };
 
 /** Staff controls: status (lifecycle-aware), assignee, priority. */
@@ -49,6 +55,7 @@ function TicketProperties({ ticket }: { ticket: Ticket }) {
   const user = useCurrentUser();
   const queryClient = useQueryClient();
   const { members } = useAssignableMembers();
+  const { categories } = useCategories();
   const closed = ticket.status === "closed";
 
   const update = useMutation({
@@ -69,6 +76,14 @@ function TicketProperties({ ticket }: { ticket: Ticket }) {
   // Closing is final, so it has its own confirmed button (see CloseTicketButton).
   const changeTo = ticket.allowed_statuses.filter((status) => status !== "closed");
   const statusOptions: TicketStatus[] = [ticket.status, ...changeTo];
+  const categoryItems: Record<string, string> = {
+    [NO_CATEGORY]: "No category",
+    ...Object.fromEntries(categories.map((c) => [c.id, c.name])),
+  };
+  // Keep the current category selectable even if it was deactivated since.
+  if (ticket.category && !(ticket.category.id in categoryItems)) {
+    categoryItems[ticket.category.id] = `${ticket.category.name} (inactive)`;
+  }
   const assigneeItems: Record<string, string> = {
     [UNASSIGNED]: "Unassigned",
     ...Object.fromEntries(members.map((m) => [m.user_id, m.full_name])),
@@ -147,6 +162,37 @@ function TicketProperties({ ticket }: { ticket: Ticket }) {
                 ))}
               </SelectContent>
             </Select>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor={`${uid}-category`}>Category</FieldLabel>
+            <Select
+              items={categoryItems}
+              value={ticket.category?.id ?? NO_CATEGORY}
+              onValueChange={(value) => {
+                if (!value || value === (ticket.category?.id ?? NO_CATEGORY)) return;
+                update.mutate({ category_id: value === NO_CATEGORY ? null : value });
+              }}
+              disabled={update.isPending || closed}
+            >
+              <SelectTrigger id={`${uid}-category`} className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(categoryItems).map(([id, name]) => (
+                  <SelectItem key={id} value={id}>
+                    {name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {categories.length === 0 && organization.role === "admin" ? (
+              <FieldDescription>
+                <Link href="/settings/categories" className="underline-offset-4 hover:underline">
+                  Add categories
+                </Link>{" "}
+                to sort tickets by topic.
+              </FieldDescription>
+            ) : null}
           </Field>
           <Field>
             <FieldLabel htmlFor={`${uid}-priority`}>Priority</FieldLabel>

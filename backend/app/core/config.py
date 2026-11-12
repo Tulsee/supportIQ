@@ -82,6 +82,11 @@ class Settings(BaseSettings):
     # Purge expired refresh tokens and stale invitations. 0 disables the loop.
     maintenance_interval_minutes: int = 60
 
+    # --- Scheduled jobs (Celery beat) ---------------------------------------------
+    # How often the scheduler closes resolved tickets past their organization's
+    # auto-close window (Settings, default 7 days). 0 disables the schedule.
+    auto_close_interval_minutes: int = 30
+
     # --- Background jobs (Celery) ---------------------------------------------------
     # A separate Redis database from rate limits and real-time events.
     celery_broker_url: str = "redis://127.0.0.1:6379/1"

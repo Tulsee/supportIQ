@@ -18,6 +18,9 @@ function describe(event: TicketEvent, audience: "staff" | "customer", byMe: bool
     case "status_changed": {
       const to = labels[data.to as TicketStatus] ?? String(data.to);
       if (data.to === "closed") {
+        if (data.automatic) {
+          return `closed it automatically after ${data.after_days} days without a reply`;
+        }
         if (audience === "staff") return "closed the ticket";
         return byMe ? "closed this request" : "closed your request";
       }
@@ -41,6 +44,14 @@ function describe(event: TicketEvent, audience: "staff" | "customer", byMe: bool
       const from = data.from as Person;
       return from ? `unassigned ${from.name}` : "unassigned the ticket";
     }
+    case "category_changed": {
+      const to = data.to as { name: string } | null;
+      const from = data.from as { name: string } | null;
+      if (!to) return `removed the category ${from?.name ?? ""}`.trim();
+      return from
+        ? `changed the category from ${from.name} to ${to.name}`
+        : `set the category to ${to.name}`;
+    }
     case "ai_escalated":
       return data.reason === "conflicting_sources"
         ? "asked the AI for a reply; the documents disagree, so a person should answer"
@@ -62,7 +73,11 @@ export function TicketTimeline({
     <ol className="relative space-y-3 border-l pl-4 text-sm">
       {events.map((event) => {
         const byMe = event.actor?.id === currentUserId;
-        const actor = byMe ? "You" : (event.actor?.full_name ?? "Someone");
+        // No actor: an automatic change (SupportIQ), or an account deleted since.
+        const automatic = (event.data as Record<string, unknown>).automatic === true;
+        const actor = byMe
+          ? "You"
+          : (event.actor?.full_name ?? (automatic ? "SupportIQ" : "Someone"));
         return (
           <li key={event.id} className="relative">
             <span

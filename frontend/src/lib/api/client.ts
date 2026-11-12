@@ -37,6 +37,8 @@ export type AppNotification = Schemas["NotificationRead"];
 export type NotificationKind = Schemas["NotificationKind"];
 export type NotificationDelivery = Schemas["NotificationDelivery"];
 export type AuditEntry = Schemas["AuditEntryRead"];
+export type Category = Schemas["CategoryRead"];
+export type OrganizationSettings = Schemas["OrganizationSettings"];
 
 /**
  * The tenant header for organization-scoped endpoints (customers, tickets, ...).

@@ -9,6 +9,7 @@ import {
   MessageSquareTextIcon,
   ScanSearchIcon,
   ScrollTextIcon,
+  TagsIcon,
   TicketIcon,
   UserCogIcon,
   UsersIcon,
@@ -70,6 +71,7 @@ const SETTINGS: NavItem[] = [
 
 const ADMIN_SETTINGS: NavItem[] = [
   ...SETTINGS,
+  { title: "Categories", icon: TagsIcon, href: "/settings/categories" },
   { title: "Audit log", icon: ScrollTextIcon, href: "/settings/audit-log" },
 ];
 

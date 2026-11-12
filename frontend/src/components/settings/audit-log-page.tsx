@@ -19,7 +19,7 @@ import { formatDateTime, timeAgo } from "@/lib/tickets";
 
 const LIMIT = 25;
 type Filter = "all" | AuditEntityType;
-const FILTERS: Filter[] = ["all", "organization", "member", "invitation", "document"];
+const FILTERS: Filter[] = ["all", "organization", "member", "invitation", "document", "category"];
 
 /** Administrative changes in the organization, newest first. */
 export function AuditLogPage() {

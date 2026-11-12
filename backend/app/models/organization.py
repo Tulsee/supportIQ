@@ -1,7 +1,9 @@
 import enum
 import uuid
+from typing import Any
 
-from sqlalchemy import Enum, ForeignKey, String, UniqueConstraint
+from sqlalchemy import Enum, ForeignKey, String, UniqueConstraint, text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin, str_enum_type
@@ -18,11 +20,19 @@ def org_role_type() -> Enum:
     return str_enum_type(OrgRole, "org_role")
 
 
+# Resolved tickets with no reply for this many days are closed (0 = never).
+DEFAULT_AUTO_CLOSE_DAYS = 7
+
+
 class Organization(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "organizations"
 
     name: Mapped[str] = mapped_column(String(200))
     slug: Mapped[str] = mapped_column(String(100), unique=True)
+    # Organization-level options (see OrganizationSettings): absent keys mean the default.
+    settings: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, default=dict, server_default=text("'{}'::jsonb")
+    )
 
 
 class OrganizationMember(UUIDPrimaryKeyMixin, TimestampMixin, Base):

@@ -38,6 +38,21 @@ celery_app.conf.update(
 _heartbeat: Heartbeat | None = None
 
 
+# Periodic jobs, run by the scheduler (Celery beat), executed by the workers:
+#   uv run celery -A app.workers.celery_app beat --loglevel=info
+# Each job is safe to run twice at once (row locks with SKIP LOCKED).
+celery_app.conf.beat_schedule = (
+    {
+        "auto-close-resolved-tickets": {
+            "task": "tickets.auto_close",
+            "schedule": settings.auto_close_interval_minutes * 60,
+        }
+    }
+    if settings.auto_close_interval_minutes > 0
+    else {}
+)
+
+
 @worker_ready.connect
 def _announce_worker(sender: Any = None, **_: Any) -> None:
     """Let the app know a worker is running (see app.workers.heartbeat)."""

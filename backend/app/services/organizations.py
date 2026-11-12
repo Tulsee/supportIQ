@@ -12,7 +12,12 @@ from app.core.database import rls_bypass, set_rls_context
 from app.core.exceptions import ConflictError, NotFoundError
 from app.models import Organization, OrganizationMember, OrgRole, User
 from app.repositories.organizations import OrganizationRepository
-from app.schemas.organizations import MemberUpdate, OrganizationCreate, OrganizationUpdate
+from app.schemas.organizations import (
+    MemberUpdate,
+    OrganizationCreate,
+    OrganizationSettings,
+    OrganizationUpdate,
+)
 from app.services import audit
 from app.services.authorization import STAFF_ROLES, require_role
 from app.services.tickets import TicketService
@@ -62,7 +67,34 @@ class OrganizationService:
     async def update(self, actor: OrganizationMember, data: OrganizationUpdate) -> Organization:
         require_role(actor, OrgRole.ADMIN)
         organization = actor.organization
-        if data.name != organization.name:
+        if data.settings is not None:
+            current = OrganizationSettings.model_validate(organization.settings or {})
+            changes = {
+                key: {"from": getattr(current, key), "to": value}
+                for key, value in data.settings.model_dump(exclude_none=True).items()
+                if getattr(current, key) != value
+            }
+            if changes:
+                # A new dict, so the JSONB change is detected.
+                organization.settings = {
+                    **(organization.settings or {}),
+                    **{key: change["to"] for key, change in changes.items()},
+                }
+                await audit.record(
+                    self.session,
+                    organization_id=organization.id,
+                    actor_id=actor.user_id,
+                    entity_type="organization",
+                    entity_id=organization.id,
+                    action="organization.settings_changed",
+                    summary="Changed "
+                    + ", ".join(
+                        f"{key.replace('_', ' ')} from {c['from']} to {c['to']}"
+                        for key, c in changes.items()
+                    ),
+                    changes=changes,
+                )
+        if data.name is not None and data.name != organization.name:
             await audit.record(
                 self.session,
                 organization_id=organization.id,
@@ -73,7 +105,8 @@ class OrganizationService:
                 summary=f"Renamed the organization to {data.name}",
                 changes={"name": {"from": organization.name, "to": data.name}},
             )
-        organization.name = data.name
+        if data.name is not None:
+            organization.name = data.name
         await self.session.commit()
         return organization
 

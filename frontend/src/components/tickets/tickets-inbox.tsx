@@ -24,7 +24,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LIVE_QUERY } from "@/components/tickets/hooks";
+import { LIVE_QUERY, useCategories } from "@/components/tickets/hooks";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { api, errorMessage, tenant, unwrap, type TicketPriority, type TicketStatus } from "@/lib/api/client";
 import { useActiveOrganization } from "@/lib/org/org-provider";
@@ -69,6 +69,7 @@ const SORT_LABELS: Record<Sort, string> = {
   "-priority": "Priority",
 };
 const ANY_PRIORITY = "any";
+const ANY_CATEGORY = "any";
 const PRIORITY_FILTER_LABELS: Record<string, string> = {
   [ANY_PRIORITY]: "Any priority",
   ...PRIORITY_LABELS,
@@ -80,6 +81,12 @@ export function TicketsInbox() {
   const [view, setView] = useState<View>("active");
   const [search, setSearch] = useState("");
   const [priority, setPriority] = useState<string>(ANY_PRIORITY);
+  const [category, setCategory] = useState<string>(ANY_CATEGORY);
+  const { categories } = useCategories(true);
+  const categoryLabels: Record<string, string> = {
+    [ANY_CATEGORY]: "Any category",
+    ...Object.fromEntries(categories.map((c) => [c.id, c.name])),
+  };
   const [sort, setSort] = useState<Sort>("-updated_at");
   const [offset, setOffset] = useState(0);
   const debouncedSearch = useDebouncedValue(search.trim());
@@ -87,6 +94,7 @@ export function TicketsInbox() {
   const query = {
     ...viewFilters(view),
     priority: priority === ANY_PRIORITY ? undefined : [priority as TicketPriority],
+    category_id: category === ANY_CATEGORY ? undefined : category,
     search: debouncedSearch || undefined,
     sort,
     limit: LIMIT,
@@ -177,6 +185,24 @@ export function TicketsInbox() {
                 ))}
               </SelectContent>
             </Select>
+            {categories.length ? (
+              <Select
+                items={categoryLabels}
+                value={category}
+                onValueChange={(value) => value && resetPage(setCategory)(value)}
+              >
+                <SelectTrigger aria-label="Filter by category" className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(categoryLabels).map(([id, name]) => (
+                    <SelectItem key={id} value={id}>
+                      {name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : null}
             <Select
               items={SORT_LABELS}
               value={sort}
@@ -250,6 +276,7 @@ export function TicketsInbox() {
                         </Link>
                         <div className="truncate text-xs text-muted-foreground">
                           {ticket.customer.name}
+                          {ticket.category ? ` · ${ticket.category.name}` : ""}
                         </div>
                       </TableCell>
                       <TableCell>

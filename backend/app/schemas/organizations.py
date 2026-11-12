@@ -5,6 +5,7 @@ from typing import Annotated, Self
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 from app.models import Organization, OrganizationMember, OrgRole
+from app.models.organization import DEFAULT_AUTO_CLOSE_DAYS
 
 OrgName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=200)]
 OrgSlug = Annotated[
@@ -21,8 +22,26 @@ class OrganizationCreate(BaseModel):
     )
 
 
+AutoCloseDays = Annotated[int, Field(ge=0, le=90)]
+
+
+class OrganizationSettings(BaseModel):
+    auto_close_after_days: AutoCloseDays = Field(
+        default=DEFAULT_AUTO_CLOSE_DAYS,
+        description="Resolved tickets with no reply for this many days are closed "
+        "automatically. 0 turns it off.",
+    )
+
+
+class OrganizationSettingsUpdate(BaseModel):
+    auto_close_after_days: AutoCloseDays | None = None
+
+
 class OrganizationUpdate(BaseModel):
-    name: OrgName
+    """Admin only. Only the fields provided are changed."""
+
+    name: OrgName | None = None
+    settings: OrganizationSettingsUpdate | None = None
 
 
 class OrganizationRead(BaseModel):
@@ -31,6 +50,7 @@ class OrganizationRead(BaseModel):
     id: uuid.UUID
     name: str
     slug: str
+    settings: OrganizationSettings
     created_at: datetime
 
 
@@ -43,6 +63,7 @@ class OrganizationWithRole(OrganizationRead):
             id=organization.id,
             name=organization.name,
             slug=organization.slug,
+            settings=OrganizationSettings.model_validate(organization.settings or {}),
             created_at=organization.created_at,
             role=role,
         )

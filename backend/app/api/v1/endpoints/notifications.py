@@ -83,7 +83,7 @@ async def set_preference(
     )
 
 
-EntityType = Literal["organization", "member", "invitation", "document"]
+EntityType = Literal["organization", "member", "invitation", "document", "category"]
 
 
 @audit_router.get("", summary="The organization's audit log (admin)")

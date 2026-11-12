@@ -1923,6 +1923,11 @@ invitation emails and the ticket timeline).
 
 ## 15.4 Module 10 - SLA management and automated routing
 
+**Status:** phase 1 (foundations) implemented on 12 November 2026: Celery beat and a
+`scheduler` service, ticket categories, organization settings, and auto-closing of
+resolved tickets (added at the user's request). Customers and staff can also close
+tickets directly. Next: SLA calendars and policies (phase 2).
+
 Specified in [docs/features/sla-and-automated-routing.md](docs/features/sla-and-automated-routing.md),
 adapted from the feature plan after auditing this repository. In short:
 

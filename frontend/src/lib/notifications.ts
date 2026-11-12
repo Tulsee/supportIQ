@@ -36,6 +36,7 @@ export const AUDIT_ENTITY_LABELS = {
   member: "Members",
   invitation: "Invitations",
   document: "Documents",
+  category: "Categories",
 } as const;
 
 export type AuditEntityType = keyof typeof AUDIT_ENTITY_LABELS;
