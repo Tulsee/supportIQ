@@ -111,6 +111,26 @@ async def forget_agent(
         )
 
 
+async def lock_agent_profile(
+    session: AsyncSession, organization_id: uuid.UUID, user_id: uuid.UUID
+) -> AgentProfile:
+    """The agent's profile, created with the defaults if missing, locked for update
+    (routing locks it to re-check capacity before assigning)."""
+    await session.execute(
+        insert(AgentProfile)
+        .values(id=uuid.uuid4(), organization_id=organization_id, user_id=user_id)
+        .on_conflict_do_nothing(index_elements=["organization_id", "user_id"])
+    )
+    return (
+        await session.scalars(
+            select(AgentProfile)
+            .where(AgentProfile.organization_id == organization_id, AgentProfile.user_id == user_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+    ).one()
+
+
 def _team_query(organization_id: uuid.UUID) -> Select[tuple[Team]]:
     return (
         select(Team)
@@ -418,23 +438,7 @@ class AgentService:
     # --- Helpers ----------------------------------------------------------------------
 
     async def _profile(self, organization_id: uuid.UUID, user_id: uuid.UUID) -> AgentProfile:
-        """The agent's profile, created with the defaults if missing, locked for update."""
-        await self.session.execute(
-            insert(AgentProfile)
-            .values(id=uuid.uuid4(), organization_id=organization_id, user_id=user_id)
-            .on_conflict_do_nothing(index_elements=["organization_id", "user_id"])
-        )
-        return (
-            await self.session.scalars(
-                select(AgentProfile)
-                .where(
-                    AgentProfile.organization_id == organization_id,
-                    AgentProfile.user_id == user_id,
-                )
-                .with_for_update()
-                .execution_options(populate_existing=True)
-            )
-        ).one()
+        return await lock_agent_profile(self.session, organization_id, user_id)
 
     async def _replace_skills(
         self,

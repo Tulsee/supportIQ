@@ -352,6 +352,37 @@ class TicketService:
         await self._send_notifications()
         return ticket
 
+    async def apply_routing(
+        self,
+        ticket: Ticket,
+        actor_id: uuid.UUID | None,
+        *,
+        team_id: uuid.UUID,
+        assignee_id: uuid.UUID | None,
+        details: dict[str, Any],
+    ) -> bool:
+        """Carry out a routing decision on a locked ticket: its team, and the agent if
+        one was picked. ``details`` (decision and rule) go into the staff-only events;
+        without an actor the changes show as automatic. Doesn't commit. Returns whether
+        customers can see a change (the status)."""
+        before = ticket.status
+        automatic = {"automatic": True} if actor_id is None else {}
+        await self._set_team(ticket, actor_id, team_id, {**details, **automatic})
+        if assignee_id is not None:
+            await self._assign(
+                ticket,
+                actor_id,
+                assignee_id,
+                extra={**details, **automatic},
+                status_extra=automatic or None,
+            )
+        return ticket.status != before
+
+    async def publish_change(self, ticket: Ticket, *, customer_visible: bool) -> None:
+        """After the commit: refresh open views and send the notifications."""
+        await self._notify("ticket.updated", ticket, staff_only=not customer_visible)
+        await self._send_notifications()
+
     async def unassign_member(self, actor: OrganizationMember, user_id: uuid.UUID) -> int:
         """Return a departing (or demoted) member's open tickets to the queue.
         Does not commit; the caller's membership change does."""
@@ -388,7 +419,11 @@ class TicketService:
         )
 
     async def _set_team(
-        self, ticket: Ticket, actor_id: uuid.UUID | None, team_id: uuid.UUID | None
+        self,
+        ticket: Ticket,
+        actor_id: uuid.UUID | None,
+        team_id: uuid.UUID | None,
+        extra: dict[str, Any] | None = None,
     ) -> None:
         if team_id == ticket.team_id:
             return
@@ -403,7 +438,7 @@ class TicketService:
             ticket,
             actor_id,
             TicketEventType.TEAM_CHANGED,
-            {"from": _team(previous), "to": _team(team)},
+            {"from": _team(previous), "to": _team(team), **(extra or {})},
         )
 
     async def _notify_reply(self, ticket: Ticket, message: TicketMessage, author: User) -> None:
@@ -440,8 +475,16 @@ class TicketService:
             await self.notifications.flush()
 
     async def _assign(
-        self, ticket: Ticket, actor_id: uuid.UUID | None, assignee_id: uuid.UUID | None
+        self,
+        ticket: Ticket,
+        actor_id: uuid.UUID | None,
+        assignee_id: uuid.UUID | None,
+        *,
+        extra: dict[str, Any] | None = None,
+        status_extra: dict[str, Any] | None = None,
     ) -> None:
+        """``extra`` goes into the assignment event (staff only), ``status_extra`` into
+        the status change it may cause (customers see that one)."""
         if assignee_id == ticket.assignee_id:
             return
         previous = ticket.assignee
@@ -462,7 +505,7 @@ class TicketService:
             ticket,
             actor_id,
             TicketEventType.ASSIGNED,
-            {"from": _person(previous), "to": _person(membership.user)},
+            {"from": _person(previous), "to": _person(membership.user), **(extra or {})},
         )
         if self.notifications is not None:
             await self.notifications.add(
@@ -481,7 +524,7 @@ class TicketService:
                 actor_id=actor_id,
             )
         if ticket.status == S.OPEN:
-            await self._set_status(ticket, actor_id, S.ASSIGNED)
+            await self._set_status(ticket, actor_id, S.ASSIGNED, status_extra)
 
     async def _transition(self, ticket: Ticket, actor_id: uuid.UUID, to: TicketStatus) -> None:
         if to == S.ASSIGNED:

@@ -42,6 +42,8 @@ x-backend: &backend
     MODEL_CACHE_DIR: /models
     AUTO_CLOSE_INTERVAL_MINUTES: ${AUTO_CLOSE_INTERVAL_MINUTES:-30}
     SLA_MONITOR_INTERVAL_SECONDS: ${SLA_MONITOR_INTERVAL_SECONDS:-60}
+    ROUTING_SWEEP_INTERVAL_SECONDS: ${ROUTING_SWEEP_INTERVAL_SECONDS:-60}
+    ROUTING_SWEEP_DELAY_SECONDS: ${ROUTING_SWEEP_DELAY_SECONDS:-120}
   extra_hosts:
     - "host.docker.internal:host-gateway"  # Linux; Docker Desktop resolves it already
   volumes:

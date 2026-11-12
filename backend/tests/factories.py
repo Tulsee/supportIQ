@@ -67,6 +67,16 @@ class RecordingQueue:
 
 
 @dataclass
+class RecordingRoutingQueue:
+    """Test routing queue: records the tickets it was asked to route."""
+
+    ids: list[uuid.UUID] = field(default_factory=list)
+
+    async def enqueue(self, ticket_id: uuid.UUID) -> None:
+        self.ids.append(ticket_id)
+
+
+@dataclass
 class StaticWorkerRegistry:
     """Test stand-in: reports a fixed number of live ingestion workers
     (None: couldn't be determined)."""

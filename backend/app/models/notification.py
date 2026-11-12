@@ -31,6 +31,7 @@ class NotificationKind(enum.StrEnum):
     TICKET_CLOSED = "ticket_closed"  # the customer closed your ticket
     SLA_AT_RISK = "sla_at_risk"  # a ticket's SLA deadline is near
     SLA_BREACHED = "sla_breached"  # a ticket's SLA deadline passed
+    ROUTING_NO_AGENT = "routing_no_agent"  # routing found nobody in the team to take a ticket
     # Customers
     AGENT_REPLIED = "agent_replied"  # support replied to your request
 
@@ -42,6 +43,7 @@ STAFF_KINDS = (
     NotificationKind.TICKET_CLOSED,
     NotificationKind.SLA_AT_RISK,
     NotificationKind.SLA_BREACHED,
+    NotificationKind.ROUTING_NO_AGENT,
 )
 CUSTOMER_KINDS = (NotificationKind.AGENT_REPLIED,)
 
@@ -61,6 +63,7 @@ DEFAULT_DELIVERY: dict[NotificationKind, NotificationDelivery] = {
     NotificationKind.TICKET_CLOSED: NotificationDelivery.IN_APP,
     NotificationKind.SLA_AT_RISK: NotificationDelivery.IN_APP,
     NotificationKind.SLA_BREACHED: NotificationDelivery.EMAIL,  # rare and important
+    NotificationKind.ROUTING_NO_AGENT: NotificationDelivery.IN_APP,
     NotificationKind.AGENT_REPLIED: NotificationDelivery.EMAIL,
 }
 

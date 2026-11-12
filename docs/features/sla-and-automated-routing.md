@@ -1,6 +1,6 @@
 # SLA management and automated ticket routing
 
-**Status:** in progress: phases 1-5 done, routing next (Module 10 in the [implementation plan](../../IMPLEMENTATION_PLAN.MD#15-phase-2-feature-roadmap)).
+**Status:** in progress: phases 1-6 done, the screens next (Module 10 in the [implementation plan](../../IMPLEMENTATION_PLAN.MD#15-phase-2-feature-roadmap)).
 **Source:** the feature plan "SupportIQ - SLA Management & Automated Ticket Routing",
 adapted to this repository after its Phase 0 audit (12 November 2026). Where this
 document and the original differ, this one records the deviation and the reason.
@@ -45,6 +45,8 @@ LLM-chosen assignees, workforce scheduling, cross-tenant assignment.
 | Calendar referenced by ID only | Clocks store a `calendar_snapshot` (time zone, hours, holidays) | Deadlines are recomputed on resume and priority change; using the calendar *as it was* keeps history reproducible when an admin edits hours later |
 | `SCREAMING_CASE` error codes | Lowercase snake case (`sla_policy_not_found`, `routing_rule_invalid`, `agent_not_eligible`, `assignment_conflict`) in the existing `{"error": {...}}` shape | Repository convention |
 | Separate presence heartbeat endpoint | The app's existing ticket WebSocket marks staff as seen (on connect, then every 30 s) in one Redis sorted set per organization (`supportiq:presence:{org}`, user → last seen); seen within 90 s = online. The agent's chosen status lives in the database | No extra polling; a closed tab expires on its own; two tabs don't undo each other; one read lists everyone online |
+| Customer fields in rules only for keys an admin allow-lists | Any lower-case metadata key | Rules are admin-only and decisions are staff-only, so an allow-list adds a setting without protecting anything; the screens can still suggest keys in use |
+| Outcome `unassigned`, job key from `updated_at`; skipped runs recorded | Outcomes `no_rule` and `no_agent`; at most one automatic decision per ticket; runs that find the ticket already assigned record nothing | Two outcomes tell "no rule fits" from "nobody can take it"; a ticket-level key is simpler and can't be fooled by an unrelated update |
 | SLA alerts: resolution at risk to the assignee *and* team leads; breaches to leads *and* admins | The same rule for both clocks: due soon to the assignee, or the escalation contacts if unassigned; breach to the assignee and the escalation contacts. Escalation contacts = the leads of the ticket's active team, else the admins | Leads replace admins rather than adding to them, so admins aren't paged for every team's tickets; admins still hear about tickets nobody leads |
 | Durable job outbox | Ticket and its clocks commit together; the routing job is enqueued after commit; a beat task routes `open` tickets with no decision after 2 minutes | Same reliability with the existing patterns |
 | Team lead organization role | `team_members.role` = `member` or `lead` | Avoids changing organization RBAC |
@@ -169,30 +171,56 @@ organization, or becomes a customer, loses their team memberships, skills and pr
 
 Conditions use the plan's constrained format (`all` / `any` lists of
 `{field, operator, value}`), validated by Pydantic. Allowed fields: `category`,
-`priority`, `subject` (operator `contains` only), `customer.<key>` for keys an admin
-allow-lists, and later `language` (Module 11). Operators: `eq`, `in`, `contains`,
-`is_set`. No expressions, no `eval`, no dynamic SQL. The first active rule in position
-order wins.
+`priority`, `subject` (operator `contains` only), `customer.<key>` for any key of the
+customer's metadata (lower-case slug), and later `language` (Module 11). Operators:
+`eq`, `in`, `contains`, `is_set`; comparisons ignore case. No expressions, no `eval`,
+no dynamic SQL, never message content. Every `all` condition must hold and one `any`
+condition (if there are any); no conditions = a catch-all. The first active rule (in
+position order) whose team is active wins. Category conditions must name existing
+category keys; rule names are unique per organization, ignoring case.
 
 ### Engine (`app/domain/routing.py` + `services/routing.py`)
 
-1. Load the ticket (`FOR UPDATE`). Stop if it already has an assignee (manual wins), is
-   not `open`, or a decision with the same job key exists (idempotency: key =
-   ticket + trigger + ticket `updated_at`).
-2. Match a rule; none → outcome `unassigned`.
-3. Set the team; strategy `manual` → outcome `team_only`.
-4. Build candidates with an exclusion reason for each agent who fails a check.
-5. `least_loaded` (default): lowest active/capacity ratio; ties → oldest
-   `last_assigned_at`, then user ID. `round_robin`: oldest `last_assigned_at`.
-   `skill_match`: highest summed skill level, then least loaded.
-6. Lock the chosen agent's profile row, re-count their workload, and assign through
-   `TicketService._assign` (event `source: automatic`), or fall back to `team_only`.
-7. Persist a `routing_decisions` row: trigger, rule, strategy, outcome, candidates with
-   scores and exclusions, and a one-paragraph explanation. No message content.
+1. Load the ticket (`FOR UPDATE`). Stop if it has an assignee (a person's choice
+   wins), is resolved or closed, or, for automatic triggers, a person already chose its
+   team (that team hands it out) or it already has an automatic decision. Idempotency is "at most one automatic decision per ticket", checked under
+   the ticket lock and backed by a partial unique index; reroutes can repeat. A run
+   that stops here records nothing.
+2. Match a rule; none → outcome `no_rule` (the ticket stays in the queue, no team).
+3. Strategy `manual` → set the team only, outcome `team_only`.
+4. Assess every member of the team who is still staff, with the reasons each can't
+   take it: `offline`, `busy`, `away`, `at capacity, n of m`, `takes no automatic
+   assignments` (capacity 0), `no refunds skill, needs 3` / `refunds level 1, needs 3`.
+5. Rank the eligible: `least_loaded` (default): lowest active/capacity ratio, then the
+   longest since their last automatic assignment (never first), then user ID.
+   `round_robin`: longest since their last automatic assignment. `skill_match`: highest
+   total level in the required skills, then least loaded.
+6. In rank order, lock the agent's profile row, count their active tickets again, and
+   take the first who still has room and is still available. Concurrent runs for other
+   tickets wait on that row lock, so nobody goes past capacity. Nobody left → outcome
+   `no_agent`: the team is set, the ticket stays `open` and unassigned, and the team's
+   leads (or the admins) get a `routing_no_agent` notification.
+7. Persist a `routing_decisions` row (trigger, applied, rule name and version, team,
+   strategy, outcome, assignee, every rule tried with what matched or didn't, the
+   ranked candidates with reasons, and a one-paragraph explanation; names are copied),
+   then apply it through `TicketService.apply_routing`: `team_changed` and `assigned`
+   events carry `source: "routing"`, the decision and the rule (and `automatic: true`
+   without an actor); the status change customers see says only that it was automatic.
+   The assigned agent's `last_assigned_at` is set.
 
-Triggers: ticket created (job enqueued after commit), a sweep for `open` tickets
-without a decision, manual "Reroute", and later "agent became available". A dry-run
-**simulator** runs steps 2-5 on a hypothetical ticket and writes nothing.
+Triggers: ticket created (a Celery job enqueued after commit, only when the
+organization's routing mode is `on` or `shadow` and neither an assignee nor a team was
+chosen), a sweep every minute for `open` tickets with no assignee, team or decision that
+are 2 minutes to 24
+hours old (so turning routing on doesn't route the backlog), and a staff member's
+**reroute** (any mode; the ticket must be unassigned and not resolved or closed). A
+dry-run **simulator** (admin) runs steps 2-5 for an existing or hypothetical ticket
+and writes nothing. "Agent became available" isn't a trigger yet: tickets left
+`no_agent` wait for a person (or a reroute).
+
+**Routing mode** (organization settings, `routing_mode`): `off` (default; only
+reroutes), `shadow` (new tickets get a decision recorded with `applied: false` and
+nothing changes, to compare with what people do), `on`.
 
 ## 6. API
 
@@ -210,10 +238,11 @@ Same conventions as today: `/api/v1`, `X-Organization-Id`, staff-only unless sta
 | `PUT /agents/{user_id}/profile` | Capacity and skills | admin |
 | `GET /agents/me`, `PUT /agents/me/presence` | Own status | staff |
 | `PATCH /tickets/{id}` with `team_id`, `GET /tickets?team_id=` | A ticket's team | staff |
-| `GET/POST /routing/rules`, `PATCH /routing/rules/{id}`, `PUT /routing/rules/order` | Rules | admin |
+| `GET/POST /routing/rules`, `PATCH/DELETE /routing/rules/{id}`, `PUT /routing/rules/order` | Rules (GET: staff) | admin |
 | `POST /routing/simulate` | Dry run | admin |
-| `GET /tickets/{id}/routing` | Decisions and explanation | staff |
-| `POST /tickets/{id}/reroute` | Run routing again | staff |
+| `GET /tickets/{id}/routing` | Decisions and explanation, newest first | staff |
+| `POST /tickets/{id}/reroute` | Run routing again (409 `not_routable` if assigned, resolved or closed) | staff |
+| `PATCH /organizations/{id}` with `settings.routing_mode` | `off`, `shadow` or `on` | admin |
 | `GET /tickets?sla=at_risk\|breached&team=...&unassigned=true` | Queue filters on the existing list | staff |
 
 ## 7. Front end
@@ -278,7 +307,7 @@ Everything in the plan's section 15, plus:
 | 3 | Ticket clocks: lifecycle hooks, pauses, cycles, `GET /tickets/{id}/sla`, first-response analytics fix (done, with the ticket's SLA panel) | 2-3 days |
 | 4 | Monitoring: evaluator, notifications, escalation, timeline events (done; admins stand in for team leads until phase 5; compliance in analytics brought forward from phase 8) | 2 days |
 | 5 | Teams, members, agent profiles, skills, presence (done, with a team on each ticket, team leads as SLA escalation contacts and a status switch in the user menu) | 2-3 days |
-| 6 | Routing: rules, engine, jobs and sweep, decisions, reroute, simulator | 3-4 days |
+| 6 | Routing: rules, engine, jobs and sweep, decisions, reroute, simulator (done, with the routing mode setting, `no_agent` alerts and timeline wording; the screens are phase 7) | 3-4 days |
 | 7 | Front end: settings, queue and ticket panels, bell, presence | 4-5 days |
 | 8 | Analytics, load and concurrency tests, docs, screenshots, demo data | 2-3 days |
 
@@ -292,6 +321,10 @@ compared with what people did, no assignment); (D) automatic routing for one tea
 category; (E) per-organization switches (a new `settings` JSONB column on
 `organizations`, with `sla_enabled` and `auto_routing_enabled`), so automatic routing
 can be turned off without affecting ticket creation.
+
+Implemented as one setting, `routing_mode` (`off` by default, `shadow`, `on`), which
+covers (B), (C) and (E). Per-team rollout (D) is done with rules: route one category to
+a team and leave the rest unmatched. SLAs need no switch: no policies, no clocks.
 
 ## 13. Acceptance criteria
 

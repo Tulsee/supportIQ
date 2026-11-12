@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from typing import Annotated, Self
+from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
@@ -23,6 +23,10 @@ class OrganizationCreate(BaseModel):
 
 
 AutoCloseDays = Annotated[int, Field(ge=0, le=90)]
+# off: tickets are only routed when someone asks (reroute); shadow: new tickets get a
+# recorded decision that isn't carried out (to compare with what people do); on:
+# new tickets are routed automatically.
+RoutingMode = Literal["off", "shadow", "on"]
 
 
 class OrganizationSettings(BaseModel):
@@ -31,10 +35,16 @@ class OrganizationSettings(BaseModel):
         description="Resolved tickets with no reply for this many days are closed "
         "automatically. 0 turns it off.",
     )
+    routing_mode: RoutingMode = Field(
+        default="off",
+        description="Automatic routing of new tickets: `off`, `shadow` (decide and record, "
+        "but don't assign) or `on`.",
+    )
 
 
 class OrganizationSettingsUpdate(BaseModel):
     auto_close_after_days: AutoCloseDays | None = None
+    routing_mode: RoutingMode | None = None
 
 
 class OrganizationUpdate(BaseModel):

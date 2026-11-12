@@ -52,8 +52,10 @@ from app.workers.heartbeat import RedisWorkerRegistry, WorkerRegistry
 from app.workers.queue import (
     CeleryIngestionQueue,
     CeleryNotificationMailer,
+    CeleryRoutingQueue,
     IngestionQueue,
     NotificationMailer,
+    RoutingQueue,
 )
 
 DbSession = Annotated[AsyncSession, Depends(get_db_session)]
@@ -79,6 +81,10 @@ def get_presence() -> PresenceTracker:
 
 def get_ingestion_queue() -> IngestionQueue:
     return CeleryIngestionQueue()
+
+
+def get_routing_queue() -> RoutingQueue:
+    return CeleryRoutingQueue()
 
 
 def get_notification_mailer() -> NotificationMailer:
@@ -115,6 +121,7 @@ PresenceDep = Annotated[PresenceTracker, Depends(get_presence)]
 StorageDep = Annotated[ObjectStorage, Depends(get_object_storage)]
 IngestionQueueDep = Annotated[IngestionQueue, Depends(get_ingestion_queue)]
 NotificationMailerDep = Annotated[NotificationMailer, Depends(get_notification_mailer)]
+RoutingQueueDep = Annotated[RoutingQueue, Depends(get_routing_queue)]
 WorkerRegistryDep = Annotated[WorkerRegistry, Depends(get_worker_registry)]
 EmbedderDep = Annotated[Embedder, Depends(get_embedder_dep)]
 RerankerDep = Annotated[Reranker, Depends(get_reranker_dep)]

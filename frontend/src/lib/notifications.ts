@@ -19,11 +19,18 @@ export const KIND_LABELS: Record<NotificationKind, { label: string; description:
   },
   sla_at_risk: {
     label: "SLA due soon",
-    description: "A ticket assigned to you (or, unassigned, any ticket) nears its deadline.",
+    description:
+      "A ticket assigned to you nears its deadline, or an unassigned one in a team you lead (admins: tickets without a lead).",
   },
   sla_breached: {
     label: "SLA breached",
-    description: "A ticket assigned to you, or any ticket if you're an admin, misses its deadline.",
+    description:
+      "A ticket assigned to you or in a team you lead misses its deadline (admins: tickets without a lead).",
+  },
+  routing_no_agent: {
+    label: "Nobody available",
+    description:
+      "Routing finds nobody in a team you lead who can take a new ticket (admins: teams without a lead).",
   },
   agent_replied: {
     label: "Replies from support",
@@ -48,6 +55,7 @@ export const AUDIT_ENTITY_LABELS = {
   sla: "Service levels",
   team: "Teams",
   agent: "Agents",
+  routing_rule: "Routing rules",
 } as const;
 
 export type AuditEntityType = keyof typeof AUDIT_ENTITY_LABELS;

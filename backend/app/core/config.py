@@ -88,6 +88,10 @@ class Settings(BaseSettings):
     auto_close_interval_minutes: int = 30
     # How often the SLA monitor looks for clocks due soon or breached. 0 disables it.
     sla_monitor_interval_seconds: int = 60
+    # How often the scheduler routes open tickets whose routing job never ran (broker
+    # down, worker crashed), and how old a ticket must be before it's swept. 0 disables.
+    routing_sweep_interval_seconds: int = 60
+    routing_sweep_delay_seconds: int = 120
 
     # --- Background jobs (Celery) ---------------------------------------------------
     # A separate Redis database from rate limits and real-time events.

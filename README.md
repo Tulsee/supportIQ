@@ -48,7 +48,13 @@ a labelled benchmark measures how well it works.
   there's no lead), and analytics report compliance.
 - **Teams and agents.** Teams with members and leads, a capacity limit and skills
   (levels 1 to 5) per agent, and each agent's status (available, busy or away) with
-  presence that follows their open app. The groundwork for automatic routing.
+  presence that follows their open app.
+- **Automatic routing.** Ordered rules on category, priority, subject or customer
+  fields send new tickets to a team and pick an agent who's online, available, under
+  capacity and has the skills: least loaded, round robin or best skill match. Every
+  decision is recorded with an explanation; when nobody can take a ticket it waits and
+  the team lead is told. Shadow mode, rerouting and a dry-run simulator; a person's
+  assignment always wins.
 - **Notifications and audit log.** A live notification bell (assignments, customer
   replies, AI escalations, and replies to customers), optional email per kind, and an
   append-only log of administrative changes.

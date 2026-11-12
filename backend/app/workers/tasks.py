@@ -8,6 +8,7 @@ from celery import Task
 from app.services.automation import run_auto_close_job
 from app.services.ingestion import TransientIngestionError, run_ingestion_job
 from app.services.notifications import run_email_job
+from app.services.routing import run_routing_job, run_routing_sweep
 from app.services.sla_monitor import run_sla_job
 from app.workers.celery_app import celery_app
 
@@ -58,3 +59,24 @@ def evaluate_sla() -> dict[str, int]:
     """Record SLA clocks that became due soon or breached, and notify."""
     result = asyncio.run(run_sla_job())
     return {"at_risk": result.at_risk, "breached": result.breached}
+
+
+@celery_app.task(
+    name="routing.route_ticket",
+    ignore_result=True,
+    # Database or Redis hiccups: retry. Routing is idempotent per ticket (at most one
+    # automatic decision), and the sweep catches anything that still slips through.
+    autoretry_for=(OSError, ConnectionError, TimeoutError),
+    max_retries=3,
+    retry_backoff=5,
+    retry_jitter=True,
+)
+def route_ticket(ticket_id: str) -> str | None:
+    """Route a newly opened ticket (organizations with routing on or in shadow mode)."""
+    return asyncio.run(run_routing_job(uuid.UUID(ticket_id)))
+
+
+@celery_app.task(name="routing.sweep", ignore_result=True)
+def sweep_unrouted_tickets() -> int:
+    """Route open tickets whose routing job never ran."""
+    return asyncio.run(run_routing_sweep())

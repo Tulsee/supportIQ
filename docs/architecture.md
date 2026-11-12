@@ -145,6 +145,29 @@ groundwork for routing:
 - Leaving the organization, or moving to the customer role, removes someone's team
   memberships, skills and profile. All four tables are staff-only under RLS.
 
+## Automatic routing
+
+Module 10, phase 6. Pure logic in `app/domain/routing.py` (conditions, rule order,
+eligibility, the three strategies, explanations); `app/services/routing.py` applies it:
+
+- **Rules** (`routing_rules`, admin-managed, audited): constrained conditions (`all` /
+  `any` of `{field, operator, value}` on category, priority, subject or customer
+  metadata), a team, a strategy (`least_loaded`, `round_robin`, `skill_match`,
+  `manual`) and required skills. The first active match wins.
+- **Running it**: when a ticket is opened unassigned, the API queues
+  `routing.route_ticket` after the commit (if the organization's `routing_mode` is
+  `on` or `shadow`); `routing.sweep` (every minute) catches tickets whose job never
+  ran; staff can **reroute** an unassigned ticket at any time. Each run locks the
+  ticket and stops if someone was assigned meanwhile or it was already routed, so a
+  person's choice always wins and nothing is routed twice. The chosen agent's profile
+  row is locked and their workload counted again before assigning, so concurrent runs
+  can't push anyone past capacity.
+- **Decisions** (`routing_decisions`): every run's rules tried, ranked candidates with
+  the reasons others were skipped, the outcome (`assigned`, `team_only`, `no_agent`,
+  `no_rule`) and a readable explanation. `no_agent` notifies the team's leads (or the
+  admins). In `shadow` mode decisions are recorded but not applied. A simulator shows
+  what would happen, without writing.
+
 ## Notifications and audit log
 
 - **Notifications** (`notifications`) are readable only by their recipient. Writing one

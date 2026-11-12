@@ -1933,7 +1933,9 @@ priority changes, cancellation, `GET /tickets/{id}/sla`, the ticket's SLA panel)
 implemented the same day, and phase 4 (the monitor, due-soon and breach notifications,
 timeline events, SLA compliance in analytics), and phase 5 (teams with members and
 leads, agent capacity and skills, status and presence, a team on each ticket; team
-leads receive SLA alerts). Next: automatic routing (phase 6).
+leads receive SLA alerts), and phase 6 (routing rules, the routing engine with its
+job, sweep and reroute, recorded decisions with explanations, shadow mode, the
+simulator). Next: the screens (phase 7).
 
 Specified in [docs/features/sla-and-automated-routing.md](docs/features/sla-and-automated-routing.md),
 adapted from the feature plan after auditing this repository. In short:

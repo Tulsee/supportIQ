@@ -59,6 +59,15 @@ celery_app.conf.beat_schedule = {
             },
             settings.sla_monitor_interval_seconds > 0,
         ),
+        (
+            "routing-sweep",
+            {
+                "task": "routing.sweep",
+                "schedule": settings.routing_sweep_interval_seconds,
+                "options": {"expires": max(settings.routing_sweep_interval_seconds, 30)},
+            },
+            settings.routing_sweep_interval_seconds > 0,
+        ),
     )
     if enabled
 }

@@ -29,6 +29,7 @@ const FILTERS: Filter[] = [
   "sla",
   "team",
   "agent",
+  "routing_rule",
 ];
 
 /** Administrative changes in the organization, newest first. */

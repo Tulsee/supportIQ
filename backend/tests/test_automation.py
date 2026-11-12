@@ -80,7 +80,7 @@ async def test_each_organization_chooses_its_window(
         org_url, json={"settings": {"auto_close_after_days": 0}}, headers=ws.admin.headers
     )
     assert never.status_code == 200, never.text
-    assert never.json()["settings"] == {"auto_close_after_days": 0}
+    assert never.json()["settings"] == {"auto_close_after_days": 0, "routing_mode": "off"}
     assert await auto_close_resolved(db_session, now=NOW) == 0
     assert await status_of(api, ws, ticket) == "resolved"
 
@@ -111,7 +111,7 @@ async def test_only_admins_change_settings_within_limits(
     assert as_agent.status_code == 403
     assert too_long.status_code == 422
     default = await api.get(org_url, headers=ws.customer.headers)
-    assert default.json()["settings"] == {"auto_close_after_days": 7}
+    assert default.json()["settings"] == {"auto_close_after_days": 7, "routing_mode": "off"}
 
 
 def test_the_scheduler_runs_auto_close() -> None:

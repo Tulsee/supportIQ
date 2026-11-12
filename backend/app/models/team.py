@@ -113,6 +113,8 @@ class AgentProfile(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         default=DEFAULT_MAX_ACTIVE_TICKETS,
         server_default=text(str(DEFAULT_MAX_ACTIVE_TICKETS)),
     )
+    # The last automatic assignment (round robin picks whoever waited longest).
+    last_assigned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class AgentSkill(UUIDPrimaryKeyMixin, TimestampMixin, Base):

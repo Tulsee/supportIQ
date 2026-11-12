@@ -49,6 +49,7 @@ from app.api.deps import (
     get_presence,
     get_rate_limiter,
     get_reranker_dep,
+    get_routing_queue,
     get_vector_store,
     get_worker_registry,
 )
@@ -66,6 +67,7 @@ from tests.factories import (
     Outbox,
     RecordingMailer,
     RecordingQueue,
+    RecordingRoutingQueue,
     ScriptedLLM,
     StaticWorkerRegistry,
     Workspace,
@@ -208,6 +210,11 @@ def mailer() -> RecordingMailer:
 
 
 @pytest.fixture
+def routing_queue() -> RecordingRoutingQueue:
+    return RecordingRoutingQueue()
+
+
+@pytest.fixture
 def worker_registry() -> StaticWorkerRegistry:
     return StaticWorkerRegistry(count=1)
 
@@ -267,6 +274,7 @@ def make_client(
     vector_store: QdrantVectorStore,
     ingestion_queue: RecordingQueue,
     mailer: RecordingMailer,
+    routing_queue: RecordingRoutingQueue,
     worker_registry: StaticWorkerRegistry,
     reranker: OverlapReranker,
     llm: ScriptedLLM,
@@ -297,6 +305,7 @@ def make_client(
             get_vector_store: lambda: vector_store,
             get_ingestion_queue: lambda: ingestion_queue,
             get_notification_mailer: lambda: mailer,
+            get_routing_queue: lambda: routing_queue,
             get_worker_registry: lambda: worker_registry,
             get_reranker_dep: lambda: reranker,
             get_llm_client_dep: lambda: llm,

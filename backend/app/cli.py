@@ -64,6 +64,14 @@ async def _sla_check() -> int:
     return 0
 
 
+async def _routing_sweep() -> int:
+    from app.services.routing import run_routing_sweep
+
+    routed = await run_routing_sweep()
+    print(f"Routing sweep: {routed} tickets routed")
+    return 0
+
+
 def _export_openapi(output: Path | None) -> int:
     """Write the API contract (no server or database needed). The frontend's typed
     client is generated from it, and CI checks that the two stay in sync."""
@@ -244,6 +252,8 @@ async def _run(args: argparse.Namespace) -> int:
             return await _auto_close()
         if args.command == "sla-check":
             return await _sla_check()
+        if args.command == "routing-sweep":
+            return await _routing_sweep()
         return await _purge_expired()
     finally:
         await engine.dispose()
@@ -317,6 +327,9 @@ def main(argv: list[str] | None = None) -> int:
         "auto-close", help="Close resolved tickets past their organization's auto-close window"
     )
     commands.add_parser("sla-check", help="Record SLA clocks due soon or breached, and notify")
+    commands.add_parser(
+        "routing-sweep", help="Route open tickets whose routing job never ran (routing on/shadow)"
+    )
     export = commands.add_parser("export-openapi", help="Write the OpenAPI document as JSON")
     export.add_argument("--output", type=Path, help="File to write (default: stdout)")
     _add_evaluate(commands)

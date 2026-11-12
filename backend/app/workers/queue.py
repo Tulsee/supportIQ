@@ -1,4 +1,5 @@
-"""Handing jobs (document ingestion, notification emails) to the background workers."""
+"""Handing jobs (document ingestion, notification emails, ticket routing) to the
+background workers."""
 
 import uuid
 from collections.abc import Sequence
@@ -48,6 +49,29 @@ class CeleryNotificationMailer:
         def _send() -> None:
             email_notifications.apply_async(
                 args=[[str(i) for i in notification_ids]],
+                retry=True,
+                retry_policy={"max_retries": 2, "interval_start": 0.2, "interval_step": 0.5},
+            )
+
+        try:
+            await to_thread.run_sync(_send)
+        except (OperationalError, OSError) as exc:
+            raise QueueUnavailableError(str(exc)) from exc
+
+
+class RoutingQueue(Protocol):
+    async def enqueue(self, ticket_id: uuid.UUID) -> None: ...
+
+
+class CeleryRoutingQueue:
+    async def enqueue(self, ticket_id: uuid.UUID) -> None:
+        from kombu.exceptions import OperationalError
+
+        from app.workers.tasks import route_ticket
+
+        def _send() -> None:
+            route_ticket.apply_async(
+                args=[str(ticket_id)],
                 retry=True,
                 retry_policy={"max_retries": 2, "interval_start": 0.2, "interval_step": 0.5},
             )

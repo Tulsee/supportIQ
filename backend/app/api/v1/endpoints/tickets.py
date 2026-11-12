@@ -15,6 +15,7 @@ from app.api.deps import (
     EventBrokerDep,
     NotificationsDep,
     Pagination,
+    RoutingQueueDep,
     TenantMembership,
 )
 from app.core.security import utcnow
@@ -32,6 +33,7 @@ from app.schemas.tickets import (
     TicketUpdate,
 )
 from app.services.authorization import STAFF_ROLES, require_role
+from app.services.routing import enqueue_new_ticket
 from app.services.sla import SlaConfigService
 from app.services.sla_clocks import SlaClockService
 from app.services.tickets import TicketService, allowed_statuses
@@ -110,10 +112,14 @@ async def create_ticket(
     session: DbSession,
     events: EventBrokerDep,
     notifications: NotificationsDep,
+    routing: RoutingQueueDep,
 ) -> TicketRead:
     """Staff open tickets for a customer (`customer_id` required) and may set the
-    priority and assignee. Customers open tickets for themselves."""
+    priority and assignee. Customers open tickets for themselves. Unassigned tickets
+    are routed in the background when the organization's routing mode is on (or
+    shadow)."""
     ticket = await TicketService(session, events, notifications).create(member, user, body)
+    await enqueue_new_ticket(routing, member, ticket)
     return TicketRead.build(ticket, allowed_statuses(member, ticket))
 
 

@@ -29,6 +29,13 @@ from app.models.notification import (
 )
 from app.models.organization import Organization, OrganizationMember, OrgRole
 from app.models.refresh_token import RefreshToken
+from app.models.routing import (
+    RoutingDecision,
+    RoutingOutcome,
+    RoutingRule,
+    RoutingStrategy,
+    RoutingTrigger,
+)
 from app.models.sla import (
     BusinessCalendar,
     BusinessHoliday,
@@ -98,6 +105,11 @@ __all__ = [
     "OrganizationMember",
     "RefreshToken",
     "RetrievalResult",
+    "RoutingDecision",
+    "RoutingOutcome",
+    "RoutingRule",
+    "RoutingStrategy",
+    "RoutingTrigger",
     "SlaClockKind",
     "SlaClockState",
     "SlaPolicy",

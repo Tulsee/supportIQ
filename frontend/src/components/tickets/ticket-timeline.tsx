@@ -9,6 +9,13 @@ import {
 
 type Person = { id: string; name: string } | null;
 
+/** " by the routing rule “Billing”" for changes made by automatic routing (staff only). */
+function viaRule(data: Record<string, unknown>): string {
+  return data.source === "routing" && typeof data.rule === "string"
+    ? ` by the routing rule “${data.rule}”`
+    : "";
+}
+
 function describe(event: TicketEvent, audience: "staff" | "customer", byMe: boolean): string {
   const labels = audience === "customer" ? CUSTOMER_STATUS_LABELS : STATUS_LABELS;
   const data = event.data as Record<string, unknown>;
@@ -38,7 +45,10 @@ function describe(event: TicketEvent, audience: "staff" | "customer", byMe: bool
     case "assigned": {
       const to = data.to as Person;
       const from = data.from as Person;
-      return from ? `reassigned it from ${from.name} to ${to?.name}` : `assigned it to ${to?.name}`;
+      const how = viaRule(data);
+      return from
+        ? `reassigned it from ${from.name} to ${to?.name}${how}`
+        : `assigned it to ${to?.name}${how}`;
     }
     case "unassigned": {
       const from = data.from as Person;
@@ -49,8 +59,8 @@ function describe(event: TicketEvent, audience: "staff" | "customer", byMe: bool
       const from = data.from as { name: string } | null;
       if (!to) return from ? `took the ticket off the ${from.name} team` : "cleared the team";
       return from
-        ? `moved the ticket from the ${from.name} team to ${to.name}`
-        : `gave the ticket to the ${to.name} team`;
+        ? `moved the ticket from the ${from.name} team to ${to.name}${viaRule(data)}`
+        : `gave the ticket to the ${to.name} team${viaRule(data)}`;
     }
     case "category_changed": {
       const to = data.to as { name: string } | null;

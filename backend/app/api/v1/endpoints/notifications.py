@@ -84,7 +84,15 @@ async def set_preference(
 
 
 EntityType = Literal[
-    "organization", "member", "invitation", "document", "category", "sla", "team", "agent"
+    "organization",
+    "member",
+    "invitation",
+    "document",
+    "category",
+    "sla",
+    "team",
+    "agent",
+    "routing_rule",
 ]
 
 

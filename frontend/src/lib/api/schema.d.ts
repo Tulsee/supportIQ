@@ -376,7 +376,9 @@ export interface paths {
         /**
          * Open a ticket
          * @description Staff open tickets for a customer (`customer_id` required) and may set the
-         *     priority and assignee. Customers open tickets for themselves.
+         *     priority and assignee. Customers open tickets for themselves. Unassigned tickets
+         *     are routed in the background when the organization's routing mode is on (or
+         *     shadow).
          */
         post: operations["create_ticket_api_v1_tickets_post"];
         delete?: never;
@@ -836,6 +838,131 @@ export interface paths {
          */
         put: operations["update_agent_profile_api_v1_agents__user_id__profile_put"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/routing/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List routing rules in the order they're tried */
+        get: operations["list_rules_api_v1_routing_rules_get"];
+        put?: never;
+        /**
+         * Add a routing rule (admin)
+         * @description Added last. 400 `routing_rule_invalid` for an inactive or unknown team or
+         *     unknown category keys; 409 `routing_rule_exists` if the name is taken.
+         */
+        post: operations["create_rule_api_v1_routing_rules_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/routing/rules/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set the order rules are tried in (admin)
+         * @description `rule_ids` must list every rule of the organization exactly once.
+         */
+        put: operations["reorder_rules_api_v1_routing_rules_order_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/routing/rules/{rule_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a routing rule (admin)
+         * @description Decisions it made keep its name and version.
+         */
+        delete: operations["delete_rule_api_v1_routing_rules__rule_id__delete"];
+        options?: never;
+        head?: never;
+        /** Change or turn off a routing rule (admin) */
+        patch: operations["update_rule_api_v1_routing_rules__rule_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/routing/simulate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * What routing would do now, without doing it (admin)
+         * @description For an existing ticket (`ticket_id`) or a hypothetical one. Uses the active rules
+         *     and agents' current status, presence and workload. Writes nothing.
+         */
+        post: operations["simulate_api_v1_routing_simulate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tickets/{ticket_id}/routing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The ticket's routing decisions (staff)
+         * @description Newest first, each with the rules tried, the candidates and an explanation.
+         */
+        get: operations["ticket_routing_api_v1_tickets__ticket_id__routing_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tickets/{ticket_id}/reroute": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run routing on the ticket now (staff)
+         * @description Applies the rules now, whatever the organization's routing mode. 409
+         *     `not_routable` if the ticket is assigned (unassign it first), resolved or closed.
+         */
+        post: operations["reroute_ticket_api_v1_tickets__ticket_id__reroute_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1877,6 +2004,34 @@ export interface components {
             /** Hours */
             hours: components["schemas"]["HoursInterval"][];
         };
+        /** CandidateRead */
+        CandidateRead: {
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Name */
+            name: string;
+            /** Eligible */
+            eligible: boolean;
+            /**
+             * Reasons
+             * @description Why they can't take it (empty when eligible).
+             */
+            reasons: string[];
+            /** Active Tickets */
+            active_tickets: number;
+            /** Max Active Tickets */
+            max_active_tickets: number;
+            /** Skill Score */
+            skill_score: number;
+            /**
+             * Rank
+             * @description 1 = first choice; null when not eligible.
+             */
+            rank: number | null;
+        };
         /** CategoryCreate */
         CategoryCreate: {
             /** Name */
@@ -2033,6 +2188,38 @@ export interface components {
              */
             contradiction: number;
         };
+        /**
+         * ConditionIn
+         * @description One test on the ticket. Fields: `category` (by key: eq, in, is_set),
+         *     `priority` (eq, in), `subject` (contains), and `customer.<key>` for the customer's
+         *     metadata (eq, in, contains, is_set). Text comparisons ignore case.
+         */
+        ConditionIn: {
+            /**
+             * Field
+             * @description `category`, `priority`, `subject` or `customer.<key>`.
+             * @example category
+             * @example customer.plan
+             */
+            field: string;
+            operator: components["schemas"]["Operator"];
+            /**
+             * Value
+             * @description Text for eq and contains, a list for in, true or false for is_set.
+             */
+            value: string | string[] | boolean;
+        };
+        /**
+         * Conditions
+         * @description Every `all` condition must hold, and one of `any` (when there are any). No
+         *     conditions: the rule matches every ticket.
+         */
+        Conditions: {
+            /** All */
+            all?: components["schemas"]["ConditionIn"][];
+            /** Any */
+            any?: components["schemas"]["ConditionIn"][];
+        };
         /** CustomerCreate */
         CustomerCreate: {
             /** Name */
@@ -2117,6 +2304,40 @@ export interface components {
             created: number;
             /** Resolved */
             resolved: number;
+        };
+        /** DecisionRead */
+        DecisionRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            trigger: components["schemas"]["RoutingTrigger"];
+            /**
+             * Applied
+             * @description False in shadow mode: decided but not carried out.
+             */
+            applied: boolean;
+            /** @description Who asked for a reroute. */
+            actor: components["schemas"]["PersonSummary"] | null;
+            outcome: components["schemas"]["Outcome"];
+            rule: components["schemas"]["Named"] | null;
+            /** Rule Version */
+            rule_version: number | null;
+            team: components["schemas"]["Named"] | null;
+            strategy: components["schemas"]["Strategy"] | null;
+            assignee: components["schemas"]["Named"] | null;
+            /** Rules */
+            rules: components["schemas"]["RuleCheckRead"][];
+            /** Candidates */
+            candidates: components["schemas"]["CandidateRead"][];
+            /** Explanation */
+            explanation: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
         /** DecisionStat */
         DecisionStat: {
@@ -2571,6 +2792,16 @@ export interface components {
             /** Output Tokens */
             output_tokens: number;
         };
+        /** Named */
+        Named: {
+            /**
+             * Id
+             * @description Null once it no longer exists.
+             */
+            id: string | null;
+            /** Name */
+            name: string;
+        };
         /**
          * NotificationDelivery
          * @enum {string}
@@ -2580,7 +2811,7 @@ export interface components {
          * NotificationKind
          * @enum {string}
          */
-        NotificationKind: "ticket_assigned" | "customer_replied" | "ai_escalated" | "ticket_closed" | "sla_at_risk" | "sla_breached" | "agent_replied";
+        NotificationKind: "ticket_assigned" | "customer_replied" | "ai_escalated" | "ticket_closed" | "sla_at_risk" | "sla_breached" | "routing_no_agent" | "agent_replied";
         /** NotificationPage */
         NotificationPage: {
             /** Items */
@@ -2645,6 +2876,11 @@ export interface components {
             created_at: string;
         };
         /**
+         * Operator
+         * @enum {string}
+         */
+        Operator: "eq" | "in" | "contains" | "is_set";
+        /**
          * OrgRole
          * @enum {string}
          */
@@ -2667,11 +2903,20 @@ export interface components {
              * @default 7
              */
             auto_close_after_days: number;
+            /**
+             * Routing Mode
+             * @description Automatic routing of new tickets: `off`, `shadow` (decide and record, but don't assign) or `on`.
+             * @default off
+             * @enum {string}
+             */
+            routing_mode: "off" | "shadow" | "on";
         };
         /** OrganizationSettingsUpdate */
         OrganizationSettingsUpdate: {
             /** Auto Close After Days */
             auto_close_after_days?: number | null;
+            /** Routing Mode */
+            routing_mode?: ("off" | "shadow" | "on") | null;
         };
         /**
          * OrganizationUpdate
@@ -2702,6 +2947,11 @@ export interface components {
             /** @description The current user's role in this organization. */
             role: components["schemas"]["OrgRole"];
         };
+        /**
+         * Outcome
+         * @enum {string}
+         */
+        Outcome: "assigned" | "team_only" | "no_agent" | "no_rule";
         /** Overview */
         Overview: {
             /** Days */
@@ -3064,6 +3314,176 @@ export interface components {
             /** @description The passage; null if it has been replaced by a re-index since the run. */
             chunk: components["schemas"]["ChunkRead"] | null;
         };
+        /**
+         * RoutingTrigger
+         * @enum {string}
+         */
+        RoutingTrigger: "created" | "sweep" | "reroute";
+        /** RuleCheckRead */
+        RuleCheckRead: {
+            /** Rule Id */
+            rule_id: string | null;
+            /** Name */
+            name: string;
+            /** Matched */
+            matched: boolean;
+            /**
+             * Detail
+             * @description What matched, or the first thing that didn't.
+             */
+            detail: string;
+        };
+        /** RuleCreate */
+        RuleCreate: {
+            /**
+             * Name
+             * @description Unique in the organization, ignoring case.
+             */
+            name: string;
+            conditions?: components["schemas"]["Conditions"];
+            /**
+             * Team Id
+             * Format: uuid
+             * @description An active team of the organization.
+             */
+            team_id: string;
+            /** @default least_loaded */
+            strategy: components["schemas"]["Strategy"];
+            /**
+             * Required Skills
+             * @description Agents need every one, at least at that level.
+             */
+            required_skills?: components["schemas"]["SkillLevel-Input"][];
+            /**
+             * Is Active
+             * @default true
+             */
+            is_active: boolean;
+        };
+        /** RuleOrder */
+        RuleOrder: {
+            /**
+             * Rule Ids
+             * @description Every rule of the organization, in the order to try them.
+             */
+            rule_ids: string[];
+        };
+        /** RuleRead */
+        RuleRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Position
+             * @description Rules are tried in this order (1 first).
+             */
+            position: number;
+            conditions: components["schemas"]["Conditions"];
+            team: components["schemas"]["RuleTeam"];
+            strategy: components["schemas"]["Strategy"];
+            /** Required Skills */
+            required_skills: components["schemas"]["SkillLevel-Output"][];
+            /** Is Active */
+            is_active: boolean;
+            /**
+             * Version
+             * @description Goes up when what the rule does changes.
+             */
+            version: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** RuleTeam */
+        RuleTeam: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Is Active */
+            is_active: boolean;
+        };
+        /**
+         * RuleUpdate
+         * @description Only the fields provided are changed.
+         */
+        RuleUpdate: {
+            /** Name */
+            name?: string | null;
+            conditions?: components["schemas"]["Conditions"] | null;
+            /** Team Id */
+            team_id?: string | null;
+            strategy?: components["schemas"]["Strategy"] | null;
+            /** Required Skills */
+            required_skills?: components["schemas"]["SkillLevel-Input"][] | null;
+            /** Is Active */
+            is_active?: boolean | null;
+        };
+        /** SimulationRead */
+        SimulationRead: {
+            outcome: components["schemas"]["Outcome"];
+            rule: components["schemas"]["Named"] | null;
+            team: components["schemas"]["Named"] | null;
+            strategy: components["schemas"]["Strategy"] | null;
+            /** @description Who would be assigned. */
+            assignee: components["schemas"]["CandidateRead"] | null;
+            /**
+             * Rules
+             * @description Every rule tried, in order.
+             */
+            rules: components["schemas"]["RuleCheckRead"][];
+            /**
+             * Candidates
+             * @description Eligible by rank, then the others.
+             */
+            candidates: components["schemas"]["CandidateRead"][];
+            /** Explanation */
+            explanation: string;
+        };
+        /**
+         * SimulationRequest
+         * @description Either an existing ticket, or a hypothetical one. Nothing is written.
+         */
+        SimulationRequest: {
+            /**
+             * Ticket Id
+             * @description Simulate this ticket.
+             */
+            ticket_id?: string | null;
+            /**
+             * Category
+             * @description A category key.
+             */
+            category?: string | null;
+            /** @default normal */
+            priority: components["schemas"]["TicketPriority"];
+            /**
+             * Subject
+             * @default
+             */
+            subject: string;
+            /**
+             * Customer
+             * @description The customer's metadata.
+             */
+            customer?: {
+                [key: string]: string | number | boolean | (string | number | boolean | null)[] | null;
+            };
+        };
         /** SkillLevel */
         "SkillLevel-Input": {
             /**
@@ -3256,6 +3676,11 @@ export interface components {
             /** Score */
             score: number;
         };
+        /**
+         * Strategy
+         * @enum {string}
+         */
+        Strategy: "least_loaded" | "round_robin" | "skill_match" | "manual";
         /** TeamCreate */
         TeamCreate: {
             /**
@@ -7489,6 +7914,572 @@ export interface operations {
             };
         };
     };
+    list_rules_api_v1_routing_rules_get: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuleRead"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    create_rule_api_v1_routing_rules_post: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RuleCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuleRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    reorder_rules_api_v1_routing_rules_order_put: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RuleOrder"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuleRead"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    delete_rule_api_v1_routing_rules__rule_id__delete: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path: {
+                rule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    update_rule_api_v1_routing_rules__rule_id__patch: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path: {
+                rule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RuleUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuleRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    simulate_api_v1_routing_simulate_post: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SimulationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SimulationRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    ticket_routing_api_v1_tickets__ticket_id__routing_get: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionRead"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    reroute_ticket_api_v1_tickets__ticket_id__reroute_post: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DecisionRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     suggest_reply_api_v1_tickets__ticket_id__ai_suggestion_post: {
         parameters: {
             query?: never;
@@ -9585,7 +10576,7 @@ export interface operations {
         parameters: {
             query?: {
                 /** @description Only this kind of entity. */
-                entity_type?: ("organization" | "member" | "invitation" | "document" | "category" | "sla" | "team" | "agent") | null;
+                entity_type?: ("organization" | "member" | "invitation" | "document" | "category" | "sla" | "team" | "agent" | "routing_rule") | null;
                 /** @description Maximum items to return. */
                 limit?: number;
                 /** @description Number of items to skip. */
