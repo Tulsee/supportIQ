@@ -28,6 +28,10 @@ AutoCloseDays = Annotated[int, Field(ge=0, le=90)]
 # new tickets are routed automatically.
 RoutingMode = Literal["off", "shadow", "on"]
 TriageMode = Literal["off", "shadow", "on"]
+# The customer assistant in the portal (Module 12), and which model answers it:
+# "local" keeps customers' questions on the local model whatever the provider.
+SelfServiceMode = Literal["off", "on"]
+SelfServiceModel = Literal["default", "local"]
 
 
 class OrganizationSettings(BaseModel):
@@ -46,12 +50,24 @@ class OrganizationSettings(BaseModel):
         description="AI triage of new tickets: `off`, `shadow` (predict and record silently, "
         "to measure accuracy) or `on` (apply confident categories, suggest the rest).",
     )
+    self_service: SelfServiceMode = Field(
+        default="off",
+        description="The customer assistant in the portal: customers ask questions answered "
+        "from public documents, and can hand over to a person.",
+    )
+    self_service_model: SelfServiceModel = Field(
+        default="default",
+        description="`local`: customers' questions are always answered by the local model, "
+        "never sent to a hosted one.",
+    )
 
 
 class OrganizationSettingsUpdate(BaseModel):
     auto_close_after_days: AutoCloseDays | None = None
     routing_mode: RoutingMode | None = None
     triage_mode: TriageMode | None = None
+    self_service: SelfServiceMode | None = None
+    self_service_model: SelfServiceModel | None = None
 
 
 class OrganizationUpdate(BaseModel):

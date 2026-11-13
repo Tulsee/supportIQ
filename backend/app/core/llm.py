@@ -11,6 +11,15 @@ def get_llm_client() -> LLMClient:
     return build_llm_client(settings)
 
 
+@lru_cache
+def get_local_llm_client() -> LLMClient:
+    """The local model (Ollama) whatever ``LLM_PROVIDER`` says: organizations can keep
+    their customers' questions on it (``self_service_model: local``)."""
+    if settings.llm_provider == "ollama":
+        return get_llm_client()
+    return build_llm_client(settings.model_copy(update={"llm_provider": "ollama"}))
+
+
 def build_llm_client(settings: Settings) -> LLMClient:
     """A client for ``settings`` (evaluations pass adjusted copies)."""
     if settings.llm_provider == "anthropic":
@@ -41,3 +50,4 @@ async def close_llm_client() -> None:
         if isinstance(client, ClaudeClient):
             await client.aclose()
         get_llm_client.cache_clear()
+    get_local_llm_client.cache_clear()

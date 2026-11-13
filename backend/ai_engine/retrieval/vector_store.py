@@ -132,16 +132,32 @@ class QdrantVectorStore:
         )
 
     async def search(
-        self, organization_id: uuid.UUID, vector: Sequence[float], *, limit: int
+        self,
+        organization_id: uuid.UUID,
+        vector: Sequence[float],
+        *,
+        limit: int,
+        document_ids: Sequence[uuid.UUID] | None = None,
     ) -> list[VectorHit]:
-        """Nearest chunks within one organization, best first."""
+        """Nearest chunks within one organization, best first; with ``document_ids``,
+        only chunks of those documents (none given: no hits)."""
+        if document_ids is not None and not document_ids:
+            return []
         if not await self.client.collection_exists(self.collection):
             return []
+        must: list[models.Condition] = [_match("organization_id", organization_id)]
+        if document_ids is not None:
+            must.append(
+                models.FieldCondition(
+                    key="document_id",
+                    match=models.MatchAny(any=[str(d) for d in document_ids]),
+                )
+            )
         response = await self.client.query_points(
             self.collection,
             query=list(vector),
             using=VECTOR_NAME,
-            query_filter=models.Filter(must=[_match("organization_id", organization_id)]),
+            query_filter=models.Filter(must=must),
             limit=limit,
             with_payload=False,
         )

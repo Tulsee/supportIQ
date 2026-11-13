@@ -44,6 +44,7 @@ from app.api.deps import (
     get_event_broker,
     get_ingestion_queue,
     get_llm_client_dep,
+    get_local_llm_client_dep,
     get_nli_model_dep,
     get_notification_mailer,
     get_presence,
@@ -245,6 +246,12 @@ def llm() -> ScriptedLLM:
 
 
 @pytest.fixture
+def local_llm() -> ScriptedLLM:
+    """The local model, for organizations that keep customers' questions on it."""
+    return ScriptedLLM()
+
+
+@pytest.fixture
 def ingest(
     db_session: AsyncSession,
     storage: LocalObjectStorage,
@@ -286,6 +293,7 @@ def make_client(
     worker_registry: StaticWorkerRegistry,
     reranker: OverlapReranker,
     llm: ScriptedLLM,
+    local_llm: ScriptedLLM,
     nli: OverlapNli,
 ) -> ClientFactory:
     """Factory for HTTP clients against ``target_app`` (default: the real app), all
@@ -318,6 +326,7 @@ def make_client(
             get_worker_registry: lambda: worker_registry,
             get_reranker_dep: lambda: reranker,
             get_llm_client_dep: lambda: llm,
+            get_local_llm_client_dep: lambda: local_llm,
             get_nli_model_dep: lambda: nli,
         }
         target_app.dependency_overrides.update(overrides)

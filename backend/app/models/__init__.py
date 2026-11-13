@@ -16,9 +16,23 @@ from app.models.ai_run import (
     FeedbackRating,
     RetrievalResult,
 )
+from app.models.assistant import (
+    AssistantConversation,
+    AssistantMessage,
+    AssistantOutcome,
+    AssistantRating,
+    AssistantRole,
+    ConversationStatus,
+)
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
 from app.models.customer import Customer
-from app.models.document import ACTIVE_INGESTION, Document, DocumentChunk, DocumentStatus
+from app.models.document import (
+    ACTIVE_INGESTION,
+    Document,
+    DocumentChunk,
+    DocumentStatus,
+    DocumentVisibility,
+)
 from app.models.invitation import OrganizationInvitation
 from app.models.notification import (
     AuditLogEntry,
@@ -83,16 +97,23 @@ __all__ = [
     "AgentSkill",
     "AgentStatus",
     "AnswerStatus",
+    "AssistantConversation",
+    "AssistantMessage",
+    "AssistantOutcome",
+    "AssistantRating",
+    "AssistantRole",
     "AuditLogEntry",
     "Base",
     "BusinessCalendar",
     "BusinessHoliday",
     "BusinessHours",
     "Citation",
+    "ConversationStatus",
     "Customer",
     "Document",
     "DocumentChunk",
     "DocumentStatus",
+    "DocumentVisibility",
     "EvidenceAssessment",
     "FeedbackRating",
     "MessageAuthorType",

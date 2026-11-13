@@ -5,7 +5,7 @@ from sqlalchemy import ColumnElement, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from app.models import Document, DocumentChunk, DocumentStatus
+from app.models import Document, DocumentChunk, DocumentStatus, DocumentVisibility
 
 
 class DocumentRepository:
@@ -39,6 +39,16 @@ class DocumentRepository:
             )
         )
 
+    async def public_ids(self, organization_id: uuid.UUID) -> list[uuid.UUID]:
+        """Documents customers' questions may be answered from."""
+        rows = await self.session.scalars(
+            select(Document.id).where(
+                Document.organization_id == organization_id,
+                Document.visibility == DocumentVisibility.PUBLIC,
+            )
+        )
+        return list(rows.all())
+
     async def find(
         self,
         organization_id: uuid.UUID,
@@ -47,10 +57,13 @@ class DocumentRepository:
         search: str | None,
         limit: int,
         offset: int,
+        visibility: DocumentVisibility | None = None,
     ) -> tuple[list[Document], int]:
         conditions: list[ColumnElement[bool]] = [Document.organization_id == organization_id]
         if statuses:
             conditions.append(Document.status.in_(statuses))
+        if visibility is not None:
+            conditions.append(Document.visibility == visibility)
         if search:
             conditions.append(
                 or_(

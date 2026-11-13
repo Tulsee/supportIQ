@@ -1990,6 +1990,14 @@ classification.
 
 ## 15.6 Module 12 - Customer self-service assistant
 
+**Status:** implemented except the evaluation (13 November 2026): public documents
+enforced by RLS and the retrieval filter, the portal's Ask page, the stricter customer
+policy, ratings, handoff with the conversation on the ticket, the local-model setting,
+rate limits, and self-service analytics. See
+[docs/features/customer-self-service.md](docs/features/customer-self-service.md); the
+S1-S3 evaluation (leakage canaries, the customer policy on the 58 questions, prompt
+injection) is next.
+
 **Why:** the plan's demonstration starts with "a customer asks a question". Today only
 staff can ask the assistant.
 

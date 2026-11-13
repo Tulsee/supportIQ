@@ -63,6 +63,8 @@ class TicketEventType(enum.StrEnum):
     SLA_AT_RISK = "sla_at_risk"  # the SLA monitor: a deadline is near (staff only)
     SLA_BREACHED = "sla_breached"  # the SLA monitor: a deadline passed (staff only)
     TEAM_CHANGED = "team_changed"  # staff only
+    # Opened from a conversation with the customer assistant (Module 12; staff only).
+    SELF_SERVICE_HANDOFF = "self_service_handoff"
 
 
 # Events a customer may see on their own tickets (also enforced by RLS).

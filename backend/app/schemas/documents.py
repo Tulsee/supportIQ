@@ -5,7 +5,7 @@ from typing import Annotated, Literal, Self
 from pydantic import BaseModel, Field, StringConstraints
 
 from ai_engine.ingestion.extract import DocumentType
-from app.models import Document, DocumentChunk, DocumentStatus
+from app.models import Document, DocumentChunk, DocumentStatus, DocumentVisibility
 from app.schemas.tickets import PersonSummary
 
 DocumentTitle = Annotated[
@@ -22,6 +22,10 @@ class DocumentRead(BaseModel):
     status: DocumentStatus
     error: str | None = Field(
         description="Why indexing failed, or warnings (e.g. unreadable pages) after indexing."
+    )
+    visibility: DocumentVisibility = Field(
+        description="`internal`: staff only. `public`: also answers customers' questions "
+        "in the portal."
     )
     version: int = Field(description="Uploads of this document so far.")
     indexed_version: int | None = Field(
@@ -48,6 +52,7 @@ class DocumentRead(BaseModel):
             size_bytes=document.size_bytes,
             status=document.status,
             error=document.error,
+            visibility=document.visibility,
             version=document.version,
             indexed_version=document.indexed_version,
             page_count=document.page_count,
@@ -60,6 +65,17 @@ class DocumentRead(BaseModel):
             processing_started_at=document.processing_started_at,
             indexed_at=document.indexed_at,
         )
+
+
+class DocumentUpdate(BaseModel):
+    """Admin only. Only the fields provided are changed."""
+
+    title: DocumentTitle | None = None
+    visibility: DocumentVisibility | None = Field(
+        default=None,
+        description="`public` lets the customer assistant answer from this document; "
+        "`internal` keeps it to staff.",
+    )
 
 
 class ChunkRead(BaseModel):

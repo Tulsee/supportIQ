@@ -1,4 +1,4 @@
-import { CircleAlertIcon, CircleCheckIcon, ClockIcon, Loader2Icon } from "lucide-react";
+import { CircleAlertIcon, CircleCheckIcon, ClockIcon, GlobeIcon, Loader2Icon } from "lucide-react";
 
 import type { KnowledgeDocument } from "@/lib/api/client";
 import { DOCUMENT_STATUS_LABELS } from "@/lib/documents";
@@ -36,6 +36,22 @@ export function DocumentStatusBadge({
     >
       <Icon className={cn("size-3.5", status === "processing" && "animate-spin")} aria-hidden />
       {DOCUMENT_STATUS_LABELS[status]}
+    </span>
+  );
+}
+
+/** Shown for public documents only: internal is the default and needs no label. */
+export function PublicBadge({ className }: { className?: string }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full border border-violet-300 px-1.5 py-0 text-[10px] font-medium whitespace-nowrap text-violet-700 dark:border-violet-800 dark:text-violet-300",
+        className,
+      )}
+      title="Customers' questions can be answered from this document"
+    >
+      <GlobeIcon className="size-3" aria-hidden />
+      Public
     </span>
   );
 }

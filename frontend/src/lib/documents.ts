@@ -2,6 +2,7 @@ import type { KnowledgeDocument } from "@/lib/api/client";
 
 type Status = KnowledgeDocument["status"];
 type FileType = KnowledgeDocument["file_type"];
+export type Visibility = KnowledgeDocument["visibility"];
 
 export const DOCUMENT_STATUS_LABELS: Record<Status, string> = {
   queued: "Queued",
@@ -15,6 +16,12 @@ export const FILE_TYPE_LABELS: Record<FileType, string> = {
   docx: "Word",
   txt: "Text",
   markdown: "Markdown",
+};
+
+export const VISIBILITY_FILTER_LABELS: Record<Visibility | "all", string> = {
+  all: "All documents",
+  public: "Public",
+  internal: "Internal",
 };
 
 /** Mirrors the API's checks for instant feedback; the API validates for real. */

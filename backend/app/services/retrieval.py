@@ -70,9 +70,17 @@ class RetrievalService:
         strategy: RequestedStrategy,
         rerank: bool,
         top_k: int,
+        public_only: bool = False,
     ) -> RetrievalOutcome:
-        """Run the retrieval pipeline (no access checks, nothing recorded)."""
+        """Run the retrieval pipeline (no access checks, nothing recorded).
+
+        ``public_only``: search public documents only (the customer assistant). Every
+        stage is restricted: BM25's corpus, the vector search (filtered to the public
+        documents' ids, so internal vectors don't use up its top-k) and the passages
+        loaded for reranking. A customer's session is also held to public documents
+        by row-level security."""
         assert self.embedder is not None and self.vectors is not None
+        public_ids = await self.documents.public_ids(organization_id) if public_only else None
         config = RetrievalConfig(
             sparse_top_k=settings.retrieval_sparse_top_k,
             dense_top_k=settings.retrieval_dense_top_k,
@@ -83,10 +91,16 @@ class RetrievalService:
         )
         engine = RetrievalEngine(
             sparse=BM25Retriever(
-                self.session, organization_id, k1=settings.bm25_k1, b=settings.bm25_b
+                self.session,
+                organization_id,
+                k1=settings.bm25_k1,
+                b=settings.bm25_b,
+                public_only=public_only,
             ),
-            dense=DenseRetriever(self.embedder, self.vectors, organization_id),
-            passages=ChunkPassages(self.session, organization_id),
+            dense=DenseRetriever(
+                self.embedder, self.vectors, organization_id, document_ids=public_ids
+            ),
+            passages=ChunkPassages(self.session, organization_id, public_only=public_only),
             reranker=self.reranker if rerank else None,
             config=config,
         )

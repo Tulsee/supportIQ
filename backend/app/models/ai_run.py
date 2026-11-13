@@ -28,6 +28,7 @@ class AIRunKind(enum.StrEnum):
     ANSWER = "answer"  # retrieval, then an answer generated from the selected passages
     SUGGESTION = "suggestion"  # an answer drafted as a reply on a ticket (Module 6)
     SUMMARY = "summary"  # a ticket conversation summarized for agents (no retrieval)
+    SELF_SERVICE = "self_service"  # a customer's question to the portal assistant (Module 12)
 
 
 class FeedbackRating(enum.StrEnum):

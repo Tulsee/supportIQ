@@ -356,6 +356,63 @@ _TRIAGE_LATENCY = text(
     """
 )
 
+_SELF_SERVICE = text(
+    """
+    SELECT count(*) AS conversations,
+      count(*) FILTER (WHERE status = 'resolved') AS resolved,
+      count(*) FILTER (WHERE status = 'handed_off') AS handed_off,
+      count(*) FILTER (WHERE status = 'open') AS open
+    FROM assistant_conversations WHERE organization_id = :org AND created_at >= :since
+    """
+)
+_SELF_SERVICE_REPLIES = text(
+    """
+    SELECT m.outcome,
+      CASE WHEN m.ai_run_id IS NULL THEN 'unavailable' ELSE e.reason END AS reason,
+      count(*) AS n,
+      count(*) FILTER (WHERE m.rating IS NOT NULL) AS rated,
+      count(*) FILTER (WHERE m.rating = 'helpful') AS helpful
+    FROM assistant_messages m
+    LEFT JOIN evidence_assessments e ON e.ai_run_id = m.ai_run_id
+    WHERE m.organization_id = :org AND m.created_at >= :since AND m.role = 'assistant'
+    GROUP BY 1, 2
+    """
+)
+_SELF_SERVICE_UNANSWERED = text(
+    """
+    SELECT q.body AS question, q.created_at AS asked_at,
+      CASE WHEN r.ai_run_id IS NULL THEN 'unavailable' ELSE e.reason END AS reason,
+      r.conversation_id, c.ticket_id, r.ai_run_id
+    FROM assistant_messages r
+    JOIN assistant_conversations c ON c.id = r.conversation_id
+    JOIN LATERAL (
+      SELECT body, created_at FROM assistant_messages q
+      WHERE q.conversation_id = r.conversation_id AND q.role = 'customer' AND q.seq < r.seq
+      ORDER BY q.seq DESC LIMIT 1
+    ) q ON true
+    LEFT JOIN evidence_assessments e ON e.ai_run_id = r.ai_run_id
+    WHERE r.organization_id = :org AND r.created_at >= :since
+      AND r.role = 'assistant' AND r.outcome = 'unable'
+    ORDER BY r.seq DESC LIMIT 10
+    """
+)
+_SELF_SERVICE_DAILY = text(
+    """
+    SELECT (created_at AT TIME ZONE 'UTC')::date AS day, count(*) AS conversations,
+      count(*) FILTER (WHERE status = 'resolved') AS resolved,
+      count(*) FILTER (WHERE status = 'handed_off') AS handed_off
+    FROM assistant_conversations WHERE organization_id = :org AND created_at >= :since
+    GROUP BY 1
+    """
+)
+_SELF_SERVICE_LATENCY = text(
+    """
+    SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY latency_ms) AS p50
+    FROM ai_runs
+    WHERE organization_id = :org AND created_at >= :since AND kind = 'self_service'
+    """
+)
+
 
 _PRIORITY_ORDER = {"urgent": 0, "high": 1, "normal": 2, "low": 3}
 
@@ -563,6 +620,64 @@ class AnalyticsService:
                     "accuracy": rate(r.correct, r.reviewed),
                 }
                 for r in await self._rows(_TRIAGE_CATEGORIES, params)
+            ],
+        }
+
+    async def self_service(self, member: OrganizationMember, days: int) -> dict[str, Any]:
+        """The customer assistant in the period (Module 12): how conversations ended,
+        what its replies were, why it couldn't answer, and the questions it missed."""
+        require_role(member, *STAFF_ROLES)
+        params = {"org": member.organization_id, **_window(days)}
+        totals = (await self._rows(_SELF_SERVICE, params))[0]
+        outcomes = {"answered": 0, "clarify": 0, "unable": 0}
+        reasons: dict[str, int] = {}
+        rated = helpful = 0
+        for r in await self._rows(_SELF_SERVICE_REPLIES, params):
+            outcomes[r.outcome] += r.n
+            rated += r.rated
+            helpful += r.helpful
+            if r.outcome == "unable":
+                key = r.reason or "unknown"
+                reasons[key] = reasons.get(key, 0) + r.n
+        replies = sum(outcomes.values())
+        daily = {r.day: r for r in await self._rows(_SELF_SERVICE_DAILY, params)}
+        latency = (await self._rows(_SELF_SERVICE_LATENCY, params))[0].p50
+        settings = OrganizationSettings.model_validate(member.organization.settings or {})
+
+        def rate(numerator: int, denominator: int) -> float | None:
+            return numerator / denominator if denominator else None
+
+        return {
+            "days": days,
+            "mode": settings.self_service,
+            "conversations": totals.conversations,
+            "resolved": totals.resolved,
+            "handed_off": totals.handed_off,
+            "open": totals.open,
+            "resolution_rate": rate(totals.resolved, totals.conversations),
+            "handoff_rate": rate(totals.handed_off, totals.conversations),
+            "replies": replies,
+            **outcomes,
+            "answer_rate": rate(outcomes["answered"], replies),
+            "rated": rated,
+            "helpful": helpful,
+            "helpful_rate": rate(helpful, rated),
+            "median_latency_ms": round(latency) if latency is not None else None,
+            "reasons": [
+                {"reason": reason, "replies": n}
+                for reason, n in sorted(reasons.items(), key=lambda item: (-item[1], item[0]))
+            ],
+            "unanswered": [
+                dict(r._mapping) for r in await self._rows(_SELF_SERVICE_UNANSWERED, params)
+            ],
+            "daily": [
+                {
+                    "day": d.isoformat(),
+                    "conversations": daily[d].conversations if d in daily else 0,
+                    "resolved": daily[d].resolved if d in daily else 0,
+                    "handed_off": daily[d].handed_off if d in daily else 0,
+                }
+                for d in _days(params, days)
             ],
         }
 

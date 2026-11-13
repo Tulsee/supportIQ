@@ -34,6 +34,15 @@ export const queryKeys = {
     ["organizations", orgId, "tickets", "detail", ticketId, "routing"] as const,
   ticketTriage: (orgId: string, ticketId: string) =>
     ["organizations", orgId, "tickets", "detail", ticketId, "triage"] as const,
+  ticketSelfService: (orgId: string, ticketId: string) =>
+    ["organizations", orgId, "tickets", "detail", ticketId, "self-service"] as const,
+
+  assistantConversations: (orgId: string, page?: Page) =>
+    page
+      ? (["organizations", orgId, "assistant", "list", page] as const)
+      : (["organizations", orgId, "assistant"] as const),
+  assistantConversation: (orgId: string, conversationId: string) =>
+    ["organizations", orgId, "assistant", "detail", conversationId] as const,
 
   customers: (orgId: string, page?: SearchPage) =>
     page

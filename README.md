@@ -64,6 +64,13 @@ a labelled benchmark measures how well it works.
   sorted. The category is applied only when the combined confidence clears a threshold
   tuned on a labelled set; otherwise it's a suggestion to accept. Shadow mode measures
   accuracy first, and routing uses what triage sets ([T1-T4 report](experiments/reports/triage-t1-t4.md)).
+- **Customer assistant.** Customers ask questions in the portal and get answers with
+  sources from the documents an admin made public; internal documents can't reach
+  them, enforced by row-level security as well as the search filter. Anything short
+  of a complete, supported answer offers a person: "Contact support" opens a request
+  with the conversation attached for staff. Answers are rated ("Did this answer your
+  question?"), and analytics report self-service resolution and handoffs
+  ([feature doc](docs/features/customer-self-service.md)).
 - **Notifications and audit log.** A live notification bell (assignments, customer
   replies, AI escalations, and replies to customers), optional email per kind, and an
   append-only log of administrative changes.
@@ -296,8 +303,10 @@ docs/             Architecture notes and screenshots
 
 ## Roadmap
 
-Next:
-[SLA management and automated ticket routing](docs/features/sla-and-automated-routing.md),
-AI ticket triage that abstains when unsure, a customer self-service assistant, and a
-knowledge-base contradiction scanner. The full plan is in section 15 of
-[IMPLEMENTATION_PLAN.MD](IMPLEMENTATION_PLAN.MD#15-phase-2-feature-roadmap).
+Done in Phase 2: notifications and the audit log,
+[SLA management and automated routing](docs/features/sla-and-automated-routing.md),
+[AI ticket triage](docs/features/ai-triage.md) and the
+[customer assistant](docs/features/customer-self-service.md). Next: the customer
+assistant's evaluation (leakage, the stricter policy, prompt injection), then a
+knowledge-base quality loop with a contradiction scanner. The full plan is in section
+15 of [IMPLEMENTATION_PLAN.MD](IMPLEMENTATION_PLAN.MD#15-phase-2-feature-roadmap).

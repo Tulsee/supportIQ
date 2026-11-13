@@ -9,6 +9,7 @@ from app.schemas.analytics import (
     AIPerformance,
     Overview,
     RoutingAnalytics,
+    SelfServiceAnalytics,
     SlaDetail,
     TriageAnalytics,
 )
@@ -40,6 +41,16 @@ async def triage(member: TenantMembership, session: DbSession, days: Days = 30) 
     """Coverage (how often triage was confident), accuracy of confident predictions and
     of the top guess when unsure (from people's reviews), per category, and latency."""
     return TriageAnalytics(**await AnalyticsService(session).triage(member, days))
+
+
+@router.get("/self-service", summary="The customer assistant")
+async def self_service(
+    member: TenantMembership, session: DbSession, days: Days = 30
+) -> SelfServiceAnalytics:
+    """Conversations customers started in the period and how they ended (resolved only
+    when the customer confirmed an answer helped; handed to a person), the assistant's
+    replies and why it couldn't answer, and the latest questions it missed."""
+    return SelfServiceAnalytics(**await AnalyticsService(session).self_service(member, days))
 
 
 @router.get("/routing", summary="Automatic routing")

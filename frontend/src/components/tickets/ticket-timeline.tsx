@@ -90,6 +90,10 @@ function describe(event: TicketEvent, audience: "staff" | "customer", byMe: bool
       return data.reason === "conflicting_sources"
         ? "asked the AI for a reply; the documents disagree, so a person should answer"
         : "asked the AI for a reply; it couldn't find a supported answer";
+    case "self_service_handoff": {
+      const questions = typeof data.questions === "number" ? data.questions : 0;
+      return `sent this from the customer assistant after ${questions} question${questions === 1 ? "" : "s"}`;
+    }
   }
 }
 

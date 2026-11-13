@@ -66,6 +66,12 @@ const PORTAL: NavItem[] = [
   { title: "Home", icon: LayoutDashboardIcon, href: "/dashboard" },
   { title: "My requests", icon: TicketIcon, href: "/tickets", matchNested: true },
 ];
+// When the organization has turned the customer assistant on.
+const PORTAL_WITH_ASSISTANT: NavItem[] = [
+  PORTAL[0],
+  { title: "Ask a question", icon: MessageSquareTextIcon, href: "/assistant" },
+  ...PORTAL.slice(1),
+];
 
 const SETTINGS: NavItem[] = [
   { title: "Organization", icon: Building2Icon, href: "/settings" },
@@ -142,7 +148,11 @@ function NavGroups({ pathname }: { pathname: string | null }) {
   return (
     <>
       {activeOrganization?.role === "customer" ? (
-        <NavGroup label="Support" items={PORTAL} pathname={pathname} />
+        <NavGroup
+          label="Support"
+          items={activeOrganization.settings.self_service === "on" ? PORTAL_WITH_ASSISTANT : PORTAL}
+          pathname={pathname}
+        />
       ) : activeOrganization ? (
         <>
           <NavGroup label="Workspace" items={WORKSPACE} pathname={pathname} />

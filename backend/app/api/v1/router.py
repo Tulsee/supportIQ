@@ -6,6 +6,7 @@ from app.api.v1.endpoints import (
     admin,
     ai,
     analytics,
+    assistant,
     auth,
     categories,
     customers,
@@ -43,6 +44,8 @@ api_router.include_router(triage.router)
 api_router.include_router(ticket_ai.router)
 api_router.include_router(documents.router)
 api_router.include_router(ai.router)
+api_router.include_router(assistant.router)
+api_router.include_router(assistant.ticket_router)
 api_router.include_router(analytics.router)
 api_router.include_router(notifications.router)
 api_router.include_router(notifications.audit_router)

@@ -185,6 +185,19 @@ suggested; the language is stored and routing can use it. People's category choi
 become labels and record whether the prediction was right; analytics report coverage
 and accuracy, and the triage set's T1-T4 experiments tune α and the threshold.
 
+## Customer assistant
+
+Module 12 (`app/services/assistant.py`, [feature doc](features/customer-self-service.md)).
+Customers ask in the portal; the answer pipeline runs with `public_only`, the
+self-service prompt and the assessed policy with partial answers abstaining, and the
+reply is `answered` (with sources), `clarify` or `unable` (offer a person). The
+public/internal boundary is held twice: the retrieval filter (BM25 corpus, Qdrant
+filter on public document ids, chunk loading) and row-level security, under which a
+customer's session reads only public documents and their chunks, and only its own
+conversations and `self_service` runs. Leakage therefore doesn't depend on the model:
+internal text is never in a customer's prompt. A handoff opens an ordinary request
+(SLA, triage, routing, notifications apply) and links the conversation for staff.
+
 ## Notifications and audit log
 
 - **Notifications** (`notifications`) are readable only by their recipient. Writing one

@@ -12,6 +12,7 @@ import {
   type Series,
 } from "@/components/analytics/charts";
 import { RoutingStats } from "@/components/analytics/routing-stats";
+import { SelfServiceStats } from "@/components/analytics/self-service-stats";
 import { SlaCompliance } from "@/components/analytics/sla-compliance";
 import { SlaDetailView } from "@/components/analytics/sla-detail";
 import { TriageStats } from "@/components/analytics/triage-stats";
@@ -46,7 +47,10 @@ const RUN_SERIES: Series[] = [
   { key: "summary", label: "Summaries", color: "var(--viz-3)" },
   { key: "retrieval", label: "Searches", color: "var(--viz-4)" },
 ];
-const KIND_LABELS: Record<string, string> = Object.fromEntries(RUN_SERIES.map((s) => [s.key, s.label]));
+const KIND_LABELS: Record<string, string> = {
+  ...Object.fromEntries(RUN_SERIES.map((s) => [s.key, s.label])),
+  self_service: "Customer questions",
+};
 
 function duration(minutes: number | null | undefined): string {
   if (minutes == null) return "—";
@@ -112,6 +116,11 @@ export function AnalyticsPage() {
     queryFn: () => unwrap(api.GET("/api/v1/analytics/routing", header)),
     placeholderData: keepPreviousData,
   });
+  const selfService = useQuery({
+    queryKey: queryKeys.analytics(organization.id, "self-service", days),
+    queryFn: () => unwrap(api.GET("/api/v1/analytics/self-service", header)),
+    placeholderData: keepPreviousData,
+  });
   const ai = useQuery({
     queryKey: queryKeys.analytics(organization.id, "ai", days),
     queryFn: () => unwrap(api.GET("/api/v1/analytics/ai-performance", header)),
@@ -174,6 +183,9 @@ export function AnalyticsPage() {
             <TriageStats triage={triage.data} days={days} />
           ) : null}
           {routingInUse ? <RoutingStats routing={routing.data!} days={days} /> : null}
+          {selfService.data && (selfService.data.mode === "on" || selfService.data.conversations > 0) ? (
+            <SelfServiceStats stats={selfService.data} days={days} />
+          ) : null}
 
           <ChartCard title="Tickets per day" description="Opened and resolved, by UTC day.">
             <DailyLines rows={overview.data.daily} series={TICKET_SERIES} label="Tickets opened and resolved per day" />

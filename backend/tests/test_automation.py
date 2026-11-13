@@ -84,6 +84,8 @@ async def test_each_organization_chooses_its_window(
         "auto_close_after_days": 0,
         "routing_mode": "off",
         "triage_mode": "off",
+        "self_service": "off",
+        "self_service_model": "default",
     }
     assert await auto_close_resolved(db_session, now=NOW) == 0
     assert await status_of(api, ws, ticket) == "resolved"
@@ -119,6 +121,8 @@ async def test_only_admins_change_settings_within_limits(
         "auto_close_after_days": 7,
         "routing_mode": "off",
         "triage_mode": "off",
+        "self_service": "off",
+        "self_service_model": "default",
     }
 
 

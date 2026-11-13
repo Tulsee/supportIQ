@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 import { PageHeader } from "@/components/page-header";
+import { SelfServiceCard } from "@/components/settings/self-service-card";
 import { TicketSettingsCard } from "@/components/settings/ticket-settings-card";
 import { Button } from "@/components/ui/button";
 import {
@@ -98,6 +99,9 @@ export function OrganizationSettings() {
       </Card>
       <div className="mt-6">
         <TicketSettingsCard />
+      </div>
+      <div className="mt-6">
+        <SelfServiceCard />
       </div>
     </>
   );

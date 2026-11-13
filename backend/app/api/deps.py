@@ -37,7 +37,7 @@ from app.core.knowledge import (
     get_reranker,
     vector_store_for,
 )
-from app.core.llm import get_llm_client
+from app.core.llm import get_llm_client, get_local_llm_client
 from app.core.rate_limit import RateLimiter, RedisRateLimiter
 from app.core.redis import get_redis
 from app.core.security import InvalidTokenError, decode_access_token
@@ -113,6 +113,10 @@ def get_llm_client_dep() -> LLMClient:
     return get_llm_client()
 
 
+def get_local_llm_client_dep() -> LLMClient:
+    return get_local_llm_client()
+
+
 def get_nli_model_dep() -> NliModel | None:
     return get_nli_model()
 
@@ -134,6 +138,7 @@ EmbedderDep = Annotated[Embedder, Depends(get_embedder_dep)]
 RerankerDep = Annotated[Reranker, Depends(get_reranker_dep)]
 VectorStoreDep = Annotated[QdrantVectorStore, Depends(get_vector_store)]
 LLMClientDep = Annotated[LLMClient, Depends(get_llm_client_dep)]
+LocalLLMClientDep = Annotated[LLMClient, Depends(get_local_llm_client_dep)]
 NliModelDep = Annotated[NliModel | None, Depends(get_nli_model_dep)]
 EmailSenderDep = Annotated[EmailSender, Depends(get_email_sender)]
 ClientIp = Annotated[str, Depends(get_client_ip)]

@@ -55,6 +55,12 @@ export type TicketSlaSummary = Schemas["TicketSlaSummary"];
 export type TicketTriage = Schemas["TriageRead"];
 export type TriageMode = Schemas["OrganizationSettings"]["triage_mode"];
 export type OrganizationSettings = Schemas["OrganizationSettings"];
+export type AssistantConversation = Schemas["AssistantConversationRead"];
+export type AssistantConversationSummary = Schemas["AssistantConversationSummary"];
+export type AssistantMessage = Schemas["AssistantMessageRead"];
+export type AssistantSource = Schemas["AssistantSource"];
+export type StaffAssistantConversation = Schemas["StaffAssistantConversationRead"];
+export type StaffAssistantMessage = Schemas["StaffAssistantMessageRead"];
 
 /**
  * The tenant header for organization-scoped endpoints (customers, tickets, ...).

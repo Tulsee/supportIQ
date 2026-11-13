@@ -45,7 +45,9 @@ from ai_engine.generation.prompt import (
     NOT_FOUND_ANSWER,
     PROMPT_VERSION,
     REPLY_PROMPT_VERSION,
+    SELF_SERVICE_PROMPT_VERSION,
     STRUCTURED_PROMPT_VERSION,
+    Audience,
     BuiltPrompt,
     PromptPassage,
     build_prompt,
@@ -191,14 +193,16 @@ class AnswerService:
         *,
         kind: AIRunKind = AIRunKind.ANSWER,
         ticket_id: uuid.UUID | None = None,
-        audience: Literal["staff", "customer"] = "staff",
+        audience: Audience = "staff",
         search_query: str | None = None,
+        public_only: bool = False,
     ) -> tuple[AIRun, list[RetrievalResult]]:
         """The pipeline without access checks or rate limits (callers check).
 
         ``search_query`` is what retrieval searches for (default: the question, joined
         with the previous one when it is a follow-up); the model answers the question
-        itself, with the earlier turns of ``request.history`` for context."""
+        itself, with the earlier turns of ``request.history`` for context.
+        ``public_only``: answer from public documents only (the customer assistant)."""
         history = [Turn(t.question, t.answer) for t in request.history]
         query = search_query or contextual_query(request.query, history)
         outcome = await self.retrieval.search(
@@ -207,6 +211,7 @@ class AnswerService:
             strategy=request.strategy,
             rerank=request.rerank,
             top_k=request.top_k,
+            public_only=public_only,
         )
         run = await self.retrieval.record(member, user, outcome, kind=kind, ticket_id=ticket_id)
         results = await self.runs.results(run.id)
@@ -235,6 +240,8 @@ class AnswerService:
             if self.policy == "baseline"
             else REPLY_PROMPT_VERSION
             if audience == "customer"
+            else SELF_SERVICE_PROMPT_VERSION
+            if audience == "self_service"
             else STRUCTURED_PROMPT_VERSION
         )
         # Release the connection: a local model can take a minute or more.

@@ -1,9 +1,9 @@
 """Knowledge-base documents of the organization in ``X-Organization-Id``.
 
-Admins upload, version, re-index, and delete documents; admins and agents list,
-inspect, download, and search them. Indexing is asynchronous: an upload returns
-``202 Accepted`` with status ``queued``; poll the document until it is
-``indexed`` or ``failed``.
+Admins upload, version, re-index, rename, publish (``visibility``) and delete
+documents; admins and agents list, inspect, download, and search them. Indexing is
+asynchronous: an upload returns ``202 Accepted`` with status ``queued``; poll the
+document until it is ``indexed`` or ``failed``.
 """
 
 import uuid
@@ -26,12 +26,13 @@ from app.api.deps import (
 )
 from app.core.config import settings
 from app.core.exceptions import PayloadTooLargeError
-from app.models import DocumentStatus
+from app.models import DocumentStatus, DocumentVisibility
 from app.schemas.common import Page, error_responses
 from app.schemas.documents import (
     ChunkRead,
     DocumentRead,
     DocumentTitle,
+    DocumentUpdate,
     WorkerStatus,
 )
 from app.services.authorization import STAFF_ROLES, require_role
@@ -105,9 +106,17 @@ async def list_documents(
     page: Pagination,
     status_: Annotated[list[DocumentStatus] | None, Query(alias="status")] = None,
     search: Annotated[str | None, Query(max_length=100, description="Title or file name.")] = None,
+    visibility: Annotated[
+        DocumentVisibility | None, Query(description="Only internal, or only public, documents.")
+    ] = None,
 ) -> Page[DocumentRead]:
     documents, total = await DocumentService(session).list_documents(
-        member, statuses=status_ or (), search=search, limit=page.limit, offset=page.offset
+        member,
+        statuses=status_ or (),
+        search=search,
+        visibility=visibility,
+        limit=page.limit,
+        offset=page.offset,
     )
     return Page(
         items=[DocumentRead.build(d) for d in documents],
@@ -132,6 +141,16 @@ async def get_document(
     document_id: uuid.UUID, member: TenantMembership, session: DbSession
 ) -> DocumentRead:
     return DocumentRead.build(await DocumentService(session).get(member, document_id))
+
+
+@router.patch("/{document_id}", summary="Rename or publish a document")
+async def update_document(
+    document_id: uuid.UUID, body: DocumentUpdate, member: TenantMembership, session: DbSession
+) -> DocumentRead:
+    """Admins only. `visibility: public` lets the customer assistant answer from the
+    document (customers never download it or see its other passages); `internal`
+    takes it back at once. Both changes are recorded in the audit log."""
+    return DocumentRead.build(await DocumentService(session).update(member, document_id, body))
 
 
 @router.get("/{document_id}/chunks", summary="List a document's indexed chunks")

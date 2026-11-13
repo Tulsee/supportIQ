@@ -1,6 +1,7 @@
 """Analytics responses (Module 7)."""
 
 import uuid
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -263,3 +264,56 @@ class TriageAnalytics(BaseModel):
     )
     median_latency_ms: int | None
     by_category: list[TriageCategoryStat]
+
+
+class SelfServiceReason(BaseModel):
+    reason: str = Field(
+        description="The evidence policy's reason (e.g. `no_passages`), or `unavailable` "
+        "when search was down."
+    )
+    replies: int
+
+
+class UnansweredQuestion(BaseModel):
+    question: str
+    asked_at: datetime
+    reason: str | None
+    conversation_id: uuid.UUID
+    ticket_id: uuid.UUID | None = Field(description="Set when the customer then asked a person.")
+    ai_run_id: uuid.UUID | None
+
+
+class SelfServiceDay(BaseModel):
+    day: str
+    conversations: int
+    resolved: int
+    handed_off: int
+
+
+class SelfServiceAnalytics(BaseModel):
+    """Conversations started in the period, and the assistant's replies in it.
+    Resolution counts only conversations the customer confirmed ("Did this answer your
+    question?" Yes); silence is never counted as resolved."""
+
+    days: int
+    mode: Literal["off", "on"] = Field(description="Whether the assistant is on now.")
+    conversations: int
+    resolved: int
+    handed_off: int
+    open: int
+    resolution_rate: float | None = Field(description="resolved / conversations.")
+    handoff_rate: float | None = Field(description="handed_off / conversations.")
+    replies: int = Field(description="The assistant's replies (one per question).")
+    answered: int
+    clarify: int
+    unable: int
+    answer_rate: float | None = Field(description="answered / replies.")
+    rated: int = Field(description="Answers the customer rated.")
+    helpful: int
+    helpful_rate: float | None = Field(description="helpful / rated.")
+    median_latency_ms: int | None
+    reasons: list[SelfServiceReason] = Field(description="Why replies were `unable`.")
+    unanswered: list[UnansweredQuestion] = Field(
+        description="The most recent questions it couldn't answer (input for new articles)."
+    )
+    daily: list[SelfServiceDay]

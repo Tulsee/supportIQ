@@ -174,6 +174,9 @@ class Settings(BaseSettings):
     # Per question; the Next.js dev proxy allows 300 s, so keep this below that.
     llm_timeout_seconds: Annotated[float, Field(gt=0, le=290)] = 240
     ai_chat_limit: int = 20  # questions per user, per minute
+    # The customer assistant (Module 12): questions per customer.
+    assistant_customer_limit: int = 5  # per minute
+    assistant_customer_daily_limit: int = 50  # per day
     ollama_url: str = "http://127.0.0.1:11434"
     ollama_model: str = "qwen3.5:4b"
     ollama_temperature: Annotated[float, Field(ge=0, le=2)] = 0.1

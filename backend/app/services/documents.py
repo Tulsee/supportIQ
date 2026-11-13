@@ -34,11 +34,13 @@ from app.models import (
     Document,
     DocumentChunk,
     DocumentStatus,
+    DocumentVisibility,
     OrganizationMember,
     OrgRole,
     User,
 )
 from app.repositories.documents import DocumentRepository
+from app.schemas.documents import DocumentUpdate
 from app.services import audit
 from app.services.authorization import STAFF_ROLES, require_role
 from app.services.ingestion import storage_prefix
@@ -97,10 +99,16 @@ class DocumentService:
         search: str | None,
         limit: int,
         offset: int,
+        visibility: DocumentVisibility | None = None,
     ) -> tuple[list[Document], int]:
         require_role(member, *STAFF_ROLES)
         return await self.documents.find(
-            member.organization_id, statuses=statuses, search=search, limit=limit, offset=offset
+            member.organization_id,
+            statuses=statuses,
+            search=search,
+            visibility=visibility,
+            limit=limit,
+            offset=offset,
         )
 
     async def get(self, member: OrganizationMember, document_id: uuid.UUID) -> Document:
@@ -223,6 +231,48 @@ class DocumentService:
                 await self.session.commit()
                 return fresh
         return document
+
+    async def update(
+        self, member: OrganizationMember, document_id: uuid.UUID, data: DocumentUpdate
+    ) -> Document:
+        require_role(member, OrgRole.ADMIN)
+        document = await self._get_for_update(member, document_id)
+        if data.title is not None and data.title != document.title:
+            await audit.record(
+                self.session,
+                organization_id=member.organization_id,
+                actor_id=member.user_id,
+                entity_type="document",
+                entity_id=document.id,
+                action="document.renamed",
+                summary=f"Renamed the document {document.title} to {data.title}",
+                changes={"title": {"from": document.title, "to": data.title}},
+            )
+            document.title = data.title
+        if data.visibility is not None and data.visibility != document.visibility:
+            published = data.visibility == DocumentVisibility.PUBLIC
+            await audit.record(
+                self.session,
+                organization_id=member.organization_id,
+                actor_id=member.user_id,
+                entity_type="document",
+                entity_id=document.id,
+                action="document.published" if published else "document.unpublished",
+                summary=(
+                    f"Made the document {document.title} public: customers' questions "
+                    "can be answered from it"
+                    if published
+                    else f"Made the document {document.title} internal (staff only)"
+                ),
+                changes={
+                    "visibility": {"from": document.visibility.value, "to": data.visibility.value}
+                },
+            )
+            document.visibility = data.visibility
+        await self.session.commit()
+        updated = await self.documents.get(member.organization_id, document.id)
+        assert updated is not None
+        return updated
 
     async def delete(self, member: OrganizationMember, document_id: uuid.UUID) -> None:
         require_role(member, OrgRole.ADMIN)

@@ -14,7 +14,9 @@ from app.models import (
     AIRun,
     AIRunKind,
     Citation,
+    Document,
     DocumentChunk,
+    DocumentVisibility,
     RetrievalResult,
 )
 
@@ -29,9 +31,23 @@ from app.models import (
 # stopwords), tf from the tsvector's positions, |d| is the chunk's token count. The
 # GIN index on ``search_vector`` finds the candidates; every chunk containing any
 # query term is a candidate, so df counts over the candidates are exact.
+#
+# ``public_only`` (the customer assistant, Module 12) restricts the corpus itself to
+# public documents, statistics included, so scores reveal nothing about internal
+# chunks. Row-level security enforces the same for a customer's session.
 _BM25 = text(
     """
-    WITH terms AS (
+    -- Typed explicitly: an untyped parameter next to an integer literal would be
+    -- inferred as an integer (k1 = 1.2 silently becoming 1).
+    WITH params AS (
+        SELECT CAST(:k1 AS float8) AS k1, CAST(:b AS float8) AS b,
+               CAST(:public_only AS boolean) AS public_only
+    ),
+    public_documents AS (
+        SELECT id FROM documents
+        WHERE organization_id = :organization_id AND visibility = 'public'
+    ),
+    terms AS (
         SELECT DISTINCT term
         FROM unnest(tsvector_to_array(to_tsvector('english'::regconfig, :query))) AS term
     ),
@@ -39,6 +55,8 @@ _BM25 = text(
         SELECT count(*)::float8 AS n, coalesce(avg(token_count), 1)::float8 AS avgdl
         FROM document_chunks
         WHERE organization_id = :organization_id
+          AND (NOT (SELECT public_only FROM params)
+               OR document_id IN (SELECT id FROM public_documents))
     ),
     matches AS (
         SELECT c.id, c.token_count, e.lexeme AS term,
@@ -47,17 +65,14 @@ _BM25 = text(
         CROSS JOIN LATERAL unnest(c.search_vector) AS e(lexeme, positions, weights)
         JOIN terms AS t ON t.term = e.lexeme
         WHERE c.organization_id = :organization_id
+          AND (NOT (SELECT public_only FROM params)
+               OR c.document_id IN (SELECT id FROM public_documents))
           AND c.search_vector @@ (
               SELECT to_tsquery('simple', string_agg(quote_literal(term), ' | ')) FROM terms
           )
     ),
     df AS (
         SELECT term, count(*)::float8 AS df FROM matches GROUP BY term
-    ),
-    -- Typed explicitly: an untyped parameter next to an integer literal would be
-    -- inferred as an integer (k1 = 1.2 silently becoming 1).
-    params AS (
-        SELECT CAST(:k1 AS float8) AS k1, CAST(:b AS float8) AS b
     )
     SELECT m.id,
            sum(
@@ -77,15 +92,22 @@ _BM25 = text(
 
 
 class BM25Retriever:
-    """Keyword retrieval within one organization."""
+    """Keyword retrieval within one organization (``public_only``: its public documents)."""
 
     def __init__(
-        self, session: AsyncSession, organization_id: uuid.UUID, *, k1: float, b: float
+        self,
+        session: AsyncSession,
+        organization_id: uuid.UUID,
+        *,
+        k1: float,
+        b: float,
+        public_only: bool = False,
     ) -> None:
         self.session = session
         self.organization_id = organization_id
         self.k1 = k1
         self.b = b
+        self.public_only = public_only
 
     async def search(self, query: str, limit: int) -> list[RankedChunk]:
         rows = await self.session.execute(
@@ -95,6 +117,7 @@ class BM25Retriever:
                 "organization_id": self.organization_id,
                 "k1": self.k1,
                 "b": self.b,
+                "public_only": self.public_only,
                 "limit": limit,
             },
         )
@@ -102,21 +125,28 @@ class BM25Retriever:
 
 
 class ChunkPassages:
-    """Chunk texts for reranking; ids of replaced or deleted chunks are absent."""
+    """Chunk texts for reranking; ids of replaced or deleted chunks are absent, and
+    with ``public_only`` so are chunks of internal documents."""
 
-    def __init__(self, session: AsyncSession, organization_id: uuid.UUID) -> None:
+    def __init__(
+        self, session: AsyncSession, organization_id: uuid.UUID, *, public_only: bool = False
+    ) -> None:
         self.session = session
         self.organization_id = organization_id
+        self.public_only = public_only
 
     async def load(self, chunk_ids: Sequence[uuid.UUID]) -> dict[uuid.UUID, str]:
         if not chunk_ids:
             return {}
-        rows = await self.session.execute(
-            select(DocumentChunk.id, DocumentChunk.content).where(
-                DocumentChunk.organization_id == self.organization_id,
-                DocumentChunk.id.in_(chunk_ids),
-            )
+        stmt = select(DocumentChunk.id, DocumentChunk.content).where(
+            DocumentChunk.organization_id == self.organization_id,
+            DocumentChunk.id.in_(chunk_ids),
         )
+        if self.public_only:
+            stmt = stmt.join(Document, Document.id == DocumentChunk.document_id).where(
+                Document.visibility == DocumentVisibility.PUBLIC
+            )
+        rows = await self.session.execute(stmt)
         return {row.id: row.content for row in rows}
 
 

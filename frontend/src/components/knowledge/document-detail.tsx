@@ -12,11 +12,11 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { toast } from "sonner";
 
 import { ConfirmAction } from "@/components/confirm-action";
-import { DocumentStatusBadge } from "@/components/knowledge/document-status";
+import { DocumentStatusBadge, PublicBadge } from "@/components/knowledge/document-status";
 import { UploadDocumentDialog } from "@/components/knowledge/upload-document-dialog";
 import { NoWorkerAlert, useWorkerOffline } from "@/components/knowledge/worker-status";
 import { Pager } from "@/components/pager";
@@ -24,7 +24,9 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import {
   ApiError,
   api,
@@ -34,7 +36,7 @@ import {
   type DocumentChunk,
   type KnowledgeDocument,
 } from "@/lib/api/client";
-import { FILE_TYPE_LABELS, formatBytes, isIndexing, pageLabel } from "@/lib/documents";
+import { FILE_TYPE_LABELS, formatBytes, isIndexing, pageLabel, type Visibility } from "@/lib/documents";
 import { useActiveOrganization } from "@/lib/org/org-provider";
 import { queryKeys } from "@/lib/query-keys";
 import { formatDateTime } from "@/lib/tickets";
@@ -77,6 +79,64 @@ function ChunkCard({ chunk }: { chunk: DocumentChunk }) {
         {expanded ? "Show less" : "Show all"}
       </Button>
     </li>
+  );
+}
+
+/** Whether the customer assistant may answer from the document (admins change it). */
+function CustomerAccess({ document }: { document: KnowledgeDocument }) {
+  const organization = useActiveOrganization();
+  const queryClient = useQueryClient();
+  const switchId = useId();
+  const isAdmin = organization.role === "admin";
+  const isPublic = document.visibility === "public";
+
+  const update = useMutation({
+    mutationFn: (visibility: Visibility) =>
+      unwrap(
+        api.PATCH("/api/v1/documents/{document_id}", {
+          params: { path: { document_id: document.id }, header: tenant(organization.id) },
+          body: { visibility },
+        }),
+      ),
+    onSuccess: async (updated) => {
+      queryClient.setQueryData(queryKeys.document(organization.id, document.id), updated);
+      toast.success(
+        updated.visibility === "public"
+          ? "Customers' questions can now be answered from this document"
+          : "This document is internal again",
+      );
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.documents(organization.id),
+        refetchType: "all",
+      });
+    },
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+
+  const explanation = isPublic
+    ? "The customer assistant can quote passages from it. Customers can't browse or download it."
+    : "Staff only. The customer assistant never sees it.";
+
+  return (
+    <div className="space-y-1.5 border-t pt-3">
+      <p className="text-xs text-muted-foreground">Customer access</p>
+      {isAdmin ? (
+        <div className="flex items-center gap-2">
+          <Switch
+            id={switchId}
+            checked={isPublic}
+            disabled={update.isPending}
+            onCheckedChange={(checked) => update.mutate(checked ? "public" : "internal")}
+          />
+          <Label htmlFor={switchId} className="font-normal">
+            Answers customers
+          </Label>
+        </div>
+      ) : (
+        <p className="text-sm">{isPublic ? "Public" : "Internal"}</p>
+      )}
+      <p className="text-xs text-muted-foreground">{explanation}</p>
+    </div>
   );
 }
 
@@ -263,6 +323,7 @@ export function DocumentDetail() {
             <h1 className="text-2xl font-semibold tracking-tight break-words">{doc.title}</h1>
             <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               <DocumentStatusBadge status={doc.status} />
+              {doc.visibility === "public" ? <PublicBadge className="px-2 py-0.5 text-xs" /> : null}
               <Badge variant="outline">{FILE_TYPE_LABELS[doc.file_type]}</Badge>
               <span className="truncate">{doc.filename}</span>
               <span>· version {doc.version}</span>
@@ -365,6 +426,7 @@ export function DocumentDetail() {
               </Detail>
               {doc.indexed_at ? <Detail label="Indexed">{formatDateTime(doc.indexed_at)}</Detail> : null}
             </dl>
+            <CustomerAccess document={doc} />
           </CardContent>
         </Card>
       </div>

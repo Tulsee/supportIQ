@@ -1151,7 +1151,13 @@ export interface paths {
         delete: operations["delete_document_api_v1_documents__document_id__delete"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Rename or publish a document
+         * @description Admins only. `visibility: public` lets the customer assistant answer from the
+         *     document (customers never download it or see its other passages); `internal`
+         *     takes it back at once. Both changes are recorded in the audit log.
+         */
+        patch: operations["update_document_api_v1_documents__document_id__patch"];
         trace?: never;
     };
     "/api/v1/documents/{document_id}/chunks": {
@@ -1353,6 +1359,129 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/assistant/questions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ask the assistant (customers)
+         * @description Starts a conversation, or continues an open one (`conversation_id`). The reply's
+         *     `outcome` is `answered` (with sources), `clarify`, or `unable`: the assistant
+         *     answers only when public documents fully support the answer, and otherwise offers
+         *     a person (`POST /assistant/conversations/{id}/handoff`). 403 `self_service_off`
+         *     when the organization hasn't turned the assistant on; 409 `conversation_closed`
+         *     for a resolved or handed-off conversation. A local model can take a minute.
+         */
+        post: operations["ask_api_v1_assistant_questions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assistant/conversations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Your conversations with the assistant */
+        get: operations["list_conversations_api_v1_assistant_conversations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assistant/conversations/{conversation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A conversation with the assistant */
+        get: operations["get_conversation_api_v1_assistant_conversations__conversation_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assistant/conversations/{conversation_id}/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Did this answer your question?
+         * @description `helpful: true` resolves the conversation; `false` leaves it open (offer a
+         *     person). Rating again replaces the rating. Only `answered` replies can be rated.
+         */
+        post: operations["rate_answer_api_v1_assistant_conversations__conversation_id__feedback_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assistant/conversations/{conversation_id}/handoff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send the conversation to support
+         * @description Opens a request with the customer's questions (and `note`) as its first message;
+         *     SLA clocks, triage, routing and notifications apply as for any request. Staff see
+         *     the whole conversation on the ticket. 409 `already_handed_off` the second time.
+         */
+        post: operations["hand_off_api_v1_assistant_conversations__conversation_id__handoff_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tickets/{ticket_id}/self-service": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The assistant conversation a request came from (staff)
+         * @description `null` when the request wasn't opened from a conversation. Each reply includes
+         *     its AI run (open it in the AI inspector) and why the assistant answered or not.
+         */
+        get: operations["ticket_conversation_api_v1_tickets__ticket_id__self_service_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/analytics/overview": {
         parameters: {
             query?: never;
@@ -1407,6 +1536,28 @@ export interface paths {
          *     of the top guess when unsure (from people's reviews), per category, and latency.
          */
         get: operations["triage_api_v1_analytics_triage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/analytics/self-service": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The customer assistant
+         * @description Conversations customers started in the period and how they ended (resolved only
+         *     when the customer confirmed an answer helped; handed to a person), the assistant's
+         *     replies and why it couldn't answer, and the latest questions it missed.
+         */
+        get: operations["self_service_api_v1_analytics_self_service_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1633,7 +1784,7 @@ export interface components {
          * AIRunKind
          * @enum {string}
          */
-        AIRunKind: "retrieval" | "answer" | "suggestion" | "summary";
+        AIRunKind: "retrieval" | "answer" | "suggestion" | "summary" | "self_service";
         /** AIRunRead */
         AIRunRead: {
             /**
@@ -2117,6 +2268,144 @@ export interface components {
             /** Median Minutes Manual */
             median_minutes_manual: number | null;
         };
+        /** AssistantConversationRead */
+        AssistantConversationRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            status: components["schemas"]["ConversationStatus"];
+            /** Title */
+            title: string;
+            /** @description The request it was handed over as. */
+            ticket: components["schemas"]["TicketReference"] | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Resolved At */
+            resolved_at: string | null;
+            /** Handed Off At */
+            handed_off_at: string | null;
+            /** Messages */
+            messages: components["schemas"]["AssistantMessageRead"][];
+        };
+        /** AssistantConversationSummary */
+        AssistantConversationSummary: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            status: components["schemas"]["ConversationStatus"];
+            /** Title */
+            title: string;
+            /** @description The request it was handed over as. */
+            ticket: components["schemas"]["TicketReference"] | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Resolved At */
+            resolved_at: string | null;
+            /** Handed Off At */
+            handed_off_at: string | null;
+        };
+        /** AssistantMessageRead */
+        AssistantMessageRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            role: components["schemas"]["AssistantRole"];
+            /** Body */
+            body: string;
+            /** @description Replies only. `answered`: a complete, cited answer. `clarify`: a clarifying question. `unable`: the assistant can't answer reliably; offer a person. */
+            outcome: components["schemas"]["AssistantOutcome"] | null;
+            /** Sources */
+            sources: components["schemas"]["AssistantSource"][];
+            rating: components["schemas"]["AssistantRating"] | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * AssistantOutcome
+         * @description What a reply was, as the customer sees it (the AI run has the details).
+         * @enum {string}
+         */
+        AssistantOutcome: "answered" | "clarify" | "unable";
+        /** AssistantQuestion */
+        AssistantQuestion: {
+            /** Question */
+            question: string;
+            /**
+             * Conversation Id
+             * @description Continue this conversation (it must be open); omit to start a new one.
+             */
+            conversation_id?: string | null;
+        };
+        /**
+         * AssistantRating
+         * @enum {string}
+         */
+        AssistantRating: "helpful" | "not_helpful";
+        /**
+         * AssistantRole
+         * @enum {string}
+         */
+        AssistantRole: "customer" | "assistant";
+        /**
+         * AssistantRunInfo
+         * @description Why a reply was what it was (staff only).
+         */
+        AssistantRunInfo: {
+            /**
+             * Ai Run Id
+             * Format: uuid
+             */
+            ai_run_id: string;
+            answer_status: components["schemas"]["AnswerStatus"] | null;
+            /**
+             * Reason
+             * @description The evidence policy's reason, e.g. `low_coverage`.
+             */
+            reason: string | null;
+        };
+        /** AssistantSource */
+        AssistantSource: {
+            /**
+             * Passage Number
+             * @description The [n] marker in the reply.
+             */
+            passage_number: number;
+            /** Document Id */
+            document_id: string | null;
+            /** Title */
+            title: string;
+            /** Page Number */
+            page_number: number | null;
+            /** Page End */
+            page_end: number | null;
+            /** Section Heading */
+            section_heading: string | null;
+        };
         /** AuditEntryRead */
         AuditEntryRead: {
             /**
@@ -2407,6 +2696,11 @@ export interface components {
             /** Any */
             any?: components["schemas"]["ConditionIn"][];
         };
+        /**
+         * ConversationStatus
+         * @enum {string}
+         */
+        ConversationStatus: "open" | "resolved" | "handed_off";
         /** CustomerCreate */
         CustomerCreate: {
             /** Name */
@@ -2560,6 +2854,8 @@ export interface components {
              * @description Why indexing failed, or warnings (e.g. unreadable pages) after indexing.
              */
             error: string | null;
+            /** @description `internal`: staff only. `public`: also answers customers' questions in the portal. */
+            visibility: components["schemas"]["DocumentVisibility"];
             /**
              * Version
              * @description Uploads of this document so far.
@@ -2615,6 +2911,21 @@ export interface components {
          * @enum {string}
          */
         DocumentType: "pdf" | "docx" | "txt" | "markdown";
+        /**
+         * DocumentUpdate
+         * @description Admin only. Only the fields provided are changed.
+         */
+        DocumentUpdate: {
+            /** Title */
+            title?: string | null;
+            /** @description `public` lets the customer assistant answer from this document; `internal` keeps it to staff. */
+            visibility?: components["schemas"]["DocumentVisibility"] | null;
+        };
+        /**
+         * DocumentVisibility
+         * @enum {string}
+         */
+        DocumentVisibility: "internal" | "public";
         /** ErrorDetail */
         ErrorDetail: {
             /**
@@ -2670,6 +2981,20 @@ export interface components {
          * @enum {string}
          */
         FeedbackRating: "helpful" | "not_helpful";
+        /** FeedbackRequest */
+        FeedbackRequest: {
+            /**
+             * Message Id
+             * Format: uuid
+             * @description The reply being rated.
+             */
+            message_id: string;
+            /**
+             * Helpful
+             * @description `true`: it answered the question (the conversation is resolved). `false`: it didn't (offer a person).
+             */
+            helpful: boolean;
+        };
         /** FeedbackStats */
         FeedbackStats: {
             /** Helpful */
@@ -2689,6 +3014,14 @@ export interface components {
             mine: components["schemas"]["FeedbackRating"] | null;
             /** My Comment */
             my_comment: string | null;
+        };
+        /** HandoffRequest */
+        HandoffRequest: {
+            /**
+             * Note
+             * @description Anything the customer wants to add for the support team.
+             */
+            note?: string | null;
         };
         /** HealthResponse */
         HealthResponse: {
@@ -3152,6 +3485,20 @@ export interface components {
              * @enum {string}
              */
             triage_mode: "off" | "shadow" | "on";
+            /**
+             * Self Service
+             * @description The customer assistant in the portal: customers ask questions answered from public documents, and can hand over to a person.
+             * @default off
+             * @enum {string}
+             */
+            self_service: "off" | "on";
+            /**
+             * Self Service Model
+             * @description `local`: customers' questions are always answered by the local model, never sent to a hosted one.
+             * @default default
+             * @enum {string}
+             */
+            self_service_model: "default" | "local";
         };
         /** OrganizationSettingsUpdate */
         OrganizationSettingsUpdate: {
@@ -3161,6 +3508,10 @@ export interface components {
             routing_mode?: ("off" | "shadow" | "on") | null;
             /** Triage Mode */
             triage_mode?: ("off" | "shadow" | "on") | null;
+            /** Self Service */
+            self_service?: ("off" | "on") | null;
+            /** Self Service Model */
+            self_service_model?: ("default" | "local") | null;
         };
         /**
          * OrganizationUpdate
@@ -3258,6 +3609,20 @@ export interface components {
         Page_AdminOrganizationRead_: {
             /** Items */
             items: components["schemas"]["AdminOrganizationRead"][];
+            /**
+             * Total
+             * @description Total matching items across all pages.
+             */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
+        /** Page[AssistantConversationSummary] */
+        Page_AssistantConversationSummary_: {
+            /** Items */
+            items: components["schemas"]["AssistantConversationSummary"][];
             /**
              * Total
              * @description Total matching items across all pages.
@@ -3761,6 +4126,103 @@ export interface components {
             /** Is Active */
             is_active?: boolean | null;
         };
+        /**
+         * SelfServiceAnalytics
+         * @description Conversations started in the period, and the assistant's replies in it.
+         *     Resolution counts only conversations the customer confirmed ("Did this answer your
+         *     question?" Yes); silence is never counted as resolved.
+         */
+        SelfServiceAnalytics: {
+            /** Days */
+            days: number;
+            /**
+             * Mode
+             * @description Whether the assistant is on now.
+             * @enum {string}
+             */
+            mode: "off" | "on";
+            /** Conversations */
+            conversations: number;
+            /** Resolved */
+            resolved: number;
+            /** Handed Off */
+            handed_off: number;
+            /** Open */
+            open: number;
+            /**
+             * Resolution Rate
+             * @description resolved / conversations.
+             */
+            resolution_rate: number | null;
+            /**
+             * Handoff Rate
+             * @description handed_off / conversations.
+             */
+            handoff_rate: number | null;
+            /**
+             * Replies
+             * @description The assistant's replies (one per question).
+             */
+            replies: number;
+            /** Answered */
+            answered: number;
+            /** Clarify */
+            clarify: number;
+            /** Unable */
+            unable: number;
+            /**
+             * Answer Rate
+             * @description answered / replies.
+             */
+            answer_rate: number | null;
+            /**
+             * Rated
+             * @description Answers the customer rated.
+             */
+            rated: number;
+            /** Helpful */
+            helpful: number;
+            /**
+             * Helpful Rate
+             * @description helpful / rated.
+             */
+            helpful_rate: number | null;
+            /** Median Latency Ms */
+            median_latency_ms: number | null;
+            /**
+             * Reasons
+             * @description Why replies were `unable`.
+             */
+            reasons: components["schemas"]["SelfServiceReason"][];
+            /**
+             * Unanswered
+             * @description The most recent questions it couldn't answer (input for new articles).
+             */
+            unanswered: components["schemas"]["UnansweredQuestion"][];
+            /** Daily */
+            daily: components["schemas"]["SelfServiceDay"][];
+        };
+        /** SelfServiceDay */
+        SelfServiceDay: {
+            /** Day */
+            day: string;
+            /** Conversations */
+            conversations: number;
+            /** Resolved */
+            resolved: number;
+            /** Handed Off */
+            handed_off: number;
+        };
+        /** SelfServiceReason */
+        SelfServiceReason: {
+            /**
+             * Reason
+             * @description The evidence policy's reason (e.g. `no_passages`), or `unavailable` when search was down.
+             */
+            reason: string;
+            /** Replies */
+            replies: number;
+        };
         /** ShadowStats */
         ShadowStats: {
             /**
@@ -4087,6 +4549,59 @@ export interface components {
              */
             reopened_cycles: number;
         };
+        /** StaffAssistantConversationRead */
+        StaffAssistantConversationRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            status: components["schemas"]["ConversationStatus"];
+            /** Title */
+            title: string;
+            /** @description The request it was handed over as. */
+            ticket: components["schemas"]["TicketReference"] | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Resolved At */
+            resolved_at: string | null;
+            /** Handed Off At */
+            handed_off_at: string | null;
+            /** Customer Name */
+            customer_name: string | null;
+            /** Messages */
+            messages: components["schemas"]["StaffAssistantMessageRead"][];
+        };
+        /** StaffAssistantMessageRead */
+        StaffAssistantMessageRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            role: components["schemas"]["AssistantRole"];
+            /** Body */
+            body: string;
+            /** @description Replies only. `answered`: a complete, cited answer. `clarify`: a clarifying question. `unable`: the assistant can't answer reliably; offer a person. */
+            outcome: components["schemas"]["AssistantOutcome"] | null;
+            /** Sources */
+            sources: components["schemas"]["AssistantSource"][];
+            rating: components["schemas"]["AssistantRating"] | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            run: components["schemas"]["AssistantRunInfo"] | null;
+        };
         /** StageScore */
         StageScore: {
             /** Rank */
@@ -4254,7 +4769,7 @@ export interface components {
          * TicketEventType
          * @enum {string}
          */
-        TicketEventType: "created" | "status_changed" | "priority_changed" | "subject_changed" | "assigned" | "unassigned" | "ai_escalated" | "category_changed" | "sla_at_risk" | "sla_breached" | "team_changed";
+        TicketEventType: "created" | "status_changed" | "priority_changed" | "subject_changed" | "assigned" | "unassigned" | "ai_escalated" | "category_changed" | "sla_at_risk" | "sla_breached" | "team_changed" | "self_service_handoff";
         /**
          * TicketPriority
          * @enum {string}
@@ -4308,6 +4823,16 @@ export interface components {
             resolved_at: string | null;
             /** Closed At */
             closed_at: string | null;
+        };
+        /** TicketReference */
+        TicketReference: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Number */
+            number: number;
         };
         /** TicketSla */
         TicketSla: {
@@ -4586,6 +5111,30 @@ export interface components {
              */
             reviewed_at: string;
             reviewed_by: components["schemas"]["PersonSummary"] | null;
+        };
+        /** UnansweredQuestion */
+        UnansweredQuestion: {
+            /** Question */
+            question: string;
+            /**
+             * Asked At
+             * Format: date-time
+             */
+            asked_at: string;
+            /** Reason */
+            reason: string | null;
+            /**
+             * Conversation Id
+             * Format: uuid
+             */
+            conversation_id: string;
+            /**
+             * Ticket Id
+             * @description Set when the customer then asked a person.
+             */
+            ticket_id: string | null;
+            /** Ai Run Id */
+            ai_run_id: string | null;
         };
         /** UnreadCount */
         UnreadCount: {
@@ -9583,6 +10132,8 @@ export interface operations {
                 status?: components["schemas"]["DocumentStatus"][] | null;
                 /** @description Title or file name. */
                 search?: string | null;
+                /** @description Only internal, or only public, documents. */
+                visibility?: components["schemas"]["DocumentVisibility"] | null;
                 /** @description Maximum items to return. */
                 limit?: number;
                 /** @description Number of items to skip. */
@@ -9991,6 +10542,107 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    update_document_api_v1_documents__document_id__patch: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DocumentUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentRead"];
+                };
             };
             /** @description Unauthorized */
             401: {
@@ -11030,6 +11682,511 @@ export interface operations {
             };
         };
     };
+    ask_api_v1_assistant_questions_post: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssistantQuestion"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantConversationRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_conversations_api_v1_assistant_conversations_get: {
+        parameters: {
+            query?: {
+                /** @description Maximum items to return. */
+                limit?: number;
+                /** @description Number of items to skip. */
+                offset?: number;
+            };
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_AssistantConversationSummary_"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_conversation_api_v1_assistant_conversations__conversation_id__get: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantConversationRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    rate_answer_api_v1_assistant_conversations__conversation_id__feedback_post: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeedbackRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantConversationRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    hand_off_api_v1_assistant_conversations__conversation_id__handoff_post: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HandoffRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantConversationRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    ticket_conversation_api_v1_tickets__ticket_id__self_service_get: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StaffAssistantConversationRead"] | null;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     overview_api_v1_analytics_overview_get: {
         parameters: {
             query?: {
@@ -11176,6 +12333,68 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TriageAnalytics"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    self_service_api_v1_analytics_self_service_get: {
+        parameters: {
+            query?: {
+                /** @description Trailing window, in days. */
+                days?: number;
+            };
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SelfServiceAnalytics"];
                 };
             };
             /** @description Unauthorized */

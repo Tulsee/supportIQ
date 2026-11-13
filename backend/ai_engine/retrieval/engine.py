@@ -93,18 +93,29 @@ class RetrievalOutcome:
 
 
 class DenseRetriever:
-    """Vector search within one organization."""
+    """Vector search within one organization; with ``document_ids``, only within those
+    documents (the customer assistant passes the public ones)."""
 
     def __init__(
-        self, embedder: Embedder, store: QdrantVectorStore, organization_id: uuid.UUID
+        self,
+        embedder: Embedder,
+        store: QdrantVectorStore,
+        organization_id: uuid.UUID,
+        *,
+        document_ids: Sequence[uuid.UUID] | None = None,
     ) -> None:
         self.embedder = embedder
         self.store = store
         self.organization_id = organization_id
+        self.document_ids = document_ids
 
     async def search(self, query: str, limit: int) -> list[RankedChunk]:
+        if self.document_ids is not None and not self.document_ids:
+            return []
         vector = await asyncio.to_thread(self.embedder.embed_query, query)
-        hits = await self.store.search(self.organization_id, vector, limit=limit)
+        hits = await self.store.search(
+            self.organization_id, vector, limit=limit, document_ids=self.document_ids
+        )
         return [RankedChunk(hit.chunk_id, hit.score) for hit in hits]
 
 

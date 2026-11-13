@@ -19,6 +19,7 @@ import {
 import { NewRequestDialog } from "@/components/tickets/new-request-dialog";
 import { ReplyBox, type ReplyDraft } from "@/components/tickets/reply-box";
 import { RoutingPanel } from "@/components/tickets/routing-panel";
+import { SelfServicePanel } from "@/components/tickets/self-service-panel";
 import { TriagePanel } from "@/components/tickets/triage-panel";
 import { SlaPanel } from "@/components/tickets/sla-panel";
 import { TicketAIPanel } from "@/components/tickets/ticket-ai-panel";
@@ -444,6 +445,7 @@ export function TicketDetail() {
 
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
         <section className="space-y-6" aria-label="Messages">
+          {audience === "staff" ? <SelfServicePanel ticket={data} /> : null}
           {messages.isPending ? (
             <Skeleton className="h-32 w-full" />
           ) : messages.isError ? (

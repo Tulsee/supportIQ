@@ -32,6 +32,11 @@ class DocumentStatus(enum.StrEnum):
 ACTIVE_INGESTION = (DocumentStatus.QUEUED, DocumentStatus.PROCESSING)
 
 
+class DocumentVisibility(enum.StrEnum):
+    INTERNAL = "internal"  # staff only (the default)
+    PUBLIC = "public"  # also answers customers' questions (Module 12); enforced by RLS
+
+
 class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     """A knowledge-base document. The original file lives in object storage.
 
@@ -65,6 +70,11 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         server_default=DocumentStatus.QUEUED.value,
     )
     error: Mapped[str | None] = mapped_column(Text)
+    visibility: Mapped[DocumentVisibility] = mapped_column(
+        str_enum_type(DocumentVisibility, "document_visibility"),
+        default=DocumentVisibility.INTERNAL,
+        server_default=DocumentVisibility.INTERNAL.value,
+    )
     ingestion_id: Mapped[uuid.UUID] = mapped_column(default=uuid.uuid4)
     uploaded_by_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL")
