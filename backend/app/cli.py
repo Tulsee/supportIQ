@@ -9,6 +9,7 @@
     uv run python -m app.cli compare experiments/results/a.json experiments/results/b.json
     uv run python -m app.cli evaluate-triage --name t1-t4
     uv run python -m app.cli evaluate-contradictions --name c1-c3
+    uv run python -m app.cli evaluate-self-service --name s1-s3
 
 Super admin can only be bootstrapped here (there is no API to grant it from
 scratch); afterwards super admins can manage each other via /api/v1/admin.
@@ -161,6 +162,177 @@ async def _evaluate_triage(args: argparse.Namespace) -> int:
     (out / f"{stem}.md").write_text(evaluation.markdown(report), encoding="utf-8")
     print(evaluation.markdown(report))
     print(f"Wrote {out / stem}.md and .json")
+    return 0
+
+
+async def _evaluate_self_service(args: argparse.Namespace) -> int:
+    """Experiments S1-S3: the customer assistant (leakage, its policy, injection)."""
+    import re
+    from datetime import datetime
+
+    from ai_engine.evaluation.dataset import document_files, load_dataset
+    from app.core.config import settings
+    from app.core.knowledge import (
+        get_embedder,
+        get_nli_model,
+        get_reranker,
+        new_qdrant_client,
+        vector_store_for,
+    )
+    from app.core.llm import build_llm_client
+    from app.core.storage import get_object_storage
+    from app.evaluation import self_service as evaluation
+    from app.evaluation.report import _environment
+    from app.evaluation.runner import EvaluationError, EvaluationRunner
+    from app.services.ingestion import IngestionLimits
+
+    experiments = {e.strip().upper() for e in args.only.split(",")}
+    folder = args.folder
+    items = evaluation.load_items(folder / "questions_v1.jsonl")
+    markers = evaluation.load_markers(folder / "markers.json")
+    dataset = load_dataset(args.dataset)
+    benchmark = [q for q in dataset.questions if args.split == "all" or q.split == args.split]
+    llm = build_llm_client(settings.model_copy(update={"ollama_seed": args.seed}))
+    status = await llm.status()
+    model_name = str(getattr(llm, "model", "model"))
+    slug = re.sub(r"[^a-z0-9]+", "-", model_name.lower()).strip("-")
+    results = REPO_ROOT / "experiments" / "results"
+    cache = args.cache or results / f"self-service-replies-{slug}.jsonl"
+    if not status.available:
+        print(
+            f"The model isn't ready ({status.detail}); using cached replies only.", file=sys.stderr
+        )
+
+    embedder = get_embedder()
+    qdrant = new_qdrant_client()
+    started = datetime.now().astimezone()
+    try:
+        async with SessionLocal() as session:
+            vectors = vector_store_for(qdrant, embedder)
+            runner = EvaluationRunner(
+                session,
+                storage=get_object_storage(),
+                embedder=embedder,
+                vector_store=vectors,
+                reranker=get_reranker(),
+                llm=llm,
+                limits=IngestionLimits.from_settings(),
+            )
+            services = evaluation.Services(
+                session, embedder, vectors, get_reranker(), llm, get_nli_model()
+            )
+            jobs: list = []
+
+            async def _retrieved(services_, workspace, question) -> dict:
+                return {
+                    "retrieved": await evaluation.retrieve_staff(services_, workspace, question)
+                }
+
+            try:
+                if experiments & {"S1", "S3"}:
+                    internal = document_files(folder / "internal")
+                    files = [
+                        *document_files(args.documents),
+                        *document_files(folder / "public"),
+                        *internal,
+                    ]
+                    space = await runner.prepare(
+                        args.documents, files=files, slug="eval-self-service"
+                    )
+                    await evaluation.set_visibility(session, space, {f.name for f in internal})
+                    customer, member = await evaluation.customer_in(session, space)
+                    for item in items:
+                        if item.experiment not in experiments:
+                            continue
+                        q = item.as_question()
+                        jobs.append(
+                            (
+                                f"{item.experiment}:customer:{item.id}",
+                                lambda q=q: evaluation.ask_customer(services, customer, member, q),
+                            )
+                        )
+                        if item.experiment == "S1":
+                            jobs.append(
+                                (
+                                    f"S1:staff-retrieval:{item.id}",
+                                    lambda q=q, w=space: _retrieved(services, w, q),
+                                )
+                            )
+                        else:
+                            jobs.append(
+                                (
+                                    f"S3:staff:{item.id}",
+                                    lambda q=q, w=space: evaluation.ask_staff(services, w, q),
+                                )
+                            )
+                if "S2" in experiments:
+                    space = await runner.prepare(args.documents)
+                    await evaluation.set_visibility(session, space, set())
+                    customer2, member2 = await evaluation.customer_in(session, space)
+                    for q in benchmark:
+                        jobs.append(
+                            (
+                                f"S2:customer:{q.id}",
+                                lambda q=q: evaluation.ask_customer(
+                                    services, customer2, member2, q
+                                ),
+                            )
+                        )
+                        jobs.append(
+                            (
+                                f"S2:staff:{q.id}",
+                                lambda q=q, w=space: evaluation.ask_staff(services, w, q),
+                            )
+                        )
+            except EvaluationError as exc:
+                print(exc, file=sys.stderr)
+                return 1
+
+            def progress(number: int, total: int, key: str, entry: dict) -> None:
+                told = entry.get("customer_outcome") or (entry.get("outcome") or {}).get("status")
+                error = f" ERROR {entry['error']}" if entry.get("error") else ""
+                print(
+                    f"[{number:>3}/{total}] {key:<28} {told or '-':<10} "
+                    f"({(entry.get('latency_ms') or 0) / 1000:.1f} s){error}",
+                    flush=True,
+                )
+
+            print(f"{len(jobs)} jobs with {model_name}", flush=True)
+            if not status.available:
+                jobs = [j for j in jobs if j[0].startswith("S1:staff-retrieval")]
+            replies = await evaluation.collect(jobs, cache, progress)
+    finally:
+        await qdrant.close()
+
+    report: dict = {
+        "name": args.name,
+        "model": model_name,
+        "llm_config": llm.config,
+        "experiments": sorted(experiments),
+        "dataset": args.dataset.resolve().relative_to(REPO_ROOT).as_posix(),
+        "folder": folder.resolve().relative_to(REPO_ROOT).as_posix(),
+        "split": args.split,
+        "started_at": started.isoformat(),
+        "finished_at": datetime.now().astimezone().isoformat(),
+        "environment": _environment(),
+    }
+    if "S1" in experiments:
+        report["S1"] = evaluation.score_s1(
+            [i for i in items if i.experiment == "S1"], replies, markers
+        )
+    if "S3" in experiments:
+        report["S3"] = evaluation.score_s3(
+            [i for i in items if i.experiment == "S3"], replies, markers
+        )
+    if "S2" in experiments:
+        report["S2"] = evaluation.score_s2(benchmark, replies)
+    stem = f"{datetime.now():%Y%m%d-%H%M%S}-self-service-{args.name}"
+    (results / f"{stem}.json").write_text(
+        json.dumps(report, indent=2, ensure_ascii=False, default=str), encoding="utf-8"
+    )
+    (results / f"{stem}.md").write_text(evaluation.markdown(report), encoding="utf-8")
+    print(evaluation.markdown(report))
+    print(f"Wrote {results / stem}.md and .json")
     return 0
 
 
@@ -513,6 +685,8 @@ async def _run(args: argparse.Namespace) -> int:
             return _compare(args)
         if args.command == "evaluate":
             return await _evaluate(args)
+        if args.command == "evaluate-self-service":
+            return await _evaluate_self_service(args)
         if args.command == "evaluate-contradictions":
             return await _evaluate_contradictions(args)
         if args.command == "evaluate-triage":
@@ -615,6 +789,32 @@ def main(argv: list[str] | None = None) -> int:
     triage.add_argument("--threshold", type=float, help="Fix the threshold instead of tuning")
     triage.add_argument("--limit", type=int, help="Only the first N tickets (a quick check)")
     triage.add_argument("--seed", type=int, default=42, help="Ollama sampling seed")
+    customer = commands.add_parser(
+        "evaluate-self-service",
+        help="Experiments S1-S3: the customer assistant (leakage, policy, prompt injection)",
+    )
+    customer.add_argument(
+        "--only", default="S1,S2,S3", help="Which experiments, e.g. S1,S3 (default: all)"
+    )
+    customer.add_argument(
+        "--folder",
+        type=Path,
+        default=REPO_ROOT / "datasets" / "self_service",
+        help="The self-service set (questions, markers, internal/ and public/ documents)",
+    )
+    customer.add_argument(
+        "--documents", type=Path, default=REPO_ROOT / "datasets" / "sample_documents" / "quillon"
+    )
+    customer.add_argument(
+        "--dataset",
+        type=Path,
+        default=REPO_ROOT / "datasets" / "evaluation_questions" / "quillon_support_v1.jsonl",
+        help="The benchmark asked in S2",
+    )
+    customer.add_argument("--split", choices=["dev", "test", "all"], default="all")
+    customer.add_argument("--name", default="s1-s3", help="Name for the results files")
+    customer.add_argument("--cache", type=Path, help="The replies cache (JSON lines)")
+    customer.add_argument("--seed", type=int, default=42, help="Ollama sampling seed")
     scan = commands.add_parser(
         "evaluate-contradictions",
         help="Experiments C1-C3: the contradiction scanner on the planted conflicts",

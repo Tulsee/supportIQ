@@ -87,3 +87,20 @@ verification without the confidence floor. C3 is the cost of a scan. The candida
 confidence defaults were set before the run; requiring both orders to agree became the
 default after it (reported as such). The write-up, with every flagged pair checked by
 hand, is [`reports/contradictions-c1-c3.md`](reports/contradictions-c1-c3.md).
+
+## Customer assistant (Module 12, S1-S3)
+
+```bash
+uv run python -m app.cli evaluate-self-service --name s1-s3     # from backend/, ~1 h on a CPU
+uv run python -m app.cli evaluate-self-service --only S1,S3     # without the 116 S2 calls
+```
+
+Customer questions go through the portal's assistant as a member with the customer
+role (row-level security, public documents only, the customer policy); staff questions
+through the assessed policy, as the staff Ask page. Replies are cached in
+`results/self-service-replies-<model>.jsonl`. S1 measures leakage of an internal
+document, with staff retrieval as the control; S2 compares the customer and staff
+policies on the benchmark; S3 measures whether planted instructions in a public page
+are followed, in what the customer is shown and in the model's raw output. See
+`datasets/README.md` for the set and [`reports/self-service-s1-s3.md`](reports/self-service-s1-s3.md)
+for the results.

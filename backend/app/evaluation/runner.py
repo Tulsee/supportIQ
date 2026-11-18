@@ -133,18 +133,27 @@ class EvaluationRunner:
 
     # --- Workspace -------------------------------------------------------------------------
 
-    async def prepare(self, corpus: Path, *, share_with: str | None = None) -> Workspace:
-        """The evaluation organization for ``corpus``, with its documents indexed."""
-        files = document_files(corpus)
+    async def prepare(
+        self,
+        corpus: Path,
+        *,
+        share_with: str | None = None,
+        files: Sequence[Path] | None = None,
+        slug: str | None = None,
+    ) -> Workspace:
+        """The evaluation organization for ``corpus``, with its documents indexed.
+        ``files`` overrides the documents (default: those in ``corpus``) and ``slug``
+        the organization (default: from the folder's name)."""
+        files = list(files) if files is not None else document_files(corpus)
         if not files:
             raise EvaluationError(f"No documents in {corpus}")
-        user, member, organization = await self._organization(corpus, share_with)
+        user, member, organization = await self._organization(corpus, share_with, slug)
         await set_rls_context(self.session, user_id=user.id, organization_id=organization.id)
         documents = await self._sync_documents(member, user, files)
         return Workspace(user=user, member=member, organization=organization, documents=documents)
 
     async def _organization(
-        self, corpus: Path, share_with: str | None
+        self, corpus: Path, share_with: str | None, slug: str | None = None
     ) -> tuple[User, OrganizationMember, Organization]:
         users = UserRepository(self.session)
         orgs = OrganizationRepository(self.session)
@@ -163,7 +172,7 @@ class EvaluationRunner:
                 users.add(user)
                 await self.session.commit()
 
-            slug = _slug(corpus)
+            slug = slug or _slug(corpus)
             organization = await orgs.get_by_slug(slug)
             if organization is None:
                 member = await OrganizationService(self.session).create(
@@ -299,37 +308,45 @@ class EvaluationRunner:
                 ),
             )
 
-        outcome = QuestionOutcome(
-            question=question,
-            ranked_passages=[r.chunk.content if r.chunk else "" for r in results],
-            top_k=options.top_k,
-            run_id=str(run.id),
-            latency_ms=run.latency_ms,
-        )
-        answer = run.answer
-        if answer is not None:
-            by_id = {r.id: r for r in results}
-            cited: list[str] = []
-            for citation in answer.citations:
-                result = by_id.get(citation.retrieval_result_id)
-                text = result.chunk.content if result and result.chunk else ""
-                if text not in cited:
-                    cited.append(text)
-            outcome.status = answer.status.value
-            outcome.answer = answer.text
-            outcome.cited_passages = cited
-            outcome.invalid_citations = len(answer.invalid_citations)
-            outcome.generation_ms = answer.latency_ms
-            outcome.error = answer.error
-            outcome.model = answer.model
-            outcome.model_version = answer.model_version
-            if answer.raw_output:
-                draft = parse_structured(answer.raw_output).answer
-                outcome.draft = check_answer(draft, answer.passage_count).text if draft else ""
-        assessment = run.assessment
-        if assessment is not None:
-            outcome.decision = assessment.decision.value
-            outcome.reason = assessment.reason
-            outcome.signals = assessment.signals
-            outcome.score = assessment.score
-        return outcome
+        return outcome_of(question, run, results, options.top_k)
+
+
+def outcome_of(
+    question: Question, run: AIRun, results: Sequence[RetrievalResult], top_k: int
+) -> QuestionOutcome:
+    """What a run did with a question, for scoring (any pipeline: staff answers, the
+    customer assistant, retrieval only)."""
+    outcome = QuestionOutcome(
+        question=question,
+        ranked_passages=[r.chunk.content if r.chunk else "" for r in results],
+        top_k=top_k,
+        run_id=str(run.id),
+        latency_ms=run.latency_ms,
+    )
+    answer = run.answer
+    if answer is not None:
+        by_id = {r.id: r for r in results}
+        cited: list[str] = []
+        for citation in answer.citations:
+            result = by_id.get(citation.retrieval_result_id)
+            text = result.chunk.content if result and result.chunk else ""
+            if text not in cited:
+                cited.append(text)
+        outcome.status = answer.status.value
+        outcome.answer = answer.text
+        outcome.cited_passages = cited
+        outcome.invalid_citations = len(answer.invalid_citations)
+        outcome.generation_ms = answer.latency_ms
+        outcome.error = answer.error
+        outcome.model = answer.model
+        outcome.model_version = answer.model_version
+        if answer.raw_output:
+            draft = parse_structured(answer.raw_output).answer
+            outcome.draft = check_answer(draft, answer.passage_count).text if draft else ""
+    assessment = run.assessment
+    if assessment is not None:
+        outcome.decision = assessment.decision.value
+        outcome.reason = assessment.reason
+        outcome.signals = assessment.signals
+        outcome.score = assessment.score
+    return outcome

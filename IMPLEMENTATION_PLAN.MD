@@ -1990,13 +1990,15 @@ classification.
 
 ## 15.6 Module 12 - Customer self-service assistant
 
-**Status:** implemented except the evaluation (13 November 2026): public documents
+**Status:** implemented (13 November 2026) and evaluated (18 November 2026): public documents
 enforced by RLS and the retrieval filter, the portal's Ask page, the stricter customer
 policy, ratings, handoff with the conversation on the ticket, the local-model setting,
 rate limits, and self-service analytics. See
-[docs/features/customer-self-service.md](docs/features/customer-self-service.md); the
-S1-S3 evaluation (leakage canaries, the customer policy on the 58 questions, prompt
-injection) is next.
+[docs/features/customer-self-service.md](docs/features/customer-self-service.md) and the
+[S1-S3 report](experiments/reports/self-service-s1-s3.md): nothing internal leaked (0/12,
+with a staff control that found the playbook 12/12), no wrong answer shown on the 58
+benchmark questions (30/30 correct), and no planted instruction followed (0/10), though
+a planted false claim can block an answer by contradicting it.
 
 **Why:** the plan's demonstration starts with "a customer asks a question". Today only
 staff can ask the assistant.

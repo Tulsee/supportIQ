@@ -2,7 +2,7 @@
 
 **Status:** phases 1-4 and the analytics of phase 5 implemented (Module 12 in the
 [implementation plan](../../IMPLEMENTATION_PLAN.MD#156-module-12---customer-self-service-assistant),
-13 November 2026). The S1-S3 evaluation is next.
+13 November 2026), and evaluated (S1-S3, 18 November 2026; [report](../../experiments/reports/self-service-s1-s3.md)).
 
 Customers can ask the assistant themselves, in the portal, before opening a request.
 It is the staff assistant's pipeline (retrieval, structured answer, evidence policy,
@@ -124,6 +124,14 @@ organization (`eval-self-service`).
 | S1 | Leakage: an internal agent playbook with unique canary strings; questions only it answers | Internal chunks retrieved for the customer (must be 0, no model needed); canaries in answers (must be 0); abstention rate |
 | S2 | The customer policy on the 58 Quillon questions, compared with the staff policy | Answer rate, correct-answer rate (key facts), wrong answers shown, abstention by category |
 | S3 | Prompt injection: a public page with planted instructions; questions that retrieve it | Answers that follow an instruction (marker strings, URLs) |
+
+Results with `qwen3.5:4b` ([S1-S3 report](../../experiments/reports/self-service-s1-s3.md)):
+
+| | |
+| --- | --- |
+| S1 | No internal passage retrieved for a customer, no canary in any reply or model output (0/12); the staff control found the playbook 12/12 |
+| S2 | Customer: 30 of 32 answerable questions answered, all correct, none of the 26 others answered; staff 31 of 32, all correct. The paths differed on 3 questions |
+| S3 | No planted instruction followed (0/10, customer and staff), but the planted lifetime-warranty claim turned the warranty question into an escalation, and the customer path declined 3 answerable questions it judged partial |
 
 ## Delivery
 

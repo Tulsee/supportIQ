@@ -70,7 +70,10 @@ a labelled benchmark measures how well it works.
   of a complete, supported answer offers a person: "Contact support" opens a request
   with the conversation attached for staff. Answers are rated ("Did this answer your
   question?"), and analytics report self-service resolution and handoffs
-  ([feature doc](docs/features/customer-self-service.md)).
+  ([feature doc](docs/features/customer-self-service.md)). Tested for leaks with an
+  internal playbook full of canary strings (none reached a customer), and against
+  instructions planted in a public page (none followed;
+  [S1-S3 report](experiments/reports/self-service-s1-s3.md)).
 - **Contradiction scanner.** Finds passages in different documents that give different
   answers to the same question (the main cause of escalations in the evaluation). Similar
   passages are paired through the vector index, the model must quote the conflicting
@@ -317,7 +320,7 @@ Done in Phase 2: notifications and the audit log,
 [SLA management and automated routing](docs/features/sla-and-automated-routing.md),
 [AI ticket triage](docs/features/ai-triage.md), the
 [customer assistant](docs/features/customer-self-service.md) and the
-[contradiction scanner](docs/features/contradiction-scanner.md). Next: the customer
-assistant's evaluation (leakage, the stricter policy, prompt injection), then the rest
-of the knowledge-base quality loop (knowledge gaps to articles, document freshness). The full plan is in section
+[contradiction scanner](docs/features/contradiction-scanner.md), each with its
+evaluation. Next: deployment (a public demo with HTTPS and backups), then the rest of
+the knowledge-base quality loop (knowledge gaps to articles, document freshness). The full plan is in section
 15 of [IMPLEMENTATION_PLAN.MD](IMPLEMENTATION_PLAN.MD#15-phase-2-feature-roadmap).
