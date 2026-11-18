@@ -125,7 +125,7 @@ async def test_the_run_is_recorded_for_staff_as_a_self_service_run(
         await api.get(f"{API}/ai/runs/{summary['id']}", headers=in_org(ws.agent, ws.org_id))
     ).json()
     assert run["kind"] == "self_service"
-    assert run["answer"]["prompt_version"] == "self-service-v1-structured"
+    assert run["answer"]["prompt_version"] == "self-service-v2-structured"
     assert run["assessment"]["thresholds"]["abstain_on_partial"] is True
     assert {r["document_id"] for r in run["results"]} == {library["public"]}
 

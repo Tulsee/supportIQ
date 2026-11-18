@@ -191,7 +191,12 @@ async def _evaluate_self_service(args: argparse.Namespace) -> int:
     items = evaluation.load_items(folder / "questions_v1.jsonl")
     markers = evaluation.load_markers(folder / "markers.json")
     dataset = load_dataset(args.dataset)
-    benchmark = [q for q in dataset.questions if args.split == "all" or q.split == args.split]
+    ids = set(args.ids.split(",")) if args.ids else None
+    benchmark = [
+        q
+        for q in dataset.questions
+        if (args.split == "all" or q.split == args.split) and (ids is None or q.id in ids)
+    ]
     llm = build_llm_client(settings.model_copy(update={"ollama_seed": args.seed}))
     status = await llm.status()
     model_name = str(getattr(llm, "model", "model"))
@@ -812,6 +817,7 @@ def main(argv: list[str] | None = None) -> int:
         help="The benchmark asked in S2",
     )
     customer.add_argument("--split", choices=["dev", "test", "all"], default="all")
+    customer.add_argument("--ids", help="Only these benchmark questions in S2, e.g. q033,q044")
     customer.add_argument("--name", default="s1-s3", help="Name for the results files")
     customer.add_argument("--cache", type=Path, help="The replies cache (JSON lines)")
     customer.add_argument("--seed", type=int, default=42, help="Ollama sampling seed")

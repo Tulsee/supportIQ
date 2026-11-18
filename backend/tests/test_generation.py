@@ -93,6 +93,24 @@ def test_self_service_answers_are_written_for_the_customer() -> None:
     assert "draft reply" not in built.prompt.system
 
 
+def test_only_customers_get_the_narrower_meaning_of_ambiguous() -> None:
+    def system(audience: str) -> str:
+        return build_prompt(
+            "q?",
+            [passage("x")],
+            token_budget=None,
+            structured=True,
+            audience=audience,  # type: ignore[arg-type]
+        ).prompt.system
+
+    rule = "Ambiguity is about the question"
+    assert rule in system("self_service")
+    # It follows the definition it narrows.
+    customer = system("self_service")
+    assert customer.index("answer differently.") < customer.index(rule)
+    assert rule not in system("staff") and rule not in system("customer")
+
+
 def test_the_rules_say_how_to_cite_and_how_to_decline() -> None:
     assert "[1]" in SYSTEM_PROMPT
     assert NOT_FOUND_ANSWER in SYSTEM_PROMPT

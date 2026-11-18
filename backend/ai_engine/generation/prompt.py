@@ -67,7 +67,27 @@ The answer is a draft reply to the customer, which a support agent will review a
 send: write to the customer directly ("you"), friendly and clear, without a greeting \
 or sign-off. Keep the citations; the agent checks them before sending."""
 
-SELF_SERVICE_PROMPT_VERSION = "self-service-v1-structured"
+SELF_SERVICE_PROMPT_VERSION = "self-service-v2-structured"
+
+# Customers only (S2, q044): without it the model can call two passages that disagree
+# about the plan a customer named "ambiguous" and ask a confusing clarifying question
+# instead of offering a person. Not used for staff: in the same test it turned a staff
+# escalation into a clarifying question (experiments/reports/self-service-s1-s3.md).
+AMBIGUITY_RULE = (
+    'Ambiguity is about the question: use "ambiguous" only when the question leaves out '
+    "which product, plan or situation it means. When the question names what it means "
+    'and two passages about that same thing disagree, the status is "conflicting", not '
+    '"ambiguous".'
+)
+_AMBIGUOUS_DEFINITION = (
+    '"ambiguous" if the question could mean several different things that the passages '
+    "answer differently."
+)
+if _AMBIGUOUS_DEFINITION not in STRUCTURED_SYSTEM_PROMPT:  # pragma: no cover
+    raise RuntimeError("The structured prompt's definition of ambiguous changed")
+STRUCTURED_SELF_SERVICE_PROMPT = STRUCTURED_SYSTEM_PROMPT.replace(
+    _AMBIGUOUS_DEFINITION, f"{_AMBIGUOUS_DEFINITION} {AMBIGUITY_RULE}"
+)
 
 SELF_SERVICE_INSTRUCTION = """\
 You are answering a customer directly, in the company's help portal; no support \
@@ -159,6 +179,8 @@ def build_prompt(
     asked = re.sub(r"</?\s*passage", "(passage", question.strip(), flags=re.IGNORECASE)
     user = f"{context}<passages>\n{rendered}\n</passages>\n\nQuestion: {asked}"
     system = STRUCTURED_SYSTEM_PROMPT if structured else SYSTEM_PROMPT
+    if structured and audience == "self_service":
+        system = STRUCTURED_SELF_SERVICE_PROMPT
     if audience == "customer":
         system += "\n\n" + CUSTOMER_REPLY_INSTRUCTION
     elif audience == "self_service":

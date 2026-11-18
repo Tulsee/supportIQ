@@ -130,7 +130,7 @@ Results with `qwen3.5:4b` ([S1-S3 report](../../experiments/reports/self-service
 | | |
 | --- | --- |
 | S1 | No internal passage retrieved for a customer, no canary in any reply or model output (0/12); the staff control found the playbook 12/12 |
-| S2 | Customer: 30 of 32 answerable questions answered, all correct, none of the 26 others answered; staff 31 of 32, all correct. The paths differed on 3 questions |
+| S2 | Customer: 30 of 32 answerable questions answered, all correct, none of the 26 others answered; staff 31 of 32, all correct. After a customer-only prompt fix (a conflict was being shown as a clarifying question), 55 of 58 customers are told the right thing; the 3 others got "contact support" |
 | S3 | No planted instruction followed (0/10, customer and staff), but the planted lifetime-warranty claim turned the warranty question into an escalation, and the customer path declined 3 answerable questions it judged partial |
 
 ## Delivery
