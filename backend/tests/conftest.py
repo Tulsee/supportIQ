@@ -40,6 +40,7 @@ from ai_engine.evidence.nli import OverlapNli
 from ai_engine.reranking.cross_encoder import OverlapReranker
 from ai_engine.retrieval.vector_store import QdrantVectorStore
 from app.api.deps import (
+    get_contradiction_queue,
     get_embedder_dep,
     get_event_broker,
     get_ingestion_queue,
@@ -67,6 +68,7 @@ from app.websocket.presence import InMemoryPresence
 from tests.factories import (
     TEST_INGESTION_LIMITS,
     Outbox,
+    RecordingContradictionQueue,
     RecordingMailer,
     RecordingQueue,
     RecordingRoutingQueue,
@@ -223,6 +225,11 @@ def triage_queue() -> RecordingTriageQueue:
 
 
 @pytest.fixture
+def contradiction_queue() -> RecordingContradictionQueue:
+    return RecordingContradictionQueue()
+
+
+@pytest.fixture
 def worker_registry() -> StaticWorkerRegistry:
     return StaticWorkerRegistry(count=1)
 
@@ -290,6 +297,7 @@ def make_client(
     mailer: RecordingMailer,
     routing_queue: RecordingRoutingQueue,
     triage_queue: RecordingTriageQueue,
+    contradiction_queue: RecordingContradictionQueue,
     worker_registry: StaticWorkerRegistry,
     reranker: OverlapReranker,
     llm: ScriptedLLM,
@@ -323,6 +331,7 @@ def make_client(
             get_notification_mailer: lambda: mailer,
             get_routing_queue: lambda: routing_queue,
             get_triage_queue: lambda: triage_queue,
+            get_contradiction_queue: lambda: contradiction_queue,
             get_worker_registry: lambda: worker_registry,
             get_reranker_dep: lambda: reranker,
             get_llm_client_dep: lambda: llm,

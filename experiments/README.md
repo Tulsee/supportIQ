@@ -52,6 +52,9 @@ Reports of finished studies are in `reports/`:
 - [`quillon-v1-evaluation.md`](reports/quillon-v1-evaluation.md): E1-E6 on the Quillon
   benchmark v1 (retrieval, decisions, calibration, latency, error analysis and
   limitations), with the generated comparison tables beside it.
+- [`triage-t1-t4.md`](reports/triage-t1-t4.md): AI triage, T1-T5.
+- [`contradictions-c1-c3.md`](reports/contradictions-c1-c3.md): the contradiction
+  scanner, C1-C3.
 
 ## AI triage (Module 11, T1-T4)
 
@@ -66,3 +69,21 @@ a fixed-policy run costs no model calls. T1 is the model alone, T2 the neighbour
 alone, T3 both combined always applying, T4 both combined with abstention; α and the
 threshold are chosen on dev (the most coverage at 95% dev accuracy) and everything is
 reported on test. The write-up is `reports/triage-t1-t4.md`.
+
+## Contradiction scanner (Module 13, C1-C3)
+
+```bash
+uv run python -m app.cli evaluate-contradictions --name c1-c3   # from backend/, ~90 min on a CPU
+```
+
+The gold labels are the six planted contradictions: the evidence of the benchmark's
+`conflicting` questions, each naming two documents and the conflicting sentence in each.
+C1 sweeps the candidate-pair settings (neighbours per passage, similarity floor; no model
+calls). C2 asks the model about every default candidate pair in both orders, keeps the
+replies in `results/contradiction-replies-<model>.jsonl` (a run can stop and resume), and
+scores five decision policies on the same replies: the verdict alone, plus a confidence
+floor, plus quote verification (the default), plus agreement of both orders, and quote
+verification without the confidence floor. C3 is the cost of a scan. The candidate and
+confidence defaults were set before the run; requiring both orders to agree became the
+default after it (reported as such). The write-up, with every flagged pair checked by
+hand, is [`reports/contradictions-c1-c3.md`](reports/contradictions-c1-c3.md).

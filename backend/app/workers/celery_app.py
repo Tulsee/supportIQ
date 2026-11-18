@@ -68,6 +68,17 @@ celery_app.conf.beat_schedule = {
             },
             settings.routing_sweep_interval_seconds > 0,
         ),
+        (
+            # Checks every 15 minutes which organizations are due (each is scanned at
+            # most once per contradiction_scan_interval_minutes).
+            "contradiction-scans",
+            {
+                "task": "contradictions.schedule",
+                "schedule": min(15, settings.contradiction_scan_interval_minutes) * 60,
+                "options": {"expires": 600},
+            },
+            settings.contradiction_scan_interval_minutes > 0,
+        ),
     )
     if enabled
 }

@@ -77,6 +77,19 @@ class RecordingRoutingQueue:
 
 
 @dataclass
+class RecordingContradictionQueue:
+    """Test contradiction queue: records the scans it was asked to run."""
+
+    ids: list[uuid.UUID] = field(default_factory=list)
+    error: Exception | None = None
+
+    async def enqueue(self, scan_id: uuid.UUID) -> None:
+        if self.error is not None:
+            raise self.error
+        self.ids.append(scan_id)
+
+
+@dataclass
 class RecordingTriageQueue:
     """Test triage queue: records the tickets it was asked to triage."""
 

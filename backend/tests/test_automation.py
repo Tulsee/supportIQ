@@ -86,6 +86,7 @@ async def test_each_organization_chooses_its_window(
         "triage_mode": "off",
         "self_service": "off",
         "self_service_model": "default",
+        "contradiction_scan": "off",
     }
     assert await auto_close_resolved(db_session, now=NOW) == 0
     assert await status_of(api, ws, ticket) == "resolved"
@@ -123,6 +124,7 @@ async def test_only_admins_change_settings_within_limits(
         "triage_mode": "off",
         "self_service": "off",
         "self_service_model": "default",
+        "contradiction_scan": "off",
     }
 
 

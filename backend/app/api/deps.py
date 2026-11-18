@@ -50,10 +50,12 @@ from app.websocket.broker import EventBroker, RedisEventBroker
 from app.websocket.presence import PresenceTracker, RedisPresence
 from app.workers.heartbeat import RedisWorkerRegistry, WorkerRegistry
 from app.workers.queue import (
+    CeleryContradictionQueue,
     CeleryIngestionQueue,
     CeleryNotificationMailer,
     CeleryRoutingQueue,
     CeleryTriageQueue,
+    ContradictionQueue,
     IngestionQueue,
     NotificationMailer,
     RoutingQueue,
@@ -91,6 +93,10 @@ def get_routing_queue() -> RoutingQueue:
 
 def get_triage_queue() -> TriageQueue:
     return CeleryTriageQueue()
+
+
+def get_contradiction_queue() -> ContradictionQueue:
+    return CeleryContradictionQueue()
 
 
 def get_notification_mailer() -> NotificationMailer:
@@ -133,6 +139,7 @@ IngestionQueueDep = Annotated[IngestionQueue, Depends(get_ingestion_queue)]
 NotificationMailerDep = Annotated[NotificationMailer, Depends(get_notification_mailer)]
 RoutingQueueDep = Annotated[RoutingQueue, Depends(get_routing_queue)]
 TriageQueueDep = Annotated[TriageQueue, Depends(get_triage_queue)]
+ContradictionQueueDep = Annotated[ContradictionQueue, Depends(get_contradiction_queue)]
 WorkerRegistryDep = Annotated[WorkerRegistry, Depends(get_worker_registry)]
 EmbedderDep = Annotated[Embedder, Depends(get_embedder_dep)]
 RerankerDep = Annotated[Reranker, Depends(get_reranker_dep)]

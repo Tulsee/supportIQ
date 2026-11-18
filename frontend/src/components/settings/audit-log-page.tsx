@@ -30,6 +30,7 @@ const FILTERS: Filter[] = [
   "team",
   "agent",
   "routing_rule",
+  "contradiction",
 ];
 
 /** Administrative changes in the organization, newest first. */

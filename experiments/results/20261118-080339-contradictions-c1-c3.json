@@ -1,0 +1,1573 @@
+{
+  "name": "c1-c3",
+  "dataset": "datasets/evaluation_questions/quillon_support_v1.jsonl",
+  "corpus": "datasets/sample_documents/quillon",
+  "model": "qwen3.5:4b",
+  "llm_config": {
+    "temperature": 0.1,
+    "max_output_tokens": 1024,
+    "context_tokens": 8192,
+    "think": false,
+    "keep_alive": "10m",
+    "seed": 42
+  },
+  "embedding_model": "BAAI/bge-small-en-v1.5",
+  "documents": 10,
+  "passages": 45,
+  "all_pairs": 902,
+  "defaults": {
+    "neighbours": 3,
+    "min_similarity": 0.5
+  },
+  "planted": [
+    {
+      "id": "q039",
+      "split": "dev",
+      "question": "How many days do I have to return an unopened router for a full refund?",
+      "sides": [
+        [
+          "returns-and-refunds-policy.md",
+          "You can return an unopened Quillon product within 30 days of delivery for a full refund."
+        ],
+        [
+          "help-center-faq.md",
+          "You can return any Quillon product within 60 days for a full refund, no questions asked."
+        ]
+      ]
+    },
+    {
+      "id": "q040",
+      "split": "test",
+      "question": "How long does it take to get my refund?",
+      "sides": [
+        [
+          "returns-and-refunds-policy.md",
+          "Refunds are issued to the original payment method within 5 to 7 business days after we receive the returned product."
+        ],
+        [
+          "help-center-faq.md",
+          "Refunds can take up to 14 business days to appear on your statement."
+        ]
+      ]
+    },
+    {
+      "id": "q041",
+      "split": "dev",
+      "question": "What are your phone support hours?",
+      "sides": [
+        [
+          "contacting-support.md",
+          "Phone support is available Monday to Saturday, 7 a.m. to 9 p.m. Eastern Time."
+        ],
+        [
+          "help-center-faq.md",
+          "Our phone support team is available Monday to Friday, 9 a.m. to 5 p.m. Eastern Time."
+        ]
+      ]
+    },
+    {
+      "id": "q042",
+      "split": "test",
+      "question": "How many devices can connect to the guest network at the same time?",
+      "sides": [
+        [
+          "q3-router-setup-guide.md",
+          "Up to 32 devices can use the guest network at the same time."
+        ],
+        [
+          "help-center-faq.md",
+          "Up to 16 devices can be connected to the guest network at once."
+        ]
+      ]
+    },
+    {
+      "id": "q043",
+      "split": "dev",
+      "question": "What time do automatic firmware updates install on the Q3?",
+      "sides": [
+        [
+          "q3-router-setup-guide.md",
+          "installs them automatically between 3 a.m. and 5 a.m. local time."
+        ],
+        [
+          "firmware-release-notes.md",
+          "Routers install new firmware automatically between 2 a.m. and 4 a.m. local time."
+        ]
+      ]
+    },
+    {
+      "id": "q044",
+      "split": "test",
+      "question": "How many days of cloud video history does Secure Plus keep?",
+      "sides": [
+        [
+          "quillon-secure-plans.md",
+          "Secure Plus costs $9.99 per month and adds 30 days of cloud video history for up to 4 cameras"
+        ],
+        [
+          "qc2-camera-guide.md",
+          "With a Quillon Secure Plus plan, recordings are also kept in the cloud for 14 days."
+        ]
+      ]
+    }
+  ],
+  "c1": {
+    "grid": [
+      {
+        "neighbours": 1,
+        "min_similarity": 0.0,
+        "pairs": 36,
+        "planted_found": [
+          "q039",
+          "q040",
+          "q041",
+          "q042",
+          "q043",
+          "q044"
+        ],
+        "recall": {
+          "value": 1.0,
+          "successes": 6,
+          "n": 6,
+          "ci95": [
+            0.6097,
+            1.0
+          ]
+        }
+      },
+      {
+        "neighbours": 1,
+        "min_similarity": 0.5,
+        "pairs": 36,
+        "planted_found": [
+          "q039",
+          "q040",
+          "q041",
+          "q042",
+          "q043",
+          "q044"
+        ],
+        "recall": {
+          "value": 1.0,
+          "successes": 6,
+          "n": 6,
+          "ci95": [
+            0.6097,
+            1.0
+          ]
+        }
+      },
+      {
+        "neighbours": 1,
+        "min_similarity": 0.6,
+        "pairs": 34,
+        "planted_found": [
+          "q039",
+          "q040",
+          "q041",
+          "q042",
+          "q043",
+          "q044"
+        ],
+        "recall": {
+          "value": 1.0,
+          "successes": 6,
+          "n": 6,
+          "ci95": [
+            0.6097,
+            1.0
+          ]
+        }
+      },
+      {
+        "neighbours": 1,
+        "min_similarity": 0.7,
+        "pairs": 19,
+        "planted_found": [
+          "q039",
+          "q040",
+          "q041",
+          "q042",
+          "q043"
+        ],
+        "recall": {
+          "value": 0.8333,
+          "successes": 5,
+          "n": 6,
+          "ci95": [
+            0.4365,
+            0.9699
+          ]
+        }
+      },
+      {
+        "neighbours": 1,
+        "min_similarity": 0.8,
+        "pairs": 7,
+        "planted_found": [
+          "q039",
+          "q040",
+          "q042",
+          "q043"
+        ],
+        "recall": {
+          "value": 0.6667,
+          "successes": 4,
+          "n": 6,
+          "ci95": [
+            0.3,
+            0.9032
+          ]
+        }
+      },
+      {
+        "neighbours": 2,
+        "min_similarity": 0.0,
+        "pairs": 69,
+        "planted_found": [
+          "q039",
+          "q040",
+          "q041",
+          "q042",
+          "q043",
+          "q044"
+        ],
+        "recall": {
+          "value": 1.0,
+          "successes": 6,
+          "n": 6,
+          "ci95": [
+            0.6097,
+            1.0
+          ]
+        }
+      },
+      {
+        "neighbours": 2,
+        "min_similarity": 0.5,
+        "pairs": 69,
+        "planted_found": [
+          "q039",
+          "q040",
+          "q041",
+          "q042",
+          "q043",
+          "q044"
+        ],
+        "recall": {
+          "value": 1.0,
+          "successes": 6,
+          "n": 6,
+          "ci95": [
+            0.6097,
+            1.0
+          ]
+        }
+      },
+      {
+        "neighbours": 2,
+        "min_similarity": 0.6,
+        "pairs": 65,
+        "planted_found": [
+          "q039",
+          "q040",
+          "q041",
+          "q042",
+          "q043",
+          "q044"
+        ],
+        "recall": {
+          "value": 1.0,
+          "successes": 6,
+          "n": 6,
+          "ci95": [
+            0.6097,
+            1.0
+          ]
+        }
+      },
+      {
+        "neighbours": 2,
+        "min_similarity": 0.7,
+        "pairs": 30,
+        "planted_found": [
+          "q039",
+          "q040",
+          "q041",
+          "q042",
+          "q043"
+        ],
+        "recall": {
+          "value": 0.8333,
+          "successes": 5,
+          "n": 6,
+          "ci95": [
+            0.4365,
+            0.9699
+          ]
+        }
+      },
+      {
+        "neighbours": 2,
+        "min_similarity": 0.8,
+        "pairs": 9,
+        "planted_found": [
+          "q039",
+          "q040",
+          "q042",
+          "q043"
+        ],
+        "recall": {
+          "value": 0.6667,
+          "successes": 4,
+          "n": 6,
+          "ci95": [
+            0.3,
+            0.9032
+          ]
+        }
+      },
+      {
+        "neighbours": 3,
+        "min_similarity": 0.0,
+        "pairs": 97,
+        "planted_found": [
+          "q039",
+          "q040",
+          "q041",
+          "q042",
+          "q043",
+          "q044"
+        ],
+        "recall": {
+          "value": 1.0,
+          "successes": 6,
+          "n": 6,
+          "ci95": [
+            0.6097,
+            1.0
+          ]
+        }
+      },
+      {
+        "neighbours": 3,
+        "min_similarity": 0.5,
+        "pairs": 97,
+        "planted_found": [
+          "q039",
+          "q040",
+          "q041",
+          "q042",
+          "q043",
+          "q044"
+        ],
+        "recall": {
+          "value": 1.0,
+          "successes": 6,
+          "n": 6,
+          "ci95": [
+            0.6097,
+            1.0
+          ]
+        }
+      },
+      {
+        "neighbours": 3,
+        "min_similarity": 0.6,
+        "pairs": 90,
+        "planted_found": [
+          "q039",
+          "q040",
+          "q041",
+          "q042",
+          "q043",
+          "q044"
+        ],
+        "recall": {
+          "value": 1.0,
+          "successes": 6,
+          "n": 6,
+          "ci95": [
+            0.6097,
+            1.0
+          ]
+        }
+      },
+      {
+        "neighbours": 3,
+        "min_similarity": 0.7,
+        "pairs": 35,
+        "planted_found": [
+          "q039",
+          "q040",
+          "q041",
+          "q042",
+          "q043"
+        ],
+        "recall": {
+          "value": 0.8333,
+          "successes": 5,
+          "n": 6,
+          "ci95": [
+            0.4365,
+            0.9699
+          ]
+        }
+      },
+      {
+        "neighbours": 3,
+        "min_similarity": 0.8,
+        "pairs": 9,
+        "planted_found": [
+          "q039",
+          "q040",
+          "q042",
+          "q043"
+        ],
+        "recall": {
+          "value": 0.6667,
+          "successes": 4,
+          "n": 6,
+          "ci95": [
+            0.3,
+            0.9032
+          ]
+        }
+      },
+      {
+        "neighbours": 5,
+        "min_similarity": 0.0,
+        "pairs": 154,
+        "planted_found": [
+          "q039",
+          "q040",
+          "q041",
+          "q042",
+          "q043",
+          "q044"
+        ],
+        "recall": {
+          "value": 1.0,
+          "successes": 6,
+          "n": 6,
+          "ci95": [
+            0.6097,
+            1.0
+          ]
+        }
+      },
+      {
+        "neighbours": 5,
+        "min_similarity": 0.5,
+        "pairs": 154,
+        "planted_found": [
+          "q039",
+          "q040",
+          "q041",
+          "q042",
+          "q043",
+          "q044"
+        ],
+        "recall": {
+          "value": 1.0,
+          "successes": 6,
+          "n": 6,
+          "ci95": [
+            0.6097,
+            1.0
+          ]
+        }
+      },
+      {
+        "neighbours": 5,
+        "min_similarity": 0.6,
+        "pairs": 126,
+        "planted_found": [
+          "q039",
+          "q040",
+          "q041",
+          "q042",
+          "q043",
+          "q044"
+        ],
+        "recall": {
+          "value": 1.0,
+          "successes": 6,
+          "n": 6,
+          "ci95": [
+            0.6097,
+            1.0
+          ]
+        }
+      },
+      {
+        "neighbours": 5,
+        "min_similarity": 0.7,
+        "pairs": 41,
+        "planted_found": [
+          "q039",
+          "q040",
+          "q041",
+          "q042",
+          "q043"
+        ],
+        "recall": {
+          "value": 0.8333,
+          "successes": 5,
+          "n": 6,
+          "ci95": [
+            0.4365,
+            0.9699
+          ]
+        }
+      },
+      {
+        "neighbours": 5,
+        "min_similarity": 0.8,
+        "pairs": 9,
+        "planted_found": [
+          "q039",
+          "q040",
+          "q042",
+          "q043"
+        ],
+        "recall": {
+          "value": 0.6667,
+          "successes": 4,
+          "n": 6,
+          "ci95": [
+            0.3,
+            0.9032
+          ]
+        }
+      },
+      {
+        "neighbours": 10,
+        "min_similarity": 0.0,
+        "pairs": 291,
+        "planted_found": [
+          "q039",
+          "q040",
+          "q041",
+          "q042",
+          "q043",
+          "q044"
+        ],
+        "recall": {
+          "value": 1.0,
+          "successes": 6,
+          "n": 6,
+          "ci95": [
+            0.6097,
+            1.0
+          ]
+        }
+      },
+      {
+        "neighbours": 10,
+        "min_similarity": 0.5,
+        "pairs": 291,
+        "planted_found": [
+          "q039",
+          "q040",
+          "q041",
+          "q042",
+          "q043",
+          "q044"
+        ],
+        "recall": {
+          "value": 1.0,
+          "successes": 6,
+          "n": 6,
+          "ci95": [
+            0.6097,
+            1.0
+          ]
+        }
+      },
+      {
+        "neighbours": 10,
+        "min_similarity": 0.6,
+        "pairs": 177,
+        "planted_found": [
+          "q039",
+          "q040",
+          "q041",
+          "q042",
+          "q043",
+          "q044"
+        ],
+        "recall": {
+          "value": 1.0,
+          "successes": 6,
+          "n": 6,
+          "ci95": [
+            0.6097,
+            1.0
+          ]
+        }
+      },
+      {
+        "neighbours": 10,
+        "min_similarity": 0.7,
+        "pairs": 42,
+        "planted_found": [
+          "q039",
+          "q040",
+          "q041",
+          "q042",
+          "q043"
+        ],
+        "recall": {
+          "value": 0.8333,
+          "successes": 5,
+          "n": 6,
+          "ci95": [
+            0.4365,
+            0.9699
+          ]
+        }
+      },
+      {
+        "neighbours": 10,
+        "min_similarity": 0.8,
+        "pairs": 9,
+        "planted_found": [
+          "q039",
+          "q040",
+          "q042",
+          "q043"
+        ],
+        "recall": {
+          "value": 0.6667,
+          "successes": 4,
+          "n": 6,
+          "ci95": [
+            0.3,
+            0.9032
+          ]
+        }
+      }
+    ],
+    "planted_similarity": {
+      "q039": 0.94,
+      "q040": 0.8786,
+      "q041": 0.7599,
+      "q042": 0.8922,
+      "q043": 0.8184,
+      "q044": 0.6339
+    }
+  },
+  "c2": {
+    "candidates": 97,
+    "planted_pairs": 6,
+    "policies": {
+      "J0": {
+        "label": "Model verdict only",
+        "flagged": 13,
+        "true_pairs": 6,
+        "false_pairs": 7,
+        "precision": {
+          "value": 0.4615,
+          "successes": 6,
+          "n": 13,
+          "ci95": [
+            0.2321,
+            0.7086
+          ]
+        },
+        "recall": {
+          "value": 1.0,
+          "successes": 6,
+          "n": 6,
+          "ci95": [
+            0.6097,
+            1.0
+          ]
+        },
+        "f1": 0.6315,
+        "planted_found": [
+          "q039",
+          "q040",
+          "q041",
+          "q042",
+          "q043",
+          "q044"
+        ],
+        "planted_localized": [
+          "q039",
+          "q040",
+          "q041",
+          "q042",
+          "q043",
+          "q044"
+        ]
+      },
+      "J1": {
+        "label": "+ confidence at least medium",
+        "flagged": 13,
+        "true_pairs": 6,
+        "false_pairs": 7,
+        "precision": {
+          "value": 0.4615,
+          "successes": 6,
+          "n": 13,
+          "ci95": [
+            0.2321,
+            0.7086
+          ]
+        },
+        "recall": {
+          "value": 1.0,
+          "successes": 6,
+          "n": 6,
+          "ci95": [
+            0.6097,
+            1.0
+          ]
+        },
+        "f1": 0.6315,
+        "planted_found": [
+          "q039",
+          "q040",
+          "q041",
+          "q042",
+          "q043",
+          "q044"
+        ],
+        "planted_localized": [
+          "q039",
+          "q040",
+          "q041",
+          "q042",
+          "q043",
+          "q044"
+        ]
+      },
+      "J2": {
+        "label": "+ quotes found in both passages (default)",
+        "flagged": 13,
+        "true_pairs": 6,
+        "false_pairs": 7,
+        "precision": {
+          "value": 0.4615,
+          "successes": 6,
+          "n": 13,
+          "ci95": [
+            0.2321,
+            0.7086
+          ]
+        },
+        "recall": {
+          "value": 1.0,
+          "successes": 6,
+          "n": 6,
+          "ci95": [
+            0.6097,
+            1.0
+          ]
+        },
+        "f1": 0.6315,
+        "planted_found": [
+          "q039",
+          "q040",
+          "q041",
+          "q042",
+          "q043",
+          "q044"
+        ],
+        "planted_localized": [
+          "q039",
+          "q040",
+          "q041",
+          "q042",
+          "q043",
+          "q044"
+        ]
+      },
+      "J3": {
+        "label": "J2, both orders agree",
+        "flagged": 10,
+        "true_pairs": 6,
+        "false_pairs": 4,
+        "precision": {
+          "value": 0.6,
+          "successes": 6,
+          "n": 10,
+          "ci95": [
+            0.3127,
+            0.8318
+          ]
+        },
+        "recall": {
+          "value": 1.0,
+          "successes": 6,
+          "n": 6,
+          "ci95": [
+            0.6097,
+            1.0
+          ]
+        },
+        "f1": 0.75,
+        "planted_found": [
+          "q039",
+          "q040",
+          "q041",
+          "q042",
+          "q043",
+          "q044"
+        ],
+        "planted_localized": [
+          "q039",
+          "q040",
+          "q041",
+          "q042",
+          "q043",
+          "q044"
+        ]
+      },
+      "J4": {
+        "label": "Quotes found, any confidence",
+        "flagged": 13,
+        "true_pairs": 6,
+        "false_pairs": 7,
+        "precision": {
+          "value": 0.4615,
+          "successes": 6,
+          "n": 13,
+          "ci95": [
+            0.2321,
+            0.7086
+          ]
+        },
+        "recall": {
+          "value": 1.0,
+          "successes": 6,
+          "n": 6,
+          "ci95": [
+            0.6097,
+            1.0
+          ]
+        },
+        "f1": 0.6315,
+        "planted_found": [
+          "q039",
+          "q040",
+          "q041",
+          "q042",
+          "q043",
+          "q044"
+        ],
+        "planted_localized": [
+          "q039",
+          "q040",
+          "q041",
+          "q042",
+          "q043",
+          "q044"
+        ]
+      }
+    },
+    "replies": {
+      "calls": 194,
+      "errors": 0,
+      "unusable_replies": 0,
+      "verdicts_ab": {
+        "conflict": 13,
+        "unrelated": 82,
+        "consistent": 2
+      },
+      "order_agreement": {
+        "value": 0.9691,
+        "successes": 94,
+        "n": 97,
+        "ci95": [
+          0.913,
+          0.9894
+        ]
+      },
+      "latency_ms": {
+        "mean": 19003,
+        "p50": 16956,
+        "max": 55172
+      }
+    },
+    "flagged_default": [
+      {
+        "pair_key": "8cc6ed29b264f78b78e4c4220e958719a9304d0b232b589c1b0717e7ff453450",
+        "planted": [
+          "q039"
+        ],
+        "similarity": 0.94,
+        "a": {
+          "document": "Help Center: Frequently Asked Questions",
+          "section": "Can I return my Quillon product?"
+        },
+        "b": {
+          "document": "Returns and Refunds Policy",
+          "section": "Returning a product"
+        },
+        "confidence": 0.9,
+        "conflicts": [
+          {
+            "topic": "return window for full refund",
+            "quote_a": "Yes. You can return any Quillon product within 60 days for a full refund, no questions asked.",
+            "quote_b": "You can return an unopened Quillon product within 30 days of delivery for a full refund.",
+            "explanation": "Passage A states that all products have a 60-day window for a full refund, while Passage B limits the full refund window to 30 days for unopened products.",
+            "found_a": true,
+            "found_b": true
+          }
+        ]
+      },
+      {
+        "pair_key": "0c64d296f19f74b8f066698dccdd777d6fe3e1977fb68521771f8ddaa5fe6788",
+        "planted": [
+          "q042"
+        ],
+        "similarity": 0.8922,
+        "a": {
+          "document": "Quillon Q3 Mesh Router: Setup Guide",
+          "section": "Guest network"
+        },
+        "b": {
+          "document": "Help Center: Frequently Asked Questions",
+          "section": "How many guests can use my guest network?"
+        },
+        "confidence": 0.9,
+        "conflicts": [
+          {
+            "topic": "guest network device limit",
+            "quote_a": "Up to 32 devices can use the guest network at the same time.",
+            "quote_b": "Up to 16 devices can be connected to the guest network at once.",
+            "explanation": "Passage A states a maximum of 32 devices, while Passage B states a maximum of 16 devices.",
+            "found_a": true,
+            "found_b": true
+          }
+        ]
+      },
+      {
+        "pair_key": "b4ec98b3972bb702b2d4bc73b009977cabec078d6d3bfc4cab691c49aee19ad8",
+        "planted": [
+          "q040"
+        ],
+        "similarity": 0.8786,
+        "a": {
+          "document": "Returns and Refunds Policy",
+          "section": "Refunds"
+        },
+        "b": {
+          "document": "Help Center: Frequently Asked Questions",
+          "section": "How long do refunds take?"
+        },
+        "confidence": 0.9,
+        "conflicts": [
+          {
+            "topic": "refund processing time",
+            "quote_a": "Refunds are issued to the original payment method within 5 to 7 business days after we receive the returned product.",
+            "quote_b": "Refunds can take up to 14 business days to appear on your statement.",
+            "explanation": "Passage A states refunds arrive in 5-7 business days, while Passage B states they can take up to 14 business days.",
+            "found_a": true,
+            "found_b": true
+          }
+        ]
+      },
+      {
+        "pair_key": "2bf0a69c4a33141019eed85e53663aa672675afcce5d485cbefee7a87bb201de",
+        "planted": [],
+        "similarity": 0.8383,
+        "a": {
+          "document": "Quillon Secure Plans",
+          "section": "Cancelling"
+        },
+        "b": {
+          "document": "Help Center: Frequently Asked Questions",
+          "section": "Can I return my Quillon product?"
+        },
+        "confidence": 0.9,
+        "conflicts": [
+          {
+            "topic": "Return/Refund window",
+            "quote_a": "If you cancel an annual plan within 14 days of purchase or renewal, you get a full refund.",
+            "quote_b": "Yes. You can return any Quillon product within 60 days for a full refund, no questions asked.",
+            "explanation": "Passage A limits refunds to 14 days for annual plans, while Passage B states a 60-day window applies to all products.",
+            "found_a": true,
+            "found_b": true
+          }
+        ]
+      },
+      {
+        "pair_key": "788f31af97d75f00bbe8d2976faed0bce774d76bc1f0edce0b180eb7d478644c",
+        "planted": [
+          "q043"
+        ],
+        "similarity": 0.8184,
+        "a": {
+          "document": "Q3 Firmware Release Notes",
+          "section": "How updates are installed"
+        },
+        "b": {
+          "document": "Quillon Q3 Mesh Router: Setup Guide",
+          "section": "Automatic updates"
+        },
+        "confidence": 0.9,
+        "conflicts": [
+          {
+            "topic": "Update installation time window",
+            "quote_a": "Routers install new firmware automatically between 2 a.m. and 4 a.m. local time.",
+            "quote_b": "The Q3 checks for firmware updates every night and installs them automatically between 3 a.m. and 5 a.m. local time.",
+            "explanation": "Passage A states the installation window is 2 a.m. to 4 a.m., while Passage B states it is 3 a.m. to 5 a.m.",
+            "found_a": true,
+            "found_b": true
+          }
+        ]
+      },
+      {
+        "pair_key": "063a2ce9a36fd9ff5c1fdadaee0039de69ccac7e1de88b510a110d38e1d696c5",
+        "planted": [],
+        "similarity": 0.7834,
+        "a": {
+          "document": "Returns and Refunds Policy",
+          "section": "Subscriptions"
+        },
+        "b": {
+          "document": "Quillon Secure Plans",
+          "section": "Cancelling"
+        },
+        "confidence": 0.9,
+        "conflicts": [
+          {
+            "topic": "Quillon Secure subscription refunds",
+            "quote_a": "Quillon Secure subscriptions are not covered by this policy. See the Quillon Secure Plans page for subscription cancellations and refunds.",
+            "quote_b": "If you cancel an annual plan within 14 days of purchase or renewal, you get a full refund.",
+            "explanation": "Passage A states that Quillon Secure subscriptions are not covered by the policy and directs users elsewhere, while Passage B explicitly confirms that Quillon Secure annual plans receive a full refund under specific conditions.",
+            "found_a": true,
+            "found_b": true
+          }
+        ]
+      },
+      {
+        "pair_key": "c5cf4c21c6ff607088bfaac3de4d294ac05299053b6ef96066f8a2f859e53979",
+        "planted": [
+          "q041"
+        ],
+        "similarity": 0.7599,
+        "a": {
+          "document": "Help Center: Frequently Asked Questions",
+          "section": "When can I call support?"
+        },
+        "b": {
+          "document": "Contacting Quillon Support",
+          "section": "Ways to reach us"
+        },
+        "confidence": 0.9,
+        "conflicts": [
+          {
+            "topic": "Phone support hours",
+            "quote_a": "Our phone support team is available Monday to Friday, 9 a.m. to 5 p.m. Eastern Time.",
+            "quote_b": "Phone support is available Monday to Saturday, 7 a.m. to 9 p.m. Eastern Time.",
+            "explanation": "Passage A states phone support is only available on weekdays (Mon-Fri) during business hours, while Passage B states it is available on weekends (Sat) and extends hours earlier in the morning and later at night.",
+            "found_a": true,
+            "found_b": true
+          }
+        ]
+      },
+      {
+        "pair_key": "920490fb2b8c0d48ceb160d3a3cad3f1ac10a1b3d22dbfa5bc4b451c83d06934",
+        "planted": [],
+        "similarity": 0.7311,
+        "a": {
+          "document": "Q3 Firmware Release Notes",
+          "section": "Version 4.1.3 (June 2026)"
+        },
+        "b": {
+          "document": "Quillon Q3 Mesh Router: Setup Guide",
+          "section": "Status light"
+        },
+        "confidence": 0.9,
+        "conflicts": [
+          {
+            "topic": "amber light meaning",
+            "quote_a": "Fixes a problem where the status light stayed amber after the internet connection came back.",
+            "quote_b": "A solid amber light means the router is powered on but has no internet connection.",
+            "explanation": "Passage A claims the amber light indicates an issue that occurs when the internet connection returns, while Passage B defines the amber light as a state where there is no internet connection.",
+            "found_a": true,
+            "found_b": true
+          }
+        ]
+      },
+      {
+        "pair_key": "b3b0f98e7a9b1808f8c8228c1d89d518e6c5e7afd0b2d113e5424da36eea57cc",
+        "planted": [],
+        "similarity": 0.7277,
+        "a": {
+          "document": "Returns and Refunds Policy",
+          "section": "Refunds"
+        },
+        "b": {
+          "document": "Help Center: Frequently Asked Questions",
+          "section": "Can I return my Quillon product?"
+        },
+        "confidence": 0.9,
+        "conflicts": [
+          {
+            "topic": "refund timeline",
+            "quote_a": "Refunds are issued to the original payment method within 5 to 7 business days after we receive the returned product.",
+            "quote_b": "Yes. You can return any Quillon product within 60 days for a full refund, no questions asked.",
+            "explanation": "Passage A states refunds take 5-7 business days to process after receipt, while Passage B implies a 60-day window is required to receive the refund.",
+            "found_a": true,
+            "found_b": true
+          }
+        ]
+      },
+      {
+        "pair_key": "d2cf88c09eda585fe7eb1f11ca49fe15b17835d57f71adf2995a6288d3fee412",
+        "planted": [],
+        "similarity": 0.6837,
+        "a": {
+          "document": "Limited Warranty",
+          "section": "Making a warranty claim"
+        },
+        "b": {
+          "document": "Returns and Refunds Policy",
+          "section": "Return shipping"
+        },
+        "confidence": 0.9,
+        "conflicts": [
+          {
+            "topic": "Return shipping cost",
+            "quote_a": "If the claim is approved, we send a replacement and email you a prepaid label for returning the faulty device.",
+            "quote_b": "For any other return, the $8.95 cost of the prepaid label is deducted from your refund.",
+            "explanation": "Passage A implies no cost is charged to the customer for the prepaid label when making a warranty claim, while Passage B states that the $8.95 cost is deducted from refunds for any return other than defective products.",
+            "found_a": true,
+            "found_b": true
+          }
+        ]
+      },
+      {
+        "pair_key": "ab66ca389680e28f30c84dcad1c0e8a3ee4509a2c80244517fa97fe3db0a09e4",
+        "planted": [],
+        "similarity": 0.6786,
+        "a": {
+          "document": "Q3 Firmware Release Notes",
+          "section": "Version 4.2.0 (September 2026)"
+        },
+        "b": {
+          "document": "Error Codes Reference",
+          "section": "Router and node errors"
+        },
+        "confidence": 0.9,
+        "conflicts": [
+          {
+            "topic": "E-310 alert cause and fix",
+            "quote_a": "Fixes false E-310 alerts when a satellite node restarts.",
+            "quote_b": "E-310: A satellite node lost its connection to the router. Move the node closer to the router or to another node, then wait five minutes for it to reconnect.",
+            "explanation": "Passage A claims E-310 alerts are false and caused by a restart, while Passage B defines E-310 as a real loss of connection requiring physical movement.",
+            "found_a": true,
+            "found_b": true
+          }
+        ]
+      },
+      {
+        "pair_key": "0e4af1150d7b817f4b859a2d0218e3fec99462b0be249f139b1344561585f05a",
+        "planted": [
+          "q044"
+        ],
+        "similarity": 0.6339,
+        "a": {
+          "document": "Quillon QC2 Indoor Camera: User Guide",
+          "section": "Recording and storage"
+        },
+        "b": {
+          "document": "Quillon Secure Plans",
+          "section": "Plans and prices"
+        },
+        "confidence": 0.9,
+        "conflicts": [
+          {
+            "topic": "cloud video history duration for Secure Plus plan",
+            "quote_a": "With a Quillon Secure Plus plan, recordings are also kept in the cloud for 14 days.",
+            "quote_b": "Secure Plus costs $9.99 per month and adds 30 days of cloud video history for up to 4 cameras...",
+            "explanation": "Passage A states the Secure Plus plan keeps recordings in the cloud for 14 days, while Passage B states it provides 30 days.",
+            "found_a": true,
+            "found_b": true
+          }
+        ]
+      },
+      {
+        "pair_key": "45381887090098ee91d7237d3fd03e51442addd7f65b0b26b9e7940103665a46",
+        "planted": [],
+        "similarity": 0.6226,
+        "a": {
+          "document": "Help Center: Frequently Asked Questions",
+          "section": "Can I return my Quillon product?"
+        },
+        "b": {
+          "document": "Returns and Refunds Policy",
+          "section": "Return shipping"
+        },
+        "confidence": 0.9,
+        "conflicts": [
+          {
+            "topic": "Return shipping cost",
+            "quote_a": "You can return any Quillon product within 60 days for a full refund, no questions asked.",
+            "quote_b": "For any other return, the $8.95 cost of the prepaid label is deducted from your refund.",
+            "explanation": "Passage A implies a full refund with no conditions or deductions, while Passage B explicitly states that shipping costs are deducted for non-defective returns.",
+            "found_a": true,
+            "found_b": true
+          }
+        ]
+      }
+    ],
+    "flagged_any": [
+      {
+        "pair_key": "8cc6ed29b264f78b78e4c4220e958719a9304d0b232b589c1b0717e7ff453450",
+        "planted": [
+          "q039"
+        ],
+        "similarity": 0.94,
+        "a": {
+          "document": "Help Center: Frequently Asked Questions",
+          "section": "Can I return my Quillon product?"
+        },
+        "b": {
+          "document": "Returns and Refunds Policy",
+          "section": "Returning a product"
+        },
+        "confidence": 0.9,
+        "conflicts": [
+          {
+            "topic": "return window for full refund",
+            "quote_a": "Yes. You can return any Quillon product within 60 days for a full refund, no questions asked.",
+            "quote_b": "You can return an unopened Quillon product within 30 days of delivery for a full refund.",
+            "explanation": "Passage A states that all products have a 60-day window for a full refund, while Passage B limits the full refund window to 30 days for unopened products.",
+            "found_a": true,
+            "found_b": true
+          }
+        ]
+      },
+      {
+        "pair_key": "0c64d296f19f74b8f066698dccdd777d6fe3e1977fb68521771f8ddaa5fe6788",
+        "planted": [
+          "q042"
+        ],
+        "similarity": 0.8922,
+        "a": {
+          "document": "Quillon Q3 Mesh Router: Setup Guide",
+          "section": "Guest network"
+        },
+        "b": {
+          "document": "Help Center: Frequently Asked Questions",
+          "section": "How many guests can use my guest network?"
+        },
+        "confidence": 0.9,
+        "conflicts": [
+          {
+            "topic": "guest network device limit",
+            "quote_a": "Up to 32 devices can use the guest network at the same time.",
+            "quote_b": "Up to 16 devices can be connected to the guest network at once.",
+            "explanation": "Passage A states a maximum of 32 devices, while Passage B states a maximum of 16 devices.",
+            "found_a": true,
+            "found_b": true
+          }
+        ]
+      },
+      {
+        "pair_key": "b4ec98b3972bb702b2d4bc73b009977cabec078d6d3bfc4cab691c49aee19ad8",
+        "planted": [
+          "q040"
+        ],
+        "similarity": 0.8786,
+        "a": {
+          "document": "Returns and Refunds Policy",
+          "section": "Refunds"
+        },
+        "b": {
+          "document": "Help Center: Frequently Asked Questions",
+          "section": "How long do refunds take?"
+        },
+        "confidence": 0.9,
+        "conflicts": [
+          {
+            "topic": "refund processing time",
+            "quote_a": "Refunds are issued to the original payment method within 5 to 7 business days after we receive the returned product.",
+            "quote_b": "Refunds can take up to 14 business days to appear on your statement.",
+            "explanation": "Passage A states refunds arrive in 5-7 business days, while Passage B states they can take up to 14 business days.",
+            "found_a": true,
+            "found_b": true
+          }
+        ]
+      },
+      {
+        "pair_key": "2bf0a69c4a33141019eed85e53663aa672675afcce5d485cbefee7a87bb201de",
+        "planted": [],
+        "similarity": 0.8383,
+        "a": {
+          "document": "Quillon Secure Plans",
+          "section": "Cancelling"
+        },
+        "b": {
+          "document": "Help Center: Frequently Asked Questions",
+          "section": "Can I return my Quillon product?"
+        },
+        "confidence": 0.9,
+        "conflicts": [
+          {
+            "topic": "Return/Refund window",
+            "quote_a": "If you cancel an annual plan within 14 days of purchase or renewal, you get a full refund.",
+            "quote_b": "Yes. You can return any Quillon product within 60 days for a full refund, no questions asked.",
+            "explanation": "Passage A limits refunds to 14 days for annual plans, while Passage B states a 60-day window applies to all products.",
+            "found_a": true,
+            "found_b": true
+          }
+        ]
+      },
+      {
+        "pair_key": "788f31af97d75f00bbe8d2976faed0bce774d76bc1f0edce0b180eb7d478644c",
+        "planted": [
+          "q043"
+        ],
+        "similarity": 0.8184,
+        "a": {
+          "document": "Q3 Firmware Release Notes",
+          "section": "How updates are installed"
+        },
+        "b": {
+          "document": "Quillon Q3 Mesh Router: Setup Guide",
+          "section": "Automatic updates"
+        },
+        "confidence": 0.9,
+        "conflicts": [
+          {
+            "topic": "Update installation time window",
+            "quote_a": "Routers install new firmware automatically between 2 a.m. and 4 a.m. local time.",
+            "quote_b": "The Q3 checks for firmware updates every night and installs them automatically between 3 a.m. and 5 a.m. local time.",
+            "explanation": "Passage A states the installation window is 2 a.m. to 4 a.m., while Passage B states it is 3 a.m. to 5 a.m.",
+            "found_a": true,
+            "found_b": true
+          }
+        ]
+      },
+      {
+        "pair_key": "063a2ce9a36fd9ff5c1fdadaee0039de69ccac7e1de88b510a110d38e1d696c5",
+        "planted": [],
+        "similarity": 0.7834,
+        "a": {
+          "document": "Returns and Refunds Policy",
+          "section": "Subscriptions"
+        },
+        "b": {
+          "document": "Quillon Secure Plans",
+          "section": "Cancelling"
+        },
+        "confidence": 0.9,
+        "conflicts": [
+          {
+            "topic": "Quillon Secure subscription refunds",
+            "quote_a": "Quillon Secure subscriptions are not covered by this policy. See the Quillon Secure Plans page for subscription cancellations and refunds.",
+            "quote_b": "If you cancel an annual plan within 14 days of purchase or renewal, you get a full refund.",
+            "explanation": "Passage A states that Quillon Secure subscriptions are not covered by the policy and directs users elsewhere, while Passage B explicitly confirms that Quillon Secure annual plans receive a full refund under specific conditions.",
+            "found_a": true,
+            "found_b": true
+          }
+        ]
+      },
+      {
+        "pair_key": "c5cf4c21c6ff607088bfaac3de4d294ac05299053b6ef96066f8a2f859e53979",
+        "planted": [
+          "q041"
+        ],
+        "similarity": 0.7599,
+        "a": {
+          "document": "Help Center: Frequently Asked Questions",
+          "section": "When can I call support?"
+        },
+        "b": {
+          "document": "Contacting Quillon Support",
+          "section": "Ways to reach us"
+        },
+        "confidence": 0.9,
+        "conflicts": [
+          {
+            "topic": "Phone support hours",
+            "quote_a": "Our phone support team is available Monday to Friday, 9 a.m. to 5 p.m. Eastern Time.",
+            "quote_b": "Phone support is available Monday to Saturday, 7 a.m. to 9 p.m. Eastern Time.",
+            "explanation": "Passage A states phone support is only available on weekdays (Mon-Fri) during business hours, while Passage B states it is available on weekends (Sat) and extends hours earlier in the morning and later at night.",
+            "found_a": true,
+            "found_b": true
+          }
+        ]
+      },
+      {
+        "pair_key": "920490fb2b8c0d48ceb160d3a3cad3f1ac10a1b3d22dbfa5bc4b451c83d06934",
+        "planted": [],
+        "similarity": 0.7311,
+        "a": {
+          "document": "Q3 Firmware Release Notes",
+          "section": "Version 4.1.3 (June 2026)"
+        },
+        "b": {
+          "document": "Quillon Q3 Mesh Router: Setup Guide",
+          "section": "Status light"
+        },
+        "confidence": 0.9,
+        "conflicts": [
+          {
+            "topic": "amber light meaning",
+            "quote_a": "Fixes a problem where the status light stayed amber after the internet connection came back.",
+            "quote_b": "A solid amber light means the router is powered on but has no internet connection.",
+            "explanation": "Passage A claims the amber light indicates an issue that occurs when the internet connection returns, while Passage B defines the amber light as a state where there is no internet connection.",
+            "found_a": true,
+            "found_b": true
+          }
+        ]
+      },
+      {
+        "pair_key": "b3b0f98e7a9b1808f8c8228c1d89d518e6c5e7afd0b2d113e5424da36eea57cc",
+        "planted": [],
+        "similarity": 0.7277,
+        "a": {
+          "document": "Returns and Refunds Policy",
+          "section": "Refunds"
+        },
+        "b": {
+          "document": "Help Center: Frequently Asked Questions",
+          "section": "Can I return my Quillon product?"
+        },
+        "confidence": 0.9,
+        "conflicts": [
+          {
+            "topic": "refund timeline",
+            "quote_a": "Refunds are issued to the original payment method within 5 to 7 business days after we receive the returned product.",
+            "quote_b": "Yes. You can return any Quillon product within 60 days for a full refund, no questions asked.",
+            "explanation": "Passage A states refunds take 5-7 business days to process after receipt, while Passage B implies a 60-day window is required to receive the refund.",
+            "found_a": true,
+            "found_b": true
+          }
+        ]
+      },
+      {
+        "pair_key": "d2cf88c09eda585fe7eb1f11ca49fe15b17835d57f71adf2995a6288d3fee412",
+        "planted": [],
+        "similarity": 0.6837,
+        "a": {
+          "document": "Limited Warranty",
+          "section": "Making a warranty claim"
+        },
+        "b": {
+          "document": "Returns and Refunds Policy",
+          "section": "Return shipping"
+        },
+        "confidence": 0.9,
+        "conflicts": [
+          {
+            "topic": "Return shipping cost",
+            "quote_a": "If the claim is approved, we send a replacement and email you a prepaid label for returning the faulty device.",
+            "quote_b": "For any other return, the $8.95 cost of the prepaid label is deducted from your refund.",
+            "explanation": "Passage A implies no cost is charged to the customer for the prepaid label when making a warranty claim, while Passage B states that the $8.95 cost is deducted from refunds for any return other than defective products.",
+            "found_a": true,
+            "found_b": true
+          }
+        ]
+      },
+      {
+        "pair_key": "ab66ca389680e28f30c84dcad1c0e8a3ee4509a2c80244517fa97fe3db0a09e4",
+        "planted": [],
+        "similarity": 0.6786,
+        "a": {
+          "document": "Q3 Firmware Release Notes",
+          "section": "Version 4.2.0 (September 2026)"
+        },
+        "b": {
+          "document": "Error Codes Reference",
+          "section": "Router and node errors"
+        },
+        "confidence": 0.9,
+        "conflicts": [
+          {
+            "topic": "E-310 alert cause and fix",
+            "quote_a": "Fixes false E-310 alerts when a satellite node restarts.",
+            "quote_b": "E-310: A satellite node lost its connection to the router. Move the node closer to the router or to another node, then wait five minutes for it to reconnect.",
+            "explanation": "Passage A claims E-310 alerts are false and caused by a restart, while Passage B defines E-310 as a real loss of connection requiring physical movement.",
+            "found_a": true,
+            "found_b": true
+          }
+        ]
+      },
+      {
+        "pair_key": "0e4af1150d7b817f4b859a2d0218e3fec99462b0be249f139b1344561585f05a",
+        "planted": [
+          "q044"
+        ],
+        "similarity": 0.6339,
+        "a": {
+          "document": "Quillon QC2 Indoor Camera: User Guide",
+          "section": "Recording and storage"
+        },
+        "b": {
+          "document": "Quillon Secure Plans",
+          "section": "Plans and prices"
+        },
+        "confidence": 0.9,
+        "conflicts": [
+          {
+            "topic": "cloud video history duration for Secure Plus plan",
+            "quote_a": "With a Quillon Secure Plus plan, recordings are also kept in the cloud for 14 days.",
+            "quote_b": "Secure Plus costs $9.99 per month and adds 30 days of cloud video history for up to 4 cameras...",
+            "explanation": "Passage A states the Secure Plus plan keeps recordings in the cloud for 14 days, while Passage B states it provides 30 days.",
+            "found_a": true,
+            "found_b": true
+          }
+        ]
+      },
+      {
+        "pair_key": "45381887090098ee91d7237d3fd03e51442addd7f65b0b26b9e7940103665a46",
+        "planted": [],
+        "similarity": 0.6226,
+        "a": {
+          "document": "Help Center: Frequently Asked Questions",
+          "section": "Can I return my Quillon product?"
+        },
+        "b": {
+          "document": "Returns and Refunds Policy",
+          "section": "Return shipping"
+        },
+        "confidence": 0.9,
+        "conflicts": [
+          {
+            "topic": "Return shipping cost",
+            "quote_a": "You can return any Quillon product within 60 days for a full refund, no questions asked.",
+            "quote_b": "For any other return, the $8.95 cost of the prepaid label is deducted from your refund.",
+            "explanation": "Passage A implies a full refund with no conditions or deductions, while Passage B explicitly states that shipping costs are deducted for non-defective returns.",
+            "found_a": true,
+            "found_b": true
+          }
+        ]
+      }
+    ]
+  },
+  "c3": {
+    "calls_default": 97,
+    "minutes_default": 30.7,
+    "calls_all_pairs": 902,
+    "minutes_all_pairs": 285.7
+  },
+  "started_at": "2026-11-18T07:14:51.340453+05:45",
+  "finished_at": "2026-11-18T08:03:39.551792+05:45",
+  "environment": {
+    "git": {
+      "commit": "d9bd2156731b0925a147dea73ec03c4db686cd4a",
+      "dirty": true
+    },
+    "python": "3.12.10",
+    "platform": "Windows-11-10.0.26300-SP0",
+    "cpus": 8,
+    "packages": {
+      "fastembed": "0.9.1",
+      "onnxruntime": "1.31.1",
+      "qdrant-client": "1.20.0",
+      "anthropic": "2.8.0",
+      "httpx2": "2.16.0",
+      "sqlalchemy": "2.1.8"
+    }
+  }
+}

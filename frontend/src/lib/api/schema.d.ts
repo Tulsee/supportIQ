@@ -1094,6 +1094,88 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/knowledge/contradictions/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Findings by status and the latest scan */
+        get: operations["contradiction_summary_api_v1_knowledge_contradictions_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/knowledge/contradictions/scans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Scan the knowledge base now (admin)
+         * @description Queues a scan: similar passages from different documents are compared by the
+         *     model; only pairs not checked before (new or changed text) are sent, up to the
+         *     per-scan limit. 409 `scan_running` if one is running; follow it in the summary.
+         */
+        post: operations["start_contradiction_scan_api_v1_knowledge_contradictions_scans_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/knowledge/contradictions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List findings
+         * @description Pairs of passages the model found to conflict, with the quotes from each side,
+         *     newest first.
+         */
+        get: operations["contradiction_findings_api_v1_knowledge_contradictions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/knowledge/contradictions/{finding_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a finding */
+        get: operations["contradiction_finding_api_v1_knowledge_contradictions__finding_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Dismiss, resolve or reopen a finding (admin)
+         * @description Recorded in the audit log. A dismissed finding isn't reported again unless one of
+         *     its passages changes.
+         */
+        patch: operations["review_contradiction_api_v1_knowledge_contradictions__finding_id__patch"];
+        trace?: never;
+    };
     "/api/v1/documents": {
         parameters: {
             query?: never;
@@ -2696,6 +2778,48 @@ export interface components {
             /** Any */
             any?: components["schemas"]["ConditionIn"][];
         };
+        /** ConflictRead */
+        ConflictRead: {
+            /** Topic */
+            topic: string;
+            /**
+             * Quote A
+             * @description The conflicting sentence in passage A.
+             */
+            quote_a: string;
+            /**
+             * Quote B
+             * @description The conflicting sentence in passage B.
+             */
+            quote_b: string;
+            /** Explanation */
+            explanation: string;
+            /**
+             * Grounded
+             * @description Both quotes were found in their passages.
+             */
+            grounded: boolean;
+        };
+        /** ContradictionSummary */
+        ContradictionSummary: {
+            /** Open */
+            open: number;
+            /** Dismissed */
+            dismissed: number;
+            /** Resolved */
+            resolved: number;
+            /**
+             * Pairs Checked
+             * @description Pairs of passages judged so far.
+             */
+            pairs_checked: number;
+            /**
+             * Scanning Enabled
+             * @description Scheduled scans are on (organization setting).
+             */
+            scanning_enabled: boolean;
+            latest_scan: components["schemas"]["ScanRead"] | null;
+        };
         /**
          * ConversationStatus
          * @enum {string}
@@ -3015,6 +3139,83 @@ export interface components {
             /** My Comment */
             my_comment: string | null;
         };
+        /** FindingPassage */
+        FindingPassage: {
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /** Document Title */
+            document_title: string;
+            /** Section */
+            section: string | null;
+            /**
+             * Content
+             * @description The passage as it was when checked.
+             */
+            content: string;
+            /**
+             * Current
+             * @description The passage is still in the knowledge base (false after its document was re-indexed or a new version uploaded).
+             */
+            current: boolean;
+        };
+        /** FindingRead */
+        FindingRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            status: components["schemas"]["FindingStatus"];
+            /**
+             * Status Reason
+             * @description `document_changed` when resolved automatically because a passage was replaced.
+             */
+            status_reason: string | null;
+            a: components["schemas"]["FindingPassage"];
+            b: components["schemas"]["FindingPassage"];
+            /**
+             * Conflicts
+             * @description What conflicts, quoted from both passages (grounded ones first).
+             */
+            conflicts: components["schemas"]["ConflictRead"][];
+            /**
+             * Confidence
+             * @description The model's self-reported confidence (0-1).
+             */
+            confidence: number;
+            /**
+             * Similarity
+             * @description How similar the two passages are (cosine).
+             */
+            similarity: number;
+            /** Model */
+            model: string | null;
+            /** Note */
+            note: string | null;
+            reviewed_by: components["schemas"]["PersonSummary"] | null;
+            /** Reviewed At */
+            reviewed_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** FindingReview */
+        FindingReview: {
+            /** @description `dismissed` (not a real conflict; not reported again for this text), `resolved` (fixed), or `open` (reopen). */
+            status: components["schemas"]["FindingStatus"];
+            /** Note */
+            note?: string | null;
+        };
+        /**
+         * FindingStatus
+         * @enum {string}
+         */
+        FindingStatus: "open" | "dismissed" | "resolved";
         /** HandoffRequest */
         HandoffRequest: {
             /**
@@ -3499,6 +3700,13 @@ export interface components {
              * @enum {string}
              */
             self_service_model: "default" | "local";
+            /**
+             * Contradiction Scan
+             * @description `on`: the knowledge base is checked for documents that contradict each other on a schedule (only new or changed passages are compared). Admins can scan on demand either way.
+             * @default off
+             * @enum {string}
+             */
+            contradiction_scan: "off" | "on";
         };
         /** OrganizationSettingsUpdate */
         OrganizationSettingsUpdate: {
@@ -3512,6 +3720,8 @@ export interface components {
             self_service?: ("off" | "on") | null;
             /** Self Service Model */
             self_service_model?: ("default" | "local") | null;
+            /** Contradiction Scan */
+            contradiction_scan?: ("off" | "on") | null;
         };
         /**
          * OrganizationUpdate
@@ -3679,6 +3889,20 @@ export interface components {
         Page_DocumentRead_: {
             /** Items */
             items: components["schemas"]["DocumentRead"][];
+            /**
+             * Total
+             * @description Total matching items across all pages.
+             */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
+        /** Page[FindingRead] */
+        Page_FindingRead_: {
+            /** Items */
+            items: components["schemas"]["FindingRead"][];
             /**
              * Total
              * @description Total matching items across all pages.
@@ -4126,6 +4350,64 @@ export interface components {
             /** Is Active */
             is_active?: boolean | null;
         };
+        /** ScanRead */
+        ScanRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Trigger
+             * @enum {string}
+             */
+            trigger: "manual" | "scheduled";
+            status: components["schemas"]["ScanStatus"];
+            /**
+             * Candidates
+             * @description Pairs of similar passages from different documents.
+             */
+            candidates: number;
+            /**
+             * Checked
+             * @description Pairs the model judged in this scan (new or changed).
+             */
+            checked: number;
+            /**
+             * Remaining
+             * @description Pairs left for the next scan (per-scan limit).
+             */
+            remaining: number;
+            /**
+             * Findings
+             * @description New findings.
+             */
+            findings: number;
+            /**
+             * Failed
+             * @description Pairs the model couldn't judge (tried again next scan).
+             */
+            failed: number;
+            /**
+             * Auto Resolved
+             * @description Findings resolved because a passage changed.
+             */
+            auto_resolved: number;
+            /** Error */
+            error: string | null;
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            /** Finished At */
+            finished_at: string | null;
+        };
+        /**
+         * ScanStatus
+         * @enum {string}
+         */
+        ScanStatus: "running" | "finished" | "failed";
         /**
          * SelfServiceAnalytics
          * @description Conversations started in the period, and the assistant's replies in it.
@@ -10126,6 +10408,372 @@ export interface operations {
             };
         };
     };
+    contradiction_summary_api_v1_knowledge_contradictions_summary_get: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContradictionSummary"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    start_contradiction_scan_api_v1_knowledge_contradictions_scans_post: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScanRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    contradiction_findings_api_v1_knowledge_contradictions_get: {
+        parameters: {
+            query?: {
+                /** @description Only findings in this status. */
+                status?: components["schemas"]["FindingStatus"] | null;
+                /** @description Only findings involving this document. */
+                document_id?: string | null;
+                /** @description Maximum items to return. */
+                limit?: number;
+                /** @description Number of items to skip. */
+                offset?: number;
+            };
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_FindingRead_"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    contradiction_finding_api_v1_knowledge_contradictions__finding_id__get: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path: {
+                finding_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FindingRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    review_contradiction_api_v1_knowledge_contradictions__finding_id__patch: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path: {
+                finding_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FindingReview"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FindingRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     list_documents_api_v1_documents_get: {
         parameters: {
             query?: {
@@ -12814,7 +13462,7 @@ export interface operations {
         parameters: {
             query?: {
                 /** @description Only this kind of entity. */
-                entity_type?: ("organization" | "member" | "invitation" | "document" | "category" | "sla" | "team" | "agent" | "routing_rule") | null;
+                entity_type?: ("organization" | "member" | "invitation" | "document" | "category" | "sla" | "team" | "agent" | "routing_rule" | "contradiction") | null;
                 /** @description Maximum items to return. */
                 limit?: number;
                 /** @description Number of items to skip. */

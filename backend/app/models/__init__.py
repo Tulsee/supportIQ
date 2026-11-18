@@ -25,6 +25,12 @@ from app.models.assistant import (
     ConversationStatus,
 )
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
+from app.models.contradiction import (
+    ContradictionCheck,
+    ContradictionScan,
+    FindingStatus,
+    ScanStatus,
+)
 from app.models.customer import Customer
 from app.models.document import (
     ACTIVE_INGESTION,
@@ -108,6 +114,8 @@ __all__ = [
     "BusinessHoliday",
     "BusinessHours",
     "Citation",
+    "ContradictionCheck",
+    "ContradictionScan",
     "ConversationStatus",
     "Customer",
     "Document",
@@ -116,6 +124,7 @@ __all__ = [
     "DocumentVisibility",
     "EvidenceAssessment",
     "FeedbackRating",
+    "FindingStatus",
     "MessageAuthorType",
     "Notification",
     "NotificationDelivery",
@@ -132,6 +141,7 @@ __all__ = [
     "RoutingRule",
     "RoutingStrategy",
     "RoutingTrigger",
+    "ScanStatus",
     "SlaClockKind",
     "SlaClockState",
     "SlaPolicy",

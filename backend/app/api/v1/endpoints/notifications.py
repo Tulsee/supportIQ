@@ -93,6 +93,7 @@ EntityType = Literal[
     "team",
     "agent",
     "routing_rule",
+    "contradiction",
 ]
 
 

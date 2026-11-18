@@ -1,5 +1,5 @@
-"""Handing jobs (document ingestion, notification emails, ticket routing) to the
-background workers."""
+"""Handing jobs (document ingestion, notification emails, ticket routing, knowledge-base
+scans) to the background workers."""
 
 import uuid
 from collections.abc import Sequence
@@ -95,6 +95,29 @@ class CeleryTriageQueue:
         def _send() -> None:
             triage_ticket.apply_async(
                 args=[str(ticket_id)],
+                retry=True,
+                retry_policy={"max_retries": 2, "interval_start": 0.2, "interval_step": 0.5},
+            )
+
+        try:
+            await to_thread.run_sync(_send)
+        except (OperationalError, OSError) as exc:
+            raise QueueUnavailableError(str(exc)) from exc
+
+
+class ContradictionQueue(Protocol):
+    async def enqueue(self, scan_id: uuid.UUID) -> None: ...
+
+
+class CeleryContradictionQueue:
+    async def enqueue(self, scan_id: uuid.UUID) -> None:
+        from kombu.exceptions import OperationalError
+
+        from app.workers.tasks import scan_contradictions
+
+        def _send() -> None:
+            scan_contradictions.apply_async(
+                args=[str(scan_id)],
                 retry=True,
                 retry_policy={"max_retries": 2, "interval_start": 0.2, "interval_step": 0.5},
             )

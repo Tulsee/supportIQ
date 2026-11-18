@@ -109,6 +109,27 @@ class Settings(BaseSettings):
     # always use the neighbours.
     triage_neighbour_languages: list[str] = ["en"]
 
+    # --- Knowledge base contradictions (Module 13) ----------------------------------
+    # Candidate pairs: each passage's nearest passages in other documents (cosine
+    # similarity of the knowledge base embeddings). Passages shorter than
+    # min_tokens (a document's title on its own) are skipped.
+    contradiction_neighbours: int = 3
+    contradiction_min_similarity: float = 0.5
+    contradiction_min_tokens: int = 15
+    # Pairs sent to the model per scan (most similar first); the rest wait for the next.
+    contradiction_max_pairs_per_scan: int = 40
+    # A finding needs the model's confidence (0.35 low, 0.65 medium, 0.9 high) and,
+    # with require_grounding, both quotes found in their passages. both_orders asks
+    # again with the passages swapped (only for pairs the first answer flags) and needs
+    # both to agree: in C2 it removed half the false alarms and no real conflict, for
+    # 13% more model calls (chosen after that run; see
+    # experiments/reports/contradictions-c1-c3.md).
+    contradiction_min_confidence: Annotated[float, Field(ge=0, le=1)] = 0.65
+    contradiction_require_grounding: bool = True
+    contradiction_both_orders: bool = True
+    # How often the scheduler scans organizations that turned scanning on. 0 disables.
+    contradiction_scan_interval_minutes: int = 360
+
     # --- Background jobs (Celery) ---------------------------------------------------
     # A separate Redis database from rate limits and real-time events.
     celery_broker_url: str = "redis://127.0.0.1:6379/1"

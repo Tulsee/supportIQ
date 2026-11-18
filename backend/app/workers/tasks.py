@@ -6,6 +6,7 @@ import uuid
 from celery import Task
 
 from app.services.automation import run_auto_close_job
+from app.services.contradictions import run_scan_job, run_schedule_job
 from app.services.ingestion import TransientIngestionError, run_ingestion_job
 from app.services.notifications import run_email_job
 from app.services.routing import run_routing_job, run_routing_sweep
@@ -94,3 +95,15 @@ def sweep_unrouted_tickets() -> int:
 def triage_ticket(ticket_id: str) -> str | None:
     """Triage a newly opened ticket, then route it."""
     return asyncio.run(run_triage_job(uuid.UUID(ticket_id)))
+
+
+@celery_app.task(name="contradictions.scan", ignore_result=True)
+def scan_contradictions(scan_id: str) -> str | None:
+    """Check a knowledge base for documents that contradict each other (one scan)."""
+    return asyncio.run(run_scan_job(uuid.UUID(scan_id)))
+
+
+@celery_app.task(name="contradictions.schedule", ignore_result=True)
+def schedule_contradiction_scans() -> int:
+    """Start scans for organizations with scanning on whose last scan is old enough."""
+    return asyncio.run(run_schedule_job())

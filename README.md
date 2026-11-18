@@ -71,6 +71,14 @@ a labelled benchmark measures how well it works.
   with the conversation attached for staff. Answers are rated ("Did this answer your
   question?"), and analytics report self-service resolution and handoffs
   ([feature doc](docs/features/customer-self-service.md)).
+- **Contradiction scanner.** Finds passages in different documents that give different
+  answers to the same question (the main cause of escalations in the evaluation). Similar
+  passages are paired through the vector index, the model must quote the conflicting
+  sentence from each side, and a conflict counts only if it's still there when the
+  passages are swapped. Admins see both passages with the sentences highlighted, and a
+  finding resolves itself when the document is corrected. It found all six planted
+  conflicts; 7 of its 10 findings were real ([C1-C3 report](experiments/reports/contradictions-c1-c3.md),
+  [feature doc](docs/features/contradiction-scanner.md)).
 - **Notifications and audit log.** A live notification bell (assignments, customer
   replies, AI escalations, and replies to customers), optional email per kind, and an
   append-only log of administrative changes.
@@ -249,6 +257,8 @@ The benchmark (58 labelled questions over 10 documents, eight categories from
 uv run python -m app.cli evaluate --retrieval-only --name retrieval     # seconds
 uv run python -m app.cli evaluate --split test --name answers           # ~15 min on a CPU
 uv run python -m app.cli compare ../experiments/results/<a>.json ../experiments/results/<b>.json
+uv run python -m app.cli evaluate-triage --name t1-t4                   # triage, T1-T5
+uv run python -m app.cli evaluate-contradictions --name c1-c3           # contradiction scanner
 ```
 
 Each question becomes an ordinary run you can open in the AI inspector.
@@ -305,8 +315,9 @@ docs/             Architecture notes and screenshots
 
 Done in Phase 2: notifications and the audit log,
 [SLA management and automated routing](docs/features/sla-and-automated-routing.md),
-[AI ticket triage](docs/features/ai-triage.md) and the
-[customer assistant](docs/features/customer-self-service.md). Next: the customer
-assistant's evaluation (leakage, the stricter policy, prompt injection), then a
-knowledge-base quality loop with a contradiction scanner. The full plan is in section
+[AI ticket triage](docs/features/ai-triage.md), the
+[customer assistant](docs/features/customer-self-service.md) and the
+[contradiction scanner](docs/features/contradiction-scanner.md). Next: the customer
+assistant's evaluation (leakage, the stricter policy, prompt injection), then the rest
+of the knowledge-base quality loop (knowledge gaps to articles, document freshness). The full plan is in section
 15 of [IMPLEMENTATION_PLAN.MD](IMPLEMENTATION_PLAN.MD#15-phase-2-feature-roadmap).

@@ -59,6 +59,12 @@ export const queryKeys = {
     ["organizations", orgId, "documents", "detail", documentId] as const,
   documentChunks: (orgId: string, documentId: string, page: Page) =>
     ["organizations", orgId, "documents", "detail", documentId, "chunks", page] as const,
+  contradictions: (orgId: string, filters?: object) =>
+    filters
+      ? (["organizations", orgId, "contradictions", "list", filters] as const)
+      : (["organizations", orgId, "contradictions"] as const),
+  contradictionSummary: (orgId: string) =>
+    ["organizations", orgId, "contradictions", "summary"] as const,
 
   aiRuns: (orgId: string, filters?: object) =>
     filters

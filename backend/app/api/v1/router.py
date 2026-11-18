@@ -9,6 +9,7 @@ from app.api.v1.endpoints import (
     assistant,
     auth,
     categories,
+    contradictions,
     customers,
     documents,
     health,
@@ -42,6 +43,7 @@ api_router.include_router(routing.router)
 api_router.include_router(routing.ticket_router)
 api_router.include_router(triage.router)
 api_router.include_router(ticket_ai.router)
+api_router.include_router(contradictions.router)
 api_router.include_router(documents.router)
 api_router.include_router(ai.router)
 api_router.include_router(assistant.router)

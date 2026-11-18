@@ -32,6 +32,7 @@ TriageMode = Literal["off", "shadow", "on"]
 # "local" keeps customers' questions on the local model whatever the provider.
 SelfServiceMode = Literal["off", "on"]
 SelfServiceModel = Literal["default", "local"]
+ContradictionScanMode = Literal["off", "on"]
 
 
 class OrganizationSettings(BaseModel):
@@ -60,6 +61,12 @@ class OrganizationSettings(BaseModel):
         description="`local`: customers' questions are always answered by the local model, "
         "never sent to a hosted one.",
     )
+    contradiction_scan: ContradictionScanMode = Field(
+        default="off",
+        description="`on`: the knowledge base is checked for documents that contradict each "
+        "other on a schedule (only new or changed passages are compared). Admins can scan "
+        "on demand either way.",
+    )
 
 
 class OrganizationSettingsUpdate(BaseModel):
@@ -68,6 +75,7 @@ class OrganizationSettingsUpdate(BaseModel):
     triage_mode: TriageMode | None = None
     self_service: SelfServiceMode | None = None
     self_service_model: SelfServiceModel | None = None
+    contradiction_scan: ContradictionScanMode | None = None
 
 
 class OrganizationUpdate(BaseModel):

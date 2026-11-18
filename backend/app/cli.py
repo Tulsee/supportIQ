@@ -8,6 +8,7 @@
     uv run python -m app.cli tune-policy --report experiments/results/<observe run>.json
     uv run python -m app.cli compare experiments/results/a.json experiments/results/b.json
     uv run python -m app.cli evaluate-triage --name t1-t4
+    uv run python -m app.cli evaluate-contradictions --name c1-c3
 
 Super admin can only be bootstrapped here (there is no API to grant it from
 scratch); afterwards super admins can manage each other via /api/v1/admin.
@@ -160,6 +161,183 @@ async def _evaluate_triage(args: argparse.Namespace) -> int:
     (out / f"{stem}.md").write_text(evaluation.markdown(report), encoding="utf-8")
     print(evaluation.markdown(report))
     print(f"Wrote {out / stem}.md and .json")
+    return 0
+
+
+async def _evaluate_contradictions(args: argparse.Namespace) -> int:
+    """Experiments C1-C3: the contradiction scanner on the evaluation corpus."""
+    import re
+    from datetime import datetime
+
+    from sqlalchemy import select
+
+    from ai_engine.evaluation.dataset import load_dataset
+    from app.core.config import settings
+    from app.core.knowledge import get_embedder, get_reranker, new_qdrant_client, vector_store_for
+    from app.core.llm import build_llm_client
+    from app.core.storage import get_object_storage
+    from app.evaluation import contradictions as evaluation
+    from app.evaluation.report import _environment
+    from app.evaluation.runner import EvaluationError, EvaluationRunner
+    from app.models import DocumentChunk
+    from app.services.contradictions import ContradictionScanner
+    from app.services.ingestion import IngestionLimits
+
+    dataset = load_dataset(args.dataset)
+    planted = evaluation.planted_conflicts(dataset)
+    llm = build_llm_client(settings.model_copy(update={"ollama_seed": args.seed}))
+    status = await llm.status()
+    model_name = str(getattr(llm, "model", "model"))
+    slug = re.sub(r"[^a-z0-9]+", "-", model_name.lower()).strip("-")
+    results = REPO_ROOT / "experiments" / "results"
+    cache = args.cache or results / f"contradiction-replies-{slug}.jsonl"
+    if not status.available:
+        print(
+            f"The model isn't ready ({status.detail}); using cached replies only.", file=sys.stderr
+        )
+
+    embedder = get_embedder()
+    qdrant = new_qdrant_client()
+    started = datetime.now().astimezone()
+    try:
+        async with SessionLocal() as session:
+            vectors = vector_store_for(qdrant, embedder)
+            runner = EvaluationRunner(
+                session,
+                storage=get_object_storage(),
+                embedder=embedder,
+                vector_store=vectors,
+                reranker=get_reranker(),
+                llm=llm,
+                limits=IngestionLimits.from_settings(),
+            )
+            try:
+                workspace = await runner.prepare(args.documents)
+            except EvaluationError as exc:
+                print(exc, file=sys.stderr)
+                return 1
+            organization_id = workspace.organization.id
+            files = {d.document_id: d.file for d in workspace.documents}
+
+            def scanner_for(k: int, threshold: float) -> ContradictionScanner:
+                return ContradictionScanner(
+                    session, llm, vectors, neighbours=k, min_similarity=threshold
+                )
+
+            counts: dict = {}
+            for (document_id,) in (
+                await session.execute(
+                    select(DocumentChunk.document_id).where(
+                        DocumentChunk.organization_id == organization_id,
+                        DocumentChunk.token_count >= settings.contradiction_min_tokens,
+                    )
+                )
+            ).all():
+                counts[document_id] = counts.get(document_id, 0) + 1
+            passages = sum(counts.values())
+            all_pairs = passages * (passages - 1) // 2 - sum(
+                n * (n - 1) // 2 for n in counts.values()
+            )
+
+            grid = await evaluation.candidate_grid(scanner_for, organization_id, files, planted)
+            wide = await scanner_for(50, 0.0).candidates(organization_id)
+            similarity = evaluation.planted_similarity(wide, files, planted)
+            defaults = {
+                "neighbours": settings.contradiction_neighbours,
+                "min_similarity": settings.contradiction_min_similarity,
+            }
+            scanner = scanner_for(defaults["neighbours"], defaults["min_similarity"])
+            candidates = await scanner.candidates(organization_id)
+            if args.limit:
+                candidates = candidates[: args.limit]
+            gold = evaluation.labels(candidates, files, planted)
+            print(
+                f"{len(workspace.documents)} documents, {passages} passages, {all_pairs} "
+                f"cross-document pairs; {len(candidates)} candidates "
+                f"({sum(1 for v in gold.values() if v)} planted pairs) with {model_name}",
+                flush=True,
+            )
+
+            def progress(number: int, total: int, candidate, order: str, entry: dict) -> None:
+                verdict = "-"
+                if entry.get("raw"):
+                    parsed = evaluation.judge.parse(entry["raw"])
+                    verdict = parsed.verdict if parsed else "unusable"
+                label = ",".join(gold.get(candidate.pair.key, []))
+                error = f" {entry['error']}" if entry.get("error") else ""
+                print(
+                    f"[{number:>3}/{total}] {order} {candidate.a.document_title[:24]:<24} / "
+                    f"{candidate.b.document_title[:24]:<24} {verdict:<10} {label:<5} "
+                    f"({entry['latency_ms'] / 1000:.1f} s){error}",
+                    flush=True,
+                )
+
+            replies = await evaluation.collect_replies(
+                scanner, candidates if status.available else [], cache, progress
+            )
+            replies = {**evaluation.read_cache(cache), **replies}
+    finally:
+        await qdrant.close()
+
+    policies = {
+        name: {
+            "label": label,
+            **evaluation.score_policy(policy, candidates, replies, gold, planted),
+        }
+        for name, (label, policy) in evaluation.POLICIES.items()
+    }
+    stats = evaluation.reply_stats(candidates, replies)
+    mean_s = (stats["latency_ms"]["mean"] or 0) / 1000
+    calls_default = len(candidates) + (
+        policies["J0"]["flagged"] if settings.contradiction_both_orders else 0
+    )
+    report = {
+        "name": args.name,
+        "dataset": args.dataset.resolve().relative_to(REPO_ROOT).as_posix(),
+        "corpus": args.documents.resolve().relative_to(REPO_ROOT).as_posix(),
+        "model": model_name,
+        "llm_config": llm.config,
+        "embedding_model": embedder.model_name,
+        "documents": len(counts),
+        "passages": passages,
+        "all_pairs": all_pairs,
+        "defaults": defaults,
+        "planted": [
+            {"id": p.id, "split": p.split, "question": p.topic, "sides": p.sides} for p in planted
+        ],
+        "c1": {"grid": grid, "planted_similarity": similarity},
+        "c2": {
+            "candidates": len(candidates),
+            "planted_pairs": sum(1 for c in candidates if gold.get(c.pair.key)),
+            "policies": {
+                name: {k: v for k, v in row.items() if k != "flagged_keys"}
+                for name, row in policies.items()
+            },
+            "replies": stats,
+            "flagged_default": evaluation.flagged_details(
+                policies[evaluation.DEFAULT_POLICY]["flagged_keys"], candidates, replies, gold
+            ),
+            "flagged_any": evaluation.flagged_details(
+                policies["J0"]["flagged_keys"], candidates, replies, gold
+            ),
+        },
+        "c3": {
+            "calls_default": calls_default,
+            "minutes_default": round(calls_default * mean_s / 60, 1),
+            "calls_all_pairs": all_pairs,
+            "minutes_all_pairs": round(all_pairs * mean_s / 60, 1),
+        },
+        "started_at": started.isoformat(),
+        "finished_at": datetime.now().astimezone().isoformat(),
+        "environment": _environment(),
+    }
+    stem = f"{datetime.now():%Y%m%d-%H%M%S}-contradictions-{args.name}"
+    (results / f"{stem}.json").write_text(
+        json.dumps(report, indent=2, ensure_ascii=False, default=str), encoding="utf-8"
+    )
+    (results / f"{stem}.md").write_text(evaluation.markdown(report), encoding="utf-8")
+    print(evaluation.markdown(report))
+    print(f"Wrote {results / stem}.md and .json")
     return 0
 
 
@@ -335,6 +513,8 @@ async def _run(args: argparse.Namespace) -> int:
             return _compare(args)
         if args.command == "evaluate":
             return await _evaluate(args)
+        if args.command == "evaluate-contradictions":
+            return await _evaluate_contradictions(args)
         if args.command == "evaluate-triage":
             return await _evaluate_triage(args)
         if args.command == "grant-superadmin":
@@ -435,6 +615,23 @@ def main(argv: list[str] | None = None) -> int:
     triage.add_argument("--threshold", type=float, help="Fix the threshold instead of tuning")
     triage.add_argument("--limit", type=int, help="Only the first N tickets (a quick check)")
     triage.add_argument("--seed", type=int, default=42, help="Ollama sampling seed")
+    scan = commands.add_parser(
+        "evaluate-contradictions",
+        help="Experiments C1-C3: the contradiction scanner on the planted conflicts",
+    )
+    scan.add_argument(
+        "--dataset",
+        type=Path,
+        default=REPO_ROOT / "datasets" / "evaluation_questions" / "quillon_support_v1.jsonl",
+        help="Questions whose `conflicting` evidence gives the planted contradictions",
+    )
+    scan.add_argument(
+        "--documents", type=Path, default=REPO_ROOT / "datasets" / "sample_documents" / "quillon"
+    )
+    scan.add_argument("--name", default="c1-c3", help="Name for the results files")
+    scan.add_argument("--cache", type=Path, help="The model replies cache (JSON lines)")
+    scan.add_argument("--limit", type=int, help="Only the first N candidate pairs (a quick check)")
+    scan.add_argument("--seed", type=int, default=42, help="Ollama sampling seed")
     grant = commands.add_parser("grant-superadmin", help="Make a registered user a super admin")
     grant.add_argument("email")
     revoke = commands.add_parser("revoke-superadmin", help="Remove super admin from a user")

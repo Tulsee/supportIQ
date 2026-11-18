@@ -2020,6 +2020,15 @@ staff can ask the assistant.
 
 ## 15.7 Module 13 - Knowledge base quality loop
 
+**Status:** the contradiction scanner is implemented and evaluated (17 November 2026):
+candidate pairs from Qdrant neighbours in other documents, a schema-constrained judge
+whose quotes must be found in both passages, findings that admins resolve or dismiss
+(audited), automatic resolution when a document changes, scans on demand and on a
+schedule. See [docs/features/contradiction-scanner.md](docs/features/contradiction-scanner.md)
+and the [C1-C3 report](experiments/reports/contradictions-c1-c3.md): all 6 planted
+conflicts found, 7 of 10 findings real when checked by hand (6 of 10 planted). Gap to
+article and freshness are not started.
+
 **Why:** the evaluation's most common escalation cause was documents that contradict
 each other, and the analytics page already lists knowledge gaps. This module acts on
 both.

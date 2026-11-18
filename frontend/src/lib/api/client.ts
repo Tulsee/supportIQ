@@ -26,6 +26,10 @@ export type TicketEvent = Schemas["EventRead"];
 // "Document" would shadow the DOM type.
 export type KnowledgeDocument = Schemas["DocumentRead"];
 export type DocumentChunk = Schemas["ChunkRead"];
+export type ContradictionFinding = Schemas["FindingRead"];
+export type ContradictionScan = Schemas["ScanRead"];
+export type ContradictionSummary = Schemas["ContradictionSummary"];
+export type FindingStatus = Schemas["FindingStatus"];
 export type AIRun = Schemas["AIRunRead"];
 export type AIRunSummary = Schemas["AIRunSummary"];
 export type RetrievedPassage = Schemas["RetrievedPassage"];

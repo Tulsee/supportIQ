@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from qdrant_client import AsyncQdrantClient, models
+from qdrant_client.http.exceptions import UnexpectedResponse
 
 VECTOR_NAME = "dense"
 UPSERT_BATCH = 256
@@ -161,4 +162,36 @@ class QdrantVectorStore:
             limit=limit,
             with_payload=False,
         )
+        return [VectorHit(uuid.UUID(str(point.id)), point.score) for point in response.points]
+
+    async def neighbours(
+        self,
+        organization_id: uuid.UUID,
+        chunk_id: uuid.UUID,
+        document_id: uuid.UUID,
+        *,
+        limit: int,
+        min_similarity: float | None = None,
+    ) -> list[VectorHit]:
+        """The chunks nearest to an indexed chunk, in the same organization but other
+        documents, best first (no hits if the chunk has no vector)."""
+        if not await self.client.collection_exists(self.collection):
+            return []
+        try:
+            response = await self.client.query_points(
+                self.collection,
+                query=str(chunk_id),  # the point's own vector
+                using=VECTOR_NAME,
+                query_filter=models.Filter(
+                    must=[_match("organization_id", organization_id)],
+                    must_not=[_match("document_id", document_id)],
+                ),
+                limit=limit,
+                score_threshold=min_similarity,
+                with_payload=False,
+            )
+        except UnexpectedResponse as exc:
+            if exc.status_code == 404:  # no such point (not indexed yet, or replaced)
+                return []
+            raise
         return [VectorHit(uuid.UUID(str(point.id)), point.score) for point in response.points]

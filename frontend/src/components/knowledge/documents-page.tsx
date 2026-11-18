@@ -1,7 +1,7 @@
 "use client";
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { BookOpenIcon } from "lucide-react";
+import { BookOpenIcon, ScanSearchIcon } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -14,6 +14,7 @@ import { RetrievalPlayground } from "@/components/retrieval/retrieval-playground
 import { SearchInput } from "@/components/search-input";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -70,13 +71,37 @@ export function DocumentsPage() {
   });
   const anyQueued = documents.data?.items.some((d) => d.status === "queued") ?? false;
   const workerOffline = useWorkerOffline(anyQueued);
+  const contradictions = useQuery({
+    queryKey: queryKeys.contradictionSummary(organization.id),
+    queryFn: () =>
+      unwrap(
+        api.GET("/api/v1/knowledge/contradictions/summary", {
+          params: { header: tenant(organization.id) },
+        }),
+      ),
+  });
+  const openContradictions = contradictions.data?.open ?? 0;
 
   return (
     <>
       <PageHeader
         title="Knowledge base"
         description="Documents the AI assistant answers from, with citations back to the source."
-        actions={isAdmin ? <UploadDocumentDialog /> : null}
+        actions={
+          <>
+            <Button variant="outline" render={<Link href="/knowledge-base/contradictions" />}>
+              <ScanSearchIcon aria-hidden />
+              Contradictions
+              {openContradictions ? (
+                <Badge variant="destructive" className="ml-1 tabular-nums">
+                  {openContradictions}
+                  <span className="sr-only"> open</span>
+                </Badge>
+              ) : null}
+            </Button>
+            {isAdmin ? <UploadDocumentDialog /> : null}
+          </>
+        }
       />
       <div className="space-y-6">
         {workerOffline ? <NoWorkerAlert /> : null}
