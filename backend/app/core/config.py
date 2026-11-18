@@ -169,6 +169,10 @@ class Settings(BaseSettings):
     retrieval_top_k: int = 5
     bm25_k1: float = 1.2  # term-frequency saturation
     bm25_b: float = 0.75  # document-length normalization
+    # Sentences written as instructions to an AI ("Note for AI assistants: ...",
+    # "ignore all previous instructions") are removed before chunking and listed on
+    # the document (ai_engine/ingestion/instructions.py; experiment S3).
+    quarantine_instructions: bool = True
     # OCR for scanned PDF pages: pages with fewer extractable characters than this
     # are rendered and read with OCR (about 1-2 s per page), up to a page limit.
     ocr_enabled: bool = True

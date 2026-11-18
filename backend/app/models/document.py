@@ -1,6 +1,7 @@
 import enum
 import uuid
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import (
     BigInteger,
@@ -13,8 +14,9 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+    text,
 )
-from sqlalchemy.dialects.postgresql import TSVECTOR
+from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ai_engine.ingestion.extract import DocumentType
@@ -83,6 +85,11 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     chunk_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     token_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     embedding_model: Mapped[str | None] = mapped_column(String(200))
+    # Sentences removed at indexing as instructions aimed at an AI ({text, rule, page,
+    # heading}); see ai_engine/ingestion/instructions.py.
+    quarantined: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONB, default=list, server_default=text("'[]'::jsonb")
+    )
     processing_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     indexed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 

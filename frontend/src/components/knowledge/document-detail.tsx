@@ -7,6 +7,7 @@ import {
   DownloadIcon,
   FileUpIcon,
   RefreshCwIcon,
+  ShieldAlertIcon,
   Trash2Icon,
   TriangleAlertIcon,
 } from "lucide-react";
@@ -395,6 +396,36 @@ export function DocumentDetail() {
             {newerVersionPending
               ? `Version ${doc.version} is being indexed; version ${doc.indexed_version} stays searchable until it's done.`
               : "Extracting text, chunking, and embedding. This page updates when it's done."}
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
+      {doc.quarantined.length ? (
+        <Alert>
+          <ShieldAlertIcon aria-hidden />
+          <AlertTitle>
+            {doc.quarantined.length === 1
+              ? "1 sentence left out: it's written as an instruction to an AI"
+              : `${doc.quarantined.length} sentences left out: they're written as instructions to an AI`}
+          </AlertTitle>
+          <AlertDescription>
+            <p>
+              Text like this can steer an assistant (a planted claim, a link, a request to
+              reveal its rules), so it isn&apos;t searched, shown to the assistant, or cited.
+              {isAdmin ? " If this document comes from outside the company, check where it came from." : ""}
+            </p>
+            <ul className="mt-2 list-disc space-y-1 pl-5">
+              {doc.quarantined.map((sentence, index) => (
+                <li key={index}>
+                  <q className="italic">{sentence.text}</q>
+                  {sentence.heading ? (
+                    <span className="text-muted-foreground"> (in “{sentence.heading}”{sentence.page ? `, page ${sentence.page}` : ""})</span>
+                  ) : sentence.page ? (
+                    <span className="text-muted-foreground"> (page {sentence.page})</span>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
           </AlertDescription>
         </Alert>
       ) : null}

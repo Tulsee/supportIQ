@@ -73,7 +73,8 @@ a labelled benchmark measures how well it works.
   ([feature doc](docs/features/customer-self-service.md)). Tested for leaks with an
   internal playbook full of canary strings (none reached a customer), and against
   instructions planted in a public page (none followed;
-  [S1-S3 report](experiments/reports/self-service-s1-s3.md)).
+  [S1-S3 report](experiments/reports/self-service-s1-s3.md)). Sentences written as
+  instructions to an AI are removed from documents at indexing and shown to admins.
 - **Contradiction scanner.** Finds passages in different documents that give different
   answers to the same question (the main cause of escalations in the evaluation). Similar
   passages are paired through the vector index, the model must quote the conflicting

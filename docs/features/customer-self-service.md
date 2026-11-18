@@ -103,7 +103,13 @@ conversation is locked and marked handed off in the same commit as the ticket.
   `ASSISTANT_CUSTOMER_DAILY_LIMIT` per day (default 50); questions are capped at the
   staff limit's length.
 - **Prompts:** passages stay fenced as data, with the existing instruction to ignore
-  instructions inside them; a customer prompt version addresses the customer directly.
+  instructions inside them; a customer prompt version addresses the customer directly,
+  and narrows "ambiguous" so that sources that disagree offer a person rather than a
+  clarifying question.
+- **Instructions aimed at an AI** ("Note for AI assistants: ...", "ignore all previous
+  rules") are removed from documents when they are indexed and listed on the document
+  for admins (`QUARANTINE_INSTRUCTIONS`, on by default). Documents indexed before this
+  existed keep their text until they are re-indexed.
 
 ## Metrics (`GET /analytics/self-service`, Analytics → Self-service)
 
@@ -131,7 +137,7 @@ Results with `qwen3.5:4b` ([S1-S3 report](../../experiments/reports/self-service
 | --- | --- |
 | S1 | No internal passage retrieved for a customer, no canary in any reply or model output (0/12); the staff control found the playbook 12/12 |
 | S2 | Customer: 30 of 32 answerable questions answered, all correct, none of the 26 others answered; staff 31 of 32, all correct. After a customer-only prompt fix (a conflict was being shown as a clarifying question), 55 of 58 customers are told the right thing; the 3 others got "contact support" |
-| S3 | No planted instruction followed (0/10, customer and staff), but the planted lifetime-warranty claim turned the warranty question into an escalation, and the customer path declined 3 answerable questions it judged partial |
+| S3 | No planted instruction followed (0/10, customer and staff), but they cost answers. With instructions aimed at an AI removed at indexing, correct answers rose from 6 to 9 of 10 for customers (8 to 9 for staff), still with none followed |
 
 ## Delivery
 

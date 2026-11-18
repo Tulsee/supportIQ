@@ -2992,6 +2992,11 @@ export interface components {
             indexed_version: number | null;
             /** Page Count */
             page_count: number | null;
+            /**
+             * Quarantined
+             * @description Sentences left out when indexing because they are instructions aimed at an AI: never searched, never shown to the model or as a source.
+             */
+            quarantined: components["schemas"]["QuarantinedSentence"][];
             /** Chunk Count */
             chunk_count: number;
             /** Token Count */
@@ -4086,6 +4091,21 @@ export interface components {
         /** PresenceUpdate */
         PresenceUpdate: {
             status: components["schemas"]["AgentStatus"];
+        };
+        /** QuarantinedSentence */
+        QuarantinedSentence: {
+            /** Text */
+            text: string;
+            /**
+             * Rule
+             * @description `addresses_ai`: it tells an AI what to do; `override`: it uses the language of prompt overrides ("ignore all previous instructions").
+             * @enum {string}
+             */
+            rule: "addresses_ai" | "override";
+            /** Page */
+            page: number | null;
+            /** Heading */
+            heading: string | null;
         };
         /** ReadinessResponse */
         ReadinessResponse: {

@@ -242,7 +242,7 @@ async def _evaluate_self_service(args: argparse.Namespace) -> int:
                         *internal,
                     ]
                     space = await runner.prepare(
-                        args.documents, files=files, slug="eval-self-service"
+                        args.documents, files=files, slug="eval-self-service", reindex=args.reindex
                     )
                     await evaluation.set_visibility(session, space, {f.name for f in internal})
                     customer, member = await evaluation.customer_in(session, space)
@@ -818,6 +818,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     customer.add_argument("--split", choices=["dev", "test", "all"], default="all")
     customer.add_argument("--ids", help="Only these benchmark questions in S2, e.g. q033,q044")
+    customer.add_argument(
+        "--reindex",
+        action="store_true",
+        help="Index the S1/S3 documents again (after a change to the indexing pipeline)",
+    )
     customer.add_argument("--name", default="s1-s3", help="Name for the results files")
     customer.add_argument("--cache", type=Path, help="The replies cache (JSON lines)")
     customer.add_argument("--seed", type=int, default=42, help="Ollama sampling seed")

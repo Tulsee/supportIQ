@@ -13,6 +13,16 @@ DocumentTitle = Annotated[
 ]
 
 
+class QuarantinedSentence(BaseModel):
+    text: str
+    rule: Literal["addresses_ai", "override"] = Field(
+        description="`addresses_ai`: it tells an AI what to do; `override`: it uses the "
+        'language of prompt overrides ("ignore all previous instructions").'
+    )
+    page: int | None
+    heading: str | None
+
+
 class DocumentRead(BaseModel):
     id: uuid.UUID
     title: str
@@ -33,6 +43,10 @@ class DocumentRead(BaseModel):
         "version is processed or if it failed."
     )
     page_count: int | None
+    quarantined: list[QuarantinedSentence] = Field(
+        description="Sentences left out when indexing because they are instructions "
+        "aimed at an AI: never searched, never shown to the model or as a source."
+    )
     chunk_count: int
     token_count: int
     embedding_model: str | None
@@ -56,6 +70,7 @@ class DocumentRead(BaseModel):
             version=document.version,
             indexed_version=document.indexed_version,
             page_count=document.page_count,
+            quarantined=[QuarantinedSentence(**q) for q in document.quarantined or []],
             chunk_count=document.chunk_count,
             token_count=document.token_count,
             embedding_model=document.embedding_model,

@@ -140,16 +140,18 @@ class EvaluationRunner:
         share_with: str | None = None,
         files: Sequence[Path] | None = None,
         slug: str | None = None,
+        reindex: bool = False,
     ) -> Workspace:
         """The evaluation organization for ``corpus``, with its documents indexed.
         ``files`` overrides the documents (default: those in ``corpus``) and ``slug``
-        the organization (default: from the folder's name)."""
+        the organization (default: from the folder's name). ``reindex`` indexes every
+        document again even if unchanged (after a change to the indexing pipeline)."""
         files = list(files) if files is not None else document_files(corpus)
         if not files:
             raise EvaluationError(f"No documents in {corpus}")
         user, member, organization = await self._organization(corpus, share_with, slug)
         await set_rls_context(self.session, user_id=user.id, organization_id=organization.id)
-        documents = await self._sync_documents(member, user, files)
+        documents = await self._sync_documents(member, user, files, reindex=reindex)
         return Workspace(user=user, member=member, organization=organization, documents=documents)
 
     async def _organization(
@@ -202,7 +204,12 @@ class EvaluationRunner:
         return user, member, organization
 
     async def _sync_documents(
-        self, member: OrganizationMember, user: User, files: Sequence[Path]
+        self,
+        member: OrganizationMember,
+        user: User,
+        files: Sequence[Path],
+        *,
+        reindex: bool = False,
     ) -> list[CorpusDocument]:
         repository = DocumentRepository(self.session)
         service = DocumentService(self.session, storage=self.storage, vector_store=self.vectors)
@@ -219,6 +226,7 @@ class EvaluationRunner:
             current = by_file.pop(path.name, None)
             if (
                 current is not None
+                and not reindex
                 and current.sha256 == sha256
                 and current.status is DocumentStatus.INDEXED
                 and current.embedding_model == self.embedder.model_name

@@ -27,6 +27,7 @@ from sqlalchemy.pool import NullPool
 from ai_engine.chunking.chunker import Chunk, ChunkingConfig, chunk_blocks
 from ai_engine.embeddings.embedder import Embedder
 from ai_engine.ingestion.extract import ExtractionError, extract
+from ai_engine.ingestion.instructions import Quarantined, quarantine
 from ai_engine.ingestion.ocr import OcrOptions
 from ai_engine.retrieval.vector_store import ChunkPoint, QdrantVectorStore
 from app.core.config import settings
@@ -56,6 +57,7 @@ class IngestionLimits:
     max_characters: int
     chunking: ChunkingConfig
     ocr: OcrOptions | None = None  # None: scanned pages are not read
+    quarantine_instructions: bool = True  # remove instructions aimed at an AI
 
     @classmethod
     def from_settings(cls) -> "IngestionLimits":
@@ -77,6 +79,7 @@ class IngestionLimits:
             max_characters=settings.max_extracted_characters,
             chunking=ChunkingConfig(settings.chunk_size_tokens, settings.chunk_overlap_tokens),
             ocr=ocr,
+            quarantine_instructions=settings.quarantine_instructions,
         )
 
 
@@ -175,10 +178,11 @@ class IngestionService:
                 ocr=self.limits.ocr,
             )
         )
+        blocks, removed = list(extracted.blocks), list[Quarantined]()
+        if self.limits.quarantine_instructions:
+            blocks, removed = quarantine(blocks)
         counter = await to_thread.run_sync(self.embedder.token_counter)
-        chunks = await to_thread.run_sync(
-            chunk_blocks, extracted.blocks, counter, self.limits.chunking
-        )
+        chunks = await to_thread.run_sync(chunk_blocks, blocks, counter, self.limits.chunking)
         if not chunks:
             raise ExtractionError("The document contains no text.")
         vectors = await self._embed(chunks)
@@ -237,6 +241,7 @@ class IngestionService:
         document.embedding_model = self.embedder.model_name
         document.indexed_at = utcnow()
         document.error = "\n".join(extracted.warnings) or None
+        document.quarantined = [r.to_json() for r in removed]
         current_key = document.storage_key
         prefix = storage_prefix(document)
         await self.session.commit()
