@@ -322,6 +322,9 @@ Done in Phase 2: notifications and the audit log,
 [AI ticket triage](docs/features/ai-triage.md), the
 [customer assistant](docs/features/customer-self-service.md) and the
 [contradiction scanner](docs/features/contradiction-scanner.md), each with its
-evaluation. Next: deployment (a public demo with HTTPS and backups), then the rest of
-the knowledge-base quality loop (knowledge gaps to articles, document freshness). The full plan is in section
+evaluation, and [knowledge gaps to articles](docs/features/knowledge-gaps.md), whose
+evaluation is still to run. Next: document freshness (the last part of the knowledge-base quality loop),
+then the parts of production operations that don't need a server (backups with a tested
+restore, metrics, dependency audits), and deployment when there is a server for it. The
+full plan is in section
 15 of [IMPLEMENTATION_PLAN.MD](IMPLEMENTATION_PLAN.MD#15-phase-2-feature-roadmap).

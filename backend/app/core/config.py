@@ -130,6 +130,30 @@ class Settings(BaseSettings):
     # How often the scheduler scans organizations that turned scanning on. 0 disables.
     contradiction_scan_interval_minutes: int = 360
 
+    # --- Knowledge gaps to articles (Module 13) -------------------------------------
+    # Questions not answered (abstained, declined, no passages) in the last
+    # lookback_days are grouped by the cosine similarity of their embeddings: a new
+    # question joins the closest existing gap at join_similarity or more; the rest are
+    # grouped among themselves (average linkage) at cluster_similarity. Defaults from
+    # the G1 sweep (experiments/reports/knowledge-gaps-g1-g3.md).
+    gap_lookback_days: Annotated[int, Field(ge=1)] = 90
+    gap_join_similarity: Annotated[float, Field(ge=0, le=1)] = 0.8
+    gap_cluster_similarity: Annotated[float, Field(ge=0, le=1)] = 0.8
+    # New questions grouped per analysis (most asked first; clustering is O(n^3)).
+    gap_max_new_questions: Annotated[int, Field(ge=1, le=1000)] = 300
+    # Source tickets: resolved or closed, with a public agent reply. Those the
+    # questions led to (assistant handoffs, suggestions) first, then similar ones: a
+    # keyword search shortlists ticket_candidates, kept at ticket_min_similarity or more
+    # to the gap's questions; at most max_sources in the prompt.
+    gap_ticket_candidates: Annotated[int, Field(ge=1)] = 30
+    gap_ticket_min_similarity: Annotated[float, Field(ge=0, le=1)] = 0.7
+    gap_max_sources: Annotated[int, Field(ge=1, le=8)] = 4
+    # Knowledge-base passages the draft is checked against for contradictions (one
+    # model call each); 0 skips the check.
+    gap_conflict_passages: Annotated[int, Field(ge=0, le=6)] = 3
+    # Questions asked again after an article is published (most asked first).
+    gap_recheck_questions: Annotated[int, Field(ge=1, le=50)] = 10
+
     # --- Background jobs (Celery) ---------------------------------------------------
     # A separate Redis database from rate limits and real-time events.
     celery_broker_url: str = "redis://127.0.0.1:6379/1"

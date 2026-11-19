@@ -1176,6 +1176,154 @@ export interface paths {
         patch: operations["review_contradiction_api_v1_knowledge_contradictions__finding_id__patch"];
         trace?: never;
     };
+    "/api/v1/knowledge/gaps/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Gaps by status and the latest jobs */
+        get: operations["gap_summary_api_v1_knowledge_gaps_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/knowledge/gaps/analyses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Group unanswered questions into gaps (admin)
+         * @description Queues an analysis: questions not answered in the look-back window are grouped by
+         *     meaning; new phrasings join existing gaps. No model call. 409 `job_running` if a
+         *     gap job is running; follow it in the summary.
+         */
+        post: operations["analyze_gaps_api_v1_knowledge_gaps_analyses_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/knowledge/gaps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List gaps
+         * @description Most asked first, with their three most asked questions.
+         */
+        get: operations["knowledge_gaps_api_v1_knowledge_gaps_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/knowledge/gaps/{gap_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a gap with all its questions */
+        get: operations["knowledge_gap_api_v1_knowledge_gaps__gap_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Dismiss or reopen a gap (admin)
+         * @description Recorded in the audit log. A published gap can't be reopened or dismissed:
+         *     edit or delete its document instead.
+         */
+        patch: operations["review_knowledge_gap_api_v1_knowledge_gaps__gap_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/knowledge/gaps/{gap_id}/drafts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Draft an article for a gap (admin)
+         * @description Queues a draft: resolved tickets that answered the gap's questions are found, and
+         *     the model writes an article from the agents' replies; every statement is checked
+         *     against the reply it quotes, for customer details, and against the knowledge base.
+         *     Replaces the previous draft. 409 `gap_not_open` or `job_running`.
+         */
+        post: operations["draft_gap_api_v1_knowledge_gaps__gap_id__drafts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/knowledge/gaps/{gap_id}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Publish the article as a document (admin)
+         * @description Creates a Markdown document from the (edited) article and queues its indexing;
+         *     the gap becomes `published`. Recorded in the audit log. 409 `gap_not_open`, or
+         *     `duplicate` if the same document exists.
+         */
+        post: operations["publish_knowledge_gap_api_v1_knowledge_gaps__gap_id__publish_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/knowledge/gaps/{gap_id}/rechecks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ask a published gap's questions again (admin)
+         * @description Queues a recheck: the most asked questions go through the answer pipeline again,
+         *     to see how many are answered now and from the article. 409 `not_published`,
+         *     `article_not_indexed` or `job_running`.
+         */
+        post: operations["recheck_knowledge_gap_api_v1_knowledge_gaps__gap_id__rechecks_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/documents": {
         parameters: {
             query?: never;
@@ -3055,6 +3203,58 @@ export interface components {
          * @enum {string}
          */
         DocumentVisibility: "internal" | "public";
+        /** DraftConflict */
+        DraftConflict: {
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /** Document Title */
+            document_title: string;
+            /** Section */
+            section: string | null;
+            /** Topic */
+            topic: string;
+            /** Quote Draft */
+            quote_draft: string;
+            /** Quote Document */
+            quote_document: string;
+            /** Explanation */
+            explanation: string;
+        };
+        /** DraftStatement */
+        DraftStatement: {
+            /** Text */
+            text: string;
+            /**
+             * Ticket
+             * @description The number of the ticket it comes from.
+             */
+            ticket: number;
+            /**
+             * Quote
+             * @description The agent's sentence it rests on.
+             */
+            quote: string;
+            /**
+             * Included
+             * @description Passed every check: part of the body.
+             */
+            included: boolean;
+            /** Problems */
+            problems: ("quote_not_found" | "number_not_in_quote" | "private" | "conflict")[];
+            /**
+             * Private
+             * @description Customer details found in the text.
+             */
+            private: string[];
+        };
+        /**
+         * DraftStatus
+         * @enum {string}
+         */
+        DraftStatus: "drafted" | "no_sources" | "not_answered" | "failed";
         /** ErrorDetail */
         ErrorDetail: {
             /**
@@ -3221,6 +3421,271 @@ export interface components {
          * @enum {string}
          */
         FindingStatus: "open" | "dismissed" | "resolved";
+        /** GapArticle */
+        GapArticle: {
+            /**
+             * Document Id
+             * @description None if the document was deleted.
+             */
+            document_id: string | null;
+            /** Title */
+            title: string | null;
+            status: components["schemas"]["DocumentStatus"] | null;
+            visibility: components["schemas"]["DocumentVisibility"] | null;
+            published_by: components["schemas"]["PersonSummary"] | null;
+            /** Published At */
+            published_at: string | null;
+        };
+        /** GapDraft */
+        GapDraft: {
+            status: components["schemas"]["DraftStatus"];
+            /** Verdict */
+            verdict: ("answered" | "partial" | "not_answered") | null;
+            /** Title */
+            title: string | null;
+            /**
+             * Body
+             * @description The statements that passed every check.
+             */
+            body: string | null;
+            /** Statements */
+            statements: components["schemas"]["DraftStatement"][];
+            /**
+             * Conflicts
+             * @description Where the draft contradicts the knowledge base (the draft's side is left out of the body).
+             */
+            conflicts: components["schemas"]["DraftConflict"][];
+            /**
+             * Passages Checked
+             * @description Knowledge-base passages it was checked against.
+             */
+            passages_checked: number;
+            /** Model */
+            model: string | null;
+            /** Latency Ms */
+            latency_ms: number;
+            /** Error */
+            error: string | null;
+            /** Drafted At */
+            drafted_at: string | null;
+        };
+        /**
+         * GapJobKind
+         * @enum {string}
+         */
+        GapJobKind: "analyze" | "draft" | "recheck";
+        /** GapJobRead */
+        GapJobRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            kind: components["schemas"]["GapJobKind"];
+            /** Gap Id */
+            gap_id: string | null;
+            status: components["schemas"]["GapJobStatus"];
+            /**
+             * Result
+             * @description analyze: questions, new_questions, joined, gaps_created, left_for_later; draft: status, sources, statements, included, conflicts; recheck: total, answered.
+             */
+            result: {
+                [key: string]: unknown;
+            };
+            /** Error */
+            error: string | null;
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            /** Finished At */
+            finished_at: string | null;
+        };
+        /**
+         * GapJobStatus
+         * @enum {string}
+         */
+        GapJobStatus: "running" | "finished" | "failed";
+        /** GapPublish */
+        GapPublish: {
+            /** Title */
+            title: string;
+            /**
+             * Body
+             * @description Markdown.
+             */
+            body: string;
+            /**
+             * @description `public` lets the customer assistant answer from it; `internal` keeps it to staff.
+             * @default internal
+             */
+            visibility: components["schemas"]["DocumentVisibility"];
+        };
+        /** GapQuestionRead */
+        GapQuestionRead: {
+            /**
+             * Query
+             * @description As last asked.
+             */
+            query: string;
+            /**
+             * Asked
+             * @description Times not answered in the look-back window.
+             */
+            asked: number;
+            /** Last Asked */
+            last_asked: string | null;
+            /**
+             * Last Status
+             * @description `abstained`, `declined` or `no_passages` when last asked.
+             */
+            last_status: string | null;
+            /**
+             * Last Run Id
+             * @description The latest run, to inspect.
+             */
+            last_run_id: string | null;
+            /**
+             * Kinds
+             * @description Where it was asked: `answer`, `suggestion`, `self_service`.
+             */
+            kinds: string[];
+            /**
+             * Ticket Ids
+             * @description Tickets it led to (assistant handoffs, the ticket a suggestion was for).
+             */
+            ticket_ids: string[];
+        };
+        /** GapRead */
+        GapRead: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Label
+             * @description Its most asked question.
+             */
+            label: string;
+            status: components["schemas"]["GapStatus"];
+            /**
+             * Question Count
+             * @description Distinct questions asked in the window.
+             */
+            question_count: number;
+            /**
+             * Asked
+             * @description Times its questions went unanswered in the window.
+             */
+            asked: number;
+            /** Last Asked */
+            last_asked: string | null;
+            /**
+             * Asked Since Published
+             * @description Questions still unanswered after the article was published.
+             */
+            asked_since_published: number;
+            /**
+             * Questions
+             * @description All of them in the detail view; the three most asked in lists.
+             */
+            questions: components["schemas"]["GapQuestionRead"][];
+            /** Sources */
+            sources: components["schemas"]["GapSource"][];
+            draft: components["schemas"]["GapDraft"] | null;
+            article: components["schemas"]["GapArticle"] | null;
+            recheck: components["schemas"]["GapRecheck"] | null;
+            /** Note */
+            note: string | null;
+            reviewed_by: components["schemas"]["PersonSummary"] | null;
+            /** Reviewed At */
+            reviewed_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** GapRecheck */
+        GapRecheck: {
+            /** Total */
+            total: number;
+            /** Answered */
+            answered: number;
+            /**
+             * Cited Article
+             * @description Answers that cite the published article.
+             */
+            cited_article: number;
+            /** Questions */
+            questions: components["schemas"]["RecheckQuestion"][];
+            /** Checked At */
+            checked_at: string | null;
+        };
+        /** GapReview */
+        GapReview: {
+            /**
+             * Status
+             * @description `dismissed` (not worth an article; new phrasings still join it quietly) or `open` (reopen).
+             * @enum {string}
+             */
+            status: "open" | "dismissed";
+            /** Note */
+            note?: string | null;
+        };
+        /** GapSource */
+        GapSource: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Number */
+            number: number;
+            /** Subject */
+            subject: string;
+            /**
+             * Via
+             * @description `linked`: the questions led to this ticket; `similar`: found by search.
+             * @enum {string}
+             */
+            via: "linked" | "similar";
+            /**
+             * Similarity
+             * @description To the gap's questions (similar tickets).
+             */
+            similarity: number | null;
+        };
+        /**
+         * GapStatus
+         * @enum {string}
+         */
+        GapStatus: "open" | "dismissed" | "published";
+        /** GapSummaryRead */
+        GapSummaryRead: {
+            /** Open */
+            open: number;
+            /** Dismissed */
+            dismissed: number;
+            /** Published */
+            published: number;
+            /**
+             * Drafted
+             * @description Open gaps with a draft ready to review.
+             */
+            drafted: number;
+            /**
+             * Questions
+             * @description Distinct unanswered questions in the window.
+             */
+            questions: number;
+            /** Lookback Days */
+            lookback_days: number;
+            latest_job: components["schemas"]["GapJobRead"] | null;
+            latest_analysis: components["schemas"]["GapJobRead"] | null;
+        };
         /** HandoffRequest */
         HandoffRequest: {
             /**
@@ -3918,6 +4383,20 @@ export interface components {
             /** Offset */
             offset: number;
         };
+        /** Page[GapRead] */
+        Page_GapRead_: {
+            /** Items */
+            items: components["schemas"]["GapRead"][];
+            /**
+             * Total
+             * @description Total matching items across all pages.
+             */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
         /** Page[InvitationRead] */
         Page_InvitationRead_: {
             /** Items */
@@ -4118,6 +4597,22 @@ export interface components {
             checks: {
                 [key: string]: "ok" | "unavailable";
             };
+        };
+        /** RecheckQuestion */
+        RecheckQuestion: {
+            /** Query */
+            query: string;
+            /** Before */
+            before: string | null;
+            /** After */
+            after: string | null;
+            /**
+             * Run Id
+             * Format: uuid
+             */
+            run_id: string;
+            /** Cited Article */
+            cited_article: boolean;
         };
         /** RegisterRequest */
         RegisterRequest: {
@@ -10794,6 +11289,620 @@ export interface operations {
             };
         };
     };
+    gap_summary_api_v1_knowledge_gaps_summary_get: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GapSummaryRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    analyze_gaps_api_v1_knowledge_gaps_analyses_post: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GapJobRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    knowledge_gaps_api_v1_knowledge_gaps_get: {
+        parameters: {
+            query?: {
+                /** @description Only gaps in this status. */
+                status?: components["schemas"]["GapStatus"] | null;
+                /** @description Maximum items to return. */
+                limit?: number;
+                /** @description Number of items to skip. */
+                offset?: number;
+            };
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_GapRead_"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    knowledge_gap_api_v1_knowledge_gaps__gap_id__get: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path: {
+                gap_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GapRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    review_knowledge_gap_api_v1_knowledge_gaps__gap_id__patch: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path: {
+                gap_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GapReview"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GapRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    draft_gap_api_v1_knowledge_gaps__gap_id__drafts_post: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path: {
+                gap_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GapJobRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    publish_knowledge_gap_api_v1_knowledge_gaps__gap_id__publish_post: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path: {
+                gap_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GapPublish"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GapRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    recheck_knowledge_gap_api_v1_knowledge_gaps__gap_id__rechecks_post: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path: {
+                gap_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GapJobRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     list_documents_api_v1_documents_get: {
         parameters: {
             query?: {
@@ -13482,7 +14591,7 @@ export interface operations {
         parameters: {
             query?: {
                 /** @description Only this kind of entity. */
-                entity_type?: ("organization" | "member" | "invitation" | "document" | "category" | "sla" | "team" | "agent" | "routing_rule" | "contradiction") | null;
+                entity_type?: ("organization" | "member" | "invitation" | "document" | "category" | "sla" | "team" | "agent" | "routing_rule" | "contradiction" | "knowledge_gap") | null;
                 /** @description Maximum items to return. */
                 limit?: number;
                 /** @description Number of items to skip. */

@@ -65,6 +65,12 @@ export const queryKeys = {
       : (["organizations", orgId, "contradictions"] as const),
   contradictionSummary: (orgId: string) =>
     ["organizations", orgId, "contradictions", "summary"] as const,
+  gaps: (orgId: string, filters?: object) =>
+    filters
+      ? (["organizations", orgId, "gaps", "list", filters] as const)
+      : (["organizations", orgId, "gaps"] as const),
+  gap: (orgId: string, gapId: string) => ["organizations", orgId, "gaps", "detail", gapId] as const,
+  gapSummary: (orgId: string) => ["organizations", orgId, "gaps", "summary"] as const,
 
   aiRuns: (orgId: string, filters?: object) =>
     filters

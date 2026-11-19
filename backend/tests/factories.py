@@ -90,6 +90,19 @@ class RecordingContradictionQueue:
 
 
 @dataclass
+class RecordingGapQueue:
+    """Test knowledge-gap queue: records the jobs it was asked to run."""
+
+    ids: list[uuid.UUID] = field(default_factory=list)
+    error: Exception | None = None
+
+    async def enqueue(self, job_id: uuid.UUID) -> None:
+        if self.error is not None:
+            raise self.error
+        self.ids.append(job_id)
+
+
+@dataclass
 class RecordingTriageQueue:
     """Test triage queue: records the tickets it was asked to triage."""
 

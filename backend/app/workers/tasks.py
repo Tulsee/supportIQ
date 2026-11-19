@@ -8,6 +8,7 @@ from celery import Task
 from app.services.automation import run_auto_close_job
 from app.services.contradictions import run_scan_job, run_schedule_job
 from app.services.ingestion import TransientIngestionError, run_ingestion_job
+from app.services.knowledge_gaps import run_gap_job
 from app.services.notifications import run_email_job
 from app.services.routing import run_routing_job, run_routing_sweep
 from app.services.sla_monitor import run_sla_job
@@ -107,3 +108,9 @@ def scan_contradictions(scan_id: str) -> str | None:
 def schedule_contradiction_scans() -> int:
     """Start scans for organizations with scanning on whose last scan is old enough."""
     return asyncio.run(run_schedule_job())
+
+
+@celery_app.task(name="knowledge_gaps.run", ignore_result=True)
+def run_knowledge_gap_job(job_id: str) -> str | None:
+    """Analyze unanswered questions, draft an article for a gap, or recheck one."""
+    return asyncio.run(run_gap_job(uuid.UUID(job_id)))

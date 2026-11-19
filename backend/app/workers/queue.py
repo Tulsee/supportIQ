@@ -1,5 +1,5 @@
 """Handing jobs (document ingestion, notification emails, ticket routing, knowledge-base
-scans) to the background workers."""
+scans and gap jobs) to the background workers."""
 
 import uuid
 from collections.abc import Sequence
@@ -118,6 +118,29 @@ class CeleryContradictionQueue:
         def _send() -> None:
             scan_contradictions.apply_async(
                 args=[str(scan_id)],
+                retry=True,
+                retry_policy={"max_retries": 2, "interval_start": 0.2, "interval_step": 0.5},
+            )
+
+        try:
+            await to_thread.run_sync(_send)
+        except (OperationalError, OSError) as exc:
+            raise QueueUnavailableError(str(exc)) from exc
+
+
+class GapQueue(Protocol):
+    async def enqueue(self, job_id: uuid.UUID) -> None: ...
+
+
+class CeleryGapQueue:
+    async def enqueue(self, job_id: uuid.UUID) -> None:
+        from kombu.exceptions import OperationalError
+
+        from app.workers.tasks import run_knowledge_gap_job
+
+        def _send() -> None:
+            run_knowledge_gap_job.apply_async(
+                args=[str(job_id)],
                 retry=True,
                 retry_policy={"max_retries": 2, "interval_start": 0.2, "interval_step": 0.5},
             )

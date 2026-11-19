@@ -104,3 +104,22 @@ policies on the benchmark; S3 measures whether planted instructions in a public 
 are followed, in what the customer is shown and in the model's raw output. See
 `datasets/README.md` for the set and [`reports/self-service-s1-s3.md`](reports/self-service-s1-s3.md)
 for the results.
+
+## Knowledge gaps to articles (Module 13, G1-G3)
+
+```bash
+uv run python -m app.cli evaluate-gaps --name g1-g3 --regression   # from backend/, ~1.5 h on a CPU
+uv run python -m app.cli evaluate-gaps --cluster-similarity 0.8     # a fixed grouping threshold
+```
+
+The Quillon documents are indexed into their own organization with 23 resolved tickets
+(`datasets/knowledge_gaps/`). The 34 asked questions go through the staff pipeline, and
+those it can't answer are the gaps. G1 sweeps the grouping threshold, chooses it on the
+dev topics and reports the test topics. G2 drafts every gap as the worker does, and
+scores its sources, key facts, checks, privacy and the planted outdated claim. G3
+publishes every draft unedited and asks 22 held-out paraphrases before and after (exact
+McNemar). It also rechecks each gap as the product does and, with `--regression`, asks
+the benchmark's test split before and after. Every model reply is cached in
+`results/gap-replies-<model>.jsonl`, keyed by the exact prompt, so a rerun replays it.
+The study hasn't been run to the end yet; its write-up will be
+`reports/knowledge-gaps-g1-g3.md`.

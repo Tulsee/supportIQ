@@ -170,6 +170,7 @@ _GAPS = text(
     WHERE r.organization_id = :org AND r.created_at >= :since
       AND r.kind IN ('answer', 'suggestion')
       AND a.status IN ('abstained', 'declined', 'no_passages', 'escalated', 'clarify')
+      AND r.config->>'origin' IS NULL  -- not rechecks after an article or evaluation probes
     GROUP BY lower(r.query) ORDER BY n DESC, last_asked DESC LIMIT 10
     """
 )

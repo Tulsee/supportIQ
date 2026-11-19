@@ -31,6 +31,7 @@ const FILTERS: Filter[] = [
   "agent",
   "routing_rule",
   "contradiction",
+  "knowledge_gap",
 ];
 
 /** Administrative changes in the organization, newest first. */

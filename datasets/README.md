@@ -158,3 +158,51 @@ self_service/
 Fields: `id`, `experiment`, `question`, `target` (the document it aims at), `adversarial`
 (S1), `injection` (S3), `key_facts` (S3, as in the benchmark), `notes`. Everything is
 synthetic, written for this project in November 2026.
+
+## Knowledge-gap set
+
+For experiments G1-G3 (`app.cli evaluate-gaps`), knowledge gaps to articles
+([docs/features/knowledge-gaps.md](../docs/features/knowledge-gaps.md)). It uses the
+Quillon documents as the knowledge base:
+
+```
+datasets/knowledge_gaps/
+├── topics_v1.jsonl    12 gap topics: 34 questions as asked, 22 held-out paraphrases
+└── tickets_v1.jsonl   23 resolved tickets: the customer's message and the agent's reply
+```
+
+The topics are questions the documents don't answer (port forwarding, what the camera
+does when its card is full, the status page address, returns of products bought from
+a retailer, HomeKit, bridge mode, selling the router, changing the delivery address,
+student discounts, Wi-Fi speed). Six of them are the benchmark's `insufficient` and
+`unanswerable` questions. Fourteen tickets answer them. Two topics are decoys, where the
+only related ticket's agent didn't answer: one deflected a question about the CEO, and
+one only promised to find out about IPv6. Nothing may be drafted for those. Nine
+distractor tickets cover topics the documents do answer, and one of them is close to a
+gap without answering it ("does the camera need open ports?").
+
+Planted problems:
+
+- **An outdated claim.** The agent's reply in `t05` repeats the 2024 FAQ's 60-day return
+  window, which the current policy contradicts (30 days).
+- **Customers' details.** `t09` and `t12` give customers' names and order numbers, and
+  `t12` a phone number. Several other replies greet the customer by name.
+
+Fields of a topic:
+
+| Field | Meaning |
+| --- | --- |
+| `id` | `g01`... |
+| `split` | `dev` (choosing the grouping threshold) or `test` |
+| `answerable` | Whether a ticket answers it (false for the decoys) |
+| `asked` | Questions put to the assistant; those it can't answer are the gaps |
+| `held_out` | Paraphrases never shown to the analysis, each with `key_facts`, asked before and after publishing |
+| `sources` | The tickets that answer it |
+| `draft_facts` | Facts a good article states (each a list of acceptable phrasings) |
+| `outdated` | Phrases that must not reach an article |
+
+Fields of a ticket: `id`, `topic` (or null for a distractor), `subject`, `customer`,
+`email`, `message`, `reply`. `tests/test_gap_evaluation.py` checks that every key fact
+is in its topic's source replies, that the documents don't already contain the
+answers, and that held-out questions aren't copies of asked ones. Everything is
+synthetic, written for this project in November 2026.

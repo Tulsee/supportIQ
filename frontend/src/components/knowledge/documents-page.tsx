@@ -1,7 +1,7 @@
 "use client";
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { BookOpenIcon, ScanSearchIcon } from "lucide-react";
+import { BookOpenIcon, FileQuestionIcon, ScanSearchIcon } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -81,6 +81,14 @@ export function DocumentsPage() {
       ),
   });
   const openContradictions = contradictions.data?.open ?? 0;
+  const gaps = useQuery({
+    queryKey: queryKeys.gapSummary(organization.id),
+    queryFn: () =>
+      unwrap(
+        api.GET("/api/v1/knowledge/gaps/summary", { params: { header: tenant(organization.id) } }),
+      ),
+  });
+  const openGaps = gaps.data?.open ?? 0;
 
   return (
     <>
@@ -95,6 +103,16 @@ export function DocumentsPage() {
               {openContradictions ? (
                 <Badge variant="destructive" className="ml-1 tabular-nums">
                   {openContradictions}
+                  <span className="sr-only"> open</span>
+                </Badge>
+              ) : null}
+            </Button>
+            <Button variant="outline" render={<Link href="/knowledge-base/gaps" />}>
+              <FileQuestionIcon aria-hidden />
+              Gaps
+              {openGaps ? (
+                <Badge variant="secondary" className="ml-1 tabular-nums">
+                  {openGaps}
                   <span className="sr-only"> open</span>
                 </Badge>
               ) : null}

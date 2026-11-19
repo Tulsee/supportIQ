@@ -57,6 +57,7 @@ export const AUDIT_ENTITY_LABELS = {
   agent: "Agents",
   routing_rule: "Routing rules",
   contradiction: "Contradictions",
+  knowledge_gap: "Knowledge gaps",
 } as const;
 
 export type AuditEntityType = keyof typeof AUDIT_ENTITY_LABELS;

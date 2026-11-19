@@ -51,11 +51,13 @@ from app.websocket.presence import PresenceTracker, RedisPresence
 from app.workers.heartbeat import RedisWorkerRegistry, WorkerRegistry
 from app.workers.queue import (
     CeleryContradictionQueue,
+    CeleryGapQueue,
     CeleryIngestionQueue,
     CeleryNotificationMailer,
     CeleryRoutingQueue,
     CeleryTriageQueue,
     ContradictionQueue,
+    GapQueue,
     IngestionQueue,
     NotificationMailer,
     RoutingQueue,
@@ -99,6 +101,10 @@ def get_contradiction_queue() -> ContradictionQueue:
     return CeleryContradictionQueue()
 
 
+def get_gap_queue() -> GapQueue:
+    return CeleryGapQueue()
+
+
 def get_notification_mailer() -> NotificationMailer:
     return CeleryNotificationMailer()
 
@@ -140,6 +146,7 @@ NotificationMailerDep = Annotated[NotificationMailer, Depends(get_notification_m
 RoutingQueueDep = Annotated[RoutingQueue, Depends(get_routing_queue)]
 TriageQueueDep = Annotated[TriageQueue, Depends(get_triage_queue)]
 ContradictionQueueDep = Annotated[ContradictionQueue, Depends(get_contradiction_queue)]
+GapQueueDep = Annotated[GapQueue, Depends(get_gap_queue)]
 WorkerRegistryDep = Annotated[WorkerRegistry, Depends(get_worker_registry)]
 EmbedderDep = Annotated[Embedder, Depends(get_embedder_dep)]
 RerankerDep = Annotated[Reranker, Depends(get_reranker_dep)]

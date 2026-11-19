@@ -40,6 +40,15 @@ from app.models.document import (
     DocumentVisibility,
 )
 from app.models.invitation import OrganizationInvitation
+from app.models.knowledge_gap import (
+    DraftStatus,
+    GapJobKind,
+    GapJobStatus,
+    GapStatus,
+    KnowledgeGap,
+    KnowledgeGapJob,
+    KnowledgeGapQuestion,
+)
 from app.models.notification import (
     AuditLogEntry,
     Notification,
@@ -122,9 +131,16 @@ __all__ = [
     "DocumentChunk",
     "DocumentStatus",
     "DocumentVisibility",
+    "DraftStatus",
     "EvidenceAssessment",
     "FeedbackRating",
     "FindingStatus",
+    "GapJobKind",
+    "GapJobStatus",
+    "GapStatus",
+    "KnowledgeGap",
+    "KnowledgeGapJob",
+    "KnowledgeGapQuestion",
     "MessageAuthorType",
     "Notification",
     "NotificationDelivery",

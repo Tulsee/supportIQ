@@ -310,6 +310,11 @@ export function AnalyticsPage() {
               ) : (
                 <p className="text-sm text-muted-foreground">None in this period.</p>
               )}
+              <p className="text-sm">
+                <Link href="/knowledge-base/gaps" className="hover:underline">
+                  Group them into gaps and draft articles from resolved tickets →
+                </Link>
+              </p>
             </ChartCard>
           </div>
         </div>

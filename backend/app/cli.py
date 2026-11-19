@@ -10,6 +10,7 @@
     uv run python -m app.cli evaluate-triage --name t1-t4
     uv run python -m app.cli evaluate-contradictions --name c1-c3
     uv run python -m app.cli evaluate-self-service --name s1-s3
+    uv run python -m app.cli evaluate-gaps --name g1-g3
 
 Super admin can only be bootstrapped here (there is no API to grant it from
 scratch); afterwards super admins can manage each other via /api/v1/admin.
@@ -338,6 +339,104 @@ async def _evaluate_self_service(args: argparse.Namespace) -> int:
     (results / f"{stem}.md").write_text(evaluation.markdown(report), encoding="utf-8")
     print(evaluation.markdown(report))
     print(f"Wrote {results / stem}.md and .json")
+    return 0
+
+
+async def _evaluate_gaps(args: argparse.Namespace) -> int:
+    """Experiments G1-G3: knowledge gaps to articles."""
+    import re
+    from datetime import datetime
+
+    from ai_engine.evaluation.dataset import load_dataset
+    from app.core.config import settings
+    from app.core.knowledge import (
+        get_embedder,
+        get_nli_model,
+        get_reranker,
+        new_qdrant_client,
+        vector_store_for,
+    )
+    from app.core.llm import build_llm_client
+    from app.core.storage import get_object_storage
+    from app.evaluation import gaps as evaluation
+    from app.evaluation.report import _environment
+    from app.evaluation.runner import EvaluationError, EvaluationRunner
+    from app.services.ingestion import IngestionLimits
+
+    topics = evaluation.load_topics(args.folder / "topics_v1.jsonl")
+    tickets = evaluation.load_tickets(args.folder / "tickets_v1.jsonl")
+    regression = []
+    if args.regression:
+        regression = [q for q in load_dataset(args.dataset).questions if q.split == "test"]
+    real = build_llm_client(settings.model_copy(update={"ollama_seed": args.seed}))
+    status = await real.status()
+    model_name = str(getattr(real, "model", "model"))
+    slug = re.sub(r"[^a-z0-9]+", "-", model_name.lower()).strip("-")
+    results = REPO_ROOT / "experiments" / "results"
+    llm = evaluation.CachingLLM(real, args.cache or results / f"gap-replies-{slug}.jsonl")
+    if not status.available:
+        print(
+            f"The model isn't ready ({status.detail}); using cached replies only.", file=sys.stderr
+        )
+
+    embedder = get_embedder()
+    qdrant = new_qdrant_client()
+    started = datetime.now().astimezone()
+    try:
+        async with SessionLocal() as session:
+            vectors = vector_store_for(qdrant, embedder)
+            storage = get_object_storage()
+            limits = IngestionLimits.from_settings()
+            runner = EvaluationRunner(
+                session,
+                storage=storage,
+                embedder=embedder,
+                vector_store=vectors,
+                reranker=get_reranker(),
+                llm=llm,  # type: ignore[arg-type]
+                limits=limits,
+            )
+            try:
+                workspace = await runner.prepare(
+                    args.documents, slug="eval-knowledge-gaps", share_with=args.share_with
+                )
+            except EvaluationError as exc:
+                print(exc, file=sys.stderr)
+                return 1
+            run = evaluation.GapRun(
+                workspace=workspace,
+                session=session,
+                llm=llm,  # type: ignore[arg-type]
+                embedder=embedder,
+                vectors=vectors,
+                reranker=get_reranker(),
+                storage=storage,
+                limits=limits,
+                nli=get_nli_model(),
+                progress=lambda line: print(line, flush=True),
+            )
+            report = await evaluation.run_experiment(
+                run,
+                topics,
+                tickets,
+                cluster_similarity=args.cluster_similarity,
+                regression=regression,
+            )
+    finally:
+        await qdrant.close()
+    report.update(
+        {
+            "name": args.name,
+            "model": model_name,
+            "embedding_model": embedder.model_name,
+            "seed": args.seed,
+            "cache": {"hits": llm.hits, "misses": llm.misses},
+            "environment": _environment(),
+            "duration_s": round((datetime.now().astimezone() - started).total_seconds()),
+        }
+    )
+    json_path, md_path = evaluation.write(report, results, args.name)
+    print(f"Wrote {json_path} and {md_path}")
     return 0
 
 
@@ -692,6 +791,8 @@ async def _run(args: argparse.Namespace) -> int:
             return await _evaluate(args)
         if args.command == "evaluate-self-service":
             return await _evaluate_self_service(args)
+        if args.command == "evaluate-gaps":
+            return await _evaluate_gaps(args)
         if args.command == "evaluate-contradictions":
             return await _evaluate_contradictions(args)
         if args.command == "evaluate-triage":
@@ -826,6 +927,36 @@ def main(argv: list[str] | None = None) -> int:
     customer.add_argument("--name", default="s1-s3", help="Name for the results files")
     customer.add_argument("--cache", type=Path, help="The replies cache (JSON lines)")
     customer.add_argument("--seed", type=int, default=42, help="Ollama sampling seed")
+    gaps = commands.add_parser(
+        "evaluate-gaps", help="Experiments G1-G3: knowledge gaps to articles"
+    )
+    gaps.add_argument(
+        "--folder",
+        type=Path,
+        default=REPO_ROOT / "datasets" / "knowledge_gaps",
+        help="topics_v1.jsonl and tickets_v1.jsonl",
+    )
+    gaps.add_argument(
+        "--documents", type=Path, default=REPO_ROOT / "datasets" / "sample_documents" / "quillon"
+    )
+    gaps.add_argument(
+        "--dataset",
+        type=Path,
+        default=REPO_ROOT / "datasets" / "evaluation_questions" / "quillon_support_v1.jsonl",
+        help="The benchmark asked before and after publishing with --regression",
+    )
+    gaps.add_argument(
+        "--regression", action="store_true", help="Also ask the benchmark's test split twice"
+    )
+    gaps.add_argument(
+        "--cluster-similarity",
+        type=float,
+        help="Grouping threshold for the live analysis (default: the one chosen on dev)",
+    )
+    gaps.add_argument("--name", default="g1-g3", help="Name for the results files")
+    gaps.add_argument("--cache", type=Path, help="The model replies cache (JSON lines)")
+    gaps.add_argument("--share-with", help="Add this user to the evaluation organization")
+    gaps.add_argument("--seed", type=int, default=42, help="Ollama sampling seed")
     scan = commands.add_parser(
         "evaluate-contradictions",
         help="Experiments C1-C3: the contradiction scanner on the planted conflicts",

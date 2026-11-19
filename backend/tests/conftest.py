@@ -43,6 +43,7 @@ from app.api.deps import (
     get_contradiction_queue,
     get_embedder_dep,
     get_event_broker,
+    get_gap_queue,
     get_ingestion_queue,
     get_llm_client_dep,
     get_local_llm_client_dep,
@@ -69,6 +70,7 @@ from tests.factories import (
     TEST_INGESTION_LIMITS,
     Outbox,
     RecordingContradictionQueue,
+    RecordingGapQueue,
     RecordingMailer,
     RecordingQueue,
     RecordingRoutingQueue,
@@ -230,6 +232,11 @@ def contradiction_queue() -> RecordingContradictionQueue:
 
 
 @pytest.fixture
+def gap_queue() -> RecordingGapQueue:
+    return RecordingGapQueue()
+
+
+@pytest.fixture
 def worker_registry() -> StaticWorkerRegistry:
     return StaticWorkerRegistry(count=1)
 
@@ -298,6 +305,7 @@ def make_client(
     routing_queue: RecordingRoutingQueue,
     triage_queue: RecordingTriageQueue,
     contradiction_queue: RecordingContradictionQueue,
+    gap_queue: RecordingGapQueue,
     worker_registry: StaticWorkerRegistry,
     reranker: OverlapReranker,
     llm: ScriptedLLM,
@@ -332,6 +340,7 @@ def make_client(
             get_routing_queue: lambda: routing_queue,
             get_triage_queue: lambda: triage_queue,
             get_contradiction_queue: lambda: contradiction_queue,
+            get_gap_queue: lambda: gap_queue,
             get_worker_registry: lambda: worker_registry,
             get_reranker_dep: lambda: reranker,
             get_llm_client_dep: lambda: llm,

@@ -3,8 +3,9 @@
 **Status:** implemented (Module 13, first part, in the
 [implementation plan](../../IMPLEMENTATION_PLAN.MD#157-module-13---knowledge-base-quality-loop),
 17 November 2026). Evaluated in the [C1-C3 report](../../experiments/reports/contradictions-c1-c3.md).
-The other two parts of Module 13 (turning knowledge gaps into articles, and document
-owners with review dates) are not built yet.
+The second part, [knowledge gaps to articles](knowledge-gaps.md), reuses the judge to
+check drafts against the knowledge base. Document owners with review dates (the third
+part) aren't built yet.
 
 In the [answer evaluation](../../experiments/reports/quillon-v1-evaluation.md), documents
 that contradict each other were the most common reason for an escalation: the assistant

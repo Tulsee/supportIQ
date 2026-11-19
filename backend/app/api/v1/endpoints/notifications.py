@@ -94,6 +94,7 @@ EntityType = Literal[
     "agent",
     "routing_rule",
     "contradiction",
+    "knowledge_gap",
 ]
 
 
