@@ -35,10 +35,10 @@ class Clock:
 def clock(monkeypatch: pytest.MonkeyPatch) -> Clock:
     clock = Clock()
     monkeypatch.setattr("app.services.sla_clocks.utcnow", lambda: clock.now)
-    # The report's window: the week of Sunday 15 November.
+    # The report's window: the week of Sunday 15 November, read at the test's time.
     monkeypatch.setattr(
         "app.services.analytics._window",
-        lambda days: {"since": datetime(2026, 11, 15, tzinfo=UTC)},
+        lambda days: {"since": datetime(2026, 11, 15, tzinfo=UTC), "now": clock.now},
     )
     return clock
 

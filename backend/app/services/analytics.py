@@ -13,6 +13,7 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.security import utcnow
 from app.domain.business_time import business_minutes_between, calendar_from_snapshot
 from app.models import DEFAULT_MAX_ACTIVE_TICKETS, OrganizationMember
 from app.schemas.organizations import OrganizationSettings
@@ -90,7 +91,7 @@ _SLA = text(
     WITH c AS (
       SELECT kind, cycle, state, met_at, due_at,
         (breached_at IS NOT NULL OR (met_at IS NOT NULL AND met_at > due_at)
-         OR (met_at IS NULL AND state = 'running' AND due_at <= now())) AS past_due
+         OR (met_at IS NULL AND state = 'running' AND due_at <= :now)) AS past_due
       FROM ticket_sla_clocks
       WHERE organization_id = :org AND started_at >= :since
     )
@@ -271,7 +272,7 @@ _SLA_BY = """
     WITH c AS (
       SELECT k.kind, k.state, k.met_at, t.{column} AS key,
         (k.breached_at IS NOT NULL OR (k.met_at IS NOT NULL AND k.met_at > k.due_at)
-         OR (k.met_at IS NULL AND k.state = 'running' AND k.due_at <= now())) AS past_due
+         OR (k.met_at IS NULL AND k.state = 'running' AND k.due_at <= :now)) AS past_due
       FROM ticket_sla_clocks k JOIN tickets t ON t.id = k.ticket_id
       WHERE k.organization_id = :org AND k.started_at >= :since AND k.cycle = 1
     )
@@ -423,8 +424,12 @@ def _minutes(value: timedelta | None) -> float | None:
 
 
 def _window(days: int) -> dict[str, Any]:
-    since_day = datetime.now(UTC).date() - timedelta(days=days - 1)
-    return {"since": datetime.combine(since_day, datetime.min.time(), tzinfo=UTC)}
+    """The report's period (the last ``days`` days, today included) and its moment:
+    deadlines are compared with ``now`` taken once here, not with the database's clock,
+    so one report is one consistent moment (and a test can fix it)."""
+    now = utcnow()
+    since_day = now.date() - timedelta(days=days - 1)
+    return {"since": datetime.combine(since_day, datetime.min.time(), tzinfo=UTC), "now": now}
 
 
 def _days(params: dict[str, Any], days: int) -> list[date]:

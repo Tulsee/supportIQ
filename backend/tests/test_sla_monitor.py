@@ -215,8 +215,15 @@ async def test_a_late_run_records_the_breach_without_a_due_soon_alert(
 
 
 async def test_analytics_report_compliance(
-    api: httpx2.AsyncClient, ws: Workspace, sla: None, db_session: AsyncSession
+    api: httpx2.AsyncClient,
+    ws: Workspace,
+    sla: None,
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    # The report is read just after the monitor ran, not at the real time: the clocks
+    # started on 16 November, and their resolution deadlines are days later.
+    monkeypatch.setattr("app.services.analytics.utcnow", lambda: at(2026, 11, 16, 13, 10))
     breached = await create_ticket(api, ws.customer, ws.org_id, subject="Overdue")
     await create_ticket(api, ws.customer, ws.org_id, subject="Still in time")
     await evaluate_sla_clocks(db_session, now=at(2026, 11, 16, 13, 5))
