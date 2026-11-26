@@ -140,6 +140,81 @@ def test_verified_statements_make_the_body_and_failures_are_kept_but_left_out() 
     ]
 
 
+def test_digits_in_a_name_are_a_name_not_a_quantity() -> None:
+    text = "The Q3's 5,400 Mbps, Wi-Fi 6E, 1080p video, $8.95, the Q35 and firmware v2.0"
+    assert draft.numbers_in(text) == {"5400", "6", "1080", "8.95"}
+    assert draft.codes_in(text) == {"q3", "q35", "v2"}
+
+
+def test_a_name_with_digits_must_be_in_its_ticket_and_a_quantity_in_its_quote() -> None:
+    parsed = draft.parse(
+        reply(
+            [
+                # The quote doesn't name the router, but the ticket does (its subject).
+                {
+                    "text": "The Q3 supports up to 20 rules.",
+                    "ticket": 12,
+                    "quote": "You can add up to 20 rules.",
+                },
+                # A product the ticket never mentions.
+                {
+                    "text": "The QC2 supports up to 20 rules.",
+                    "ticket": 12,
+                    "quote": "You can add up to 20 rules.",
+                },
+                # A quantity must still come from the quote, not from elsewhere in the ticket.
+                {
+                    "text": "Forward port 25565 for a game server.",
+                    "ticket": 12,
+                    "quote": "tap Add rule",
+                },
+                # The name is checked against the statement's own ticket only.
+                {
+                    "text": "On the Q3, new rules apply within a minute.",
+                    "ticket": 15,
+                    "quote": "new port forwarding rules apply within a minute",
+                },
+            ]
+        )
+    )
+    assert parsed is not None
+    checked = draft.verify(parsed, TICKETS, PRIVATE)
+    assert [s.numbers_ok for s in checked.statements] == [True, False, False, False]
+    assert checked.body() == "The Q3 supports up to 20 rules."
+
+
+def test_a_statement_its_own_quote_contradicts_is_left_out() -> None:
+    parsed = draft.parse(
+        reply(
+            [
+                {
+                    "text": "New rules apply within a minute, without a restart.",
+                    "ticket": 15,
+                    "quote": "new port forwarding rules apply within a minute",
+                },
+                # "I'll find out" turned into an answer on the way into the article.
+                {
+                    "text": "Port forwarding needs a restart.",
+                    "ticket": 15,
+                    "quote": "No restart is needed",
+                },
+            ]
+        )
+    )
+    assert parsed is not None
+    checked = draft.verify(parsed, TICKETS, PRIVATE)
+    assert draft.quote_pairs(checked) == [
+        ("new port forwarding rules apply within a minute", checked.statements[0].text),
+        ("No restart is needed", "Port forwarding needs a restart."),
+    ]
+    marked = draft.mark_contradicted(checked, [0.02, 0.97], threshold=0.5)
+    kept, turned = marked.statements
+    assert kept.included and not kept.contradicted
+    assert turned.problems == ["quote_contradicts"] and not turned.included
+    assert turned.to_json()["contradicted"] is True
+    assert marked.body() == "New rules apply within a minute, without a restart."
+
+
 def test_not_answered_has_no_statements_and_bad_json_is_none() -> None:
     parsed = draft.parse(reply([{"text": "x", "ticket": 1, "quote": "y"}], verdict="not_answered"))
     assert parsed is not None and parsed.statements == () and parsed.body() == ""

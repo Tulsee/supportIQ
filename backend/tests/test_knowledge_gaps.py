@@ -14,6 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ai_engine.contradictions import judge
+from ai_engine.evidence.nli import NliScores
 from ai_engine.gaps import draft as drafting
 from ai_engine.generation.llm import LLMError, Prompt
 from app.models import KnowledgeGap, KnowledgeGapJob
@@ -374,6 +375,45 @@ async def test_a_draft_that_contradicts_the_knowledge_base_leaves_its_side_out(
     [found] = draft["conflicts"]
     assert found["document_title"] == "Returns" and found["quote_draft"] == outdated
     assert [s["problems"] for s in draft["statements"]] == [[], ["conflict"]]
+
+
+class TurnedAroundNli:
+    """Contradiction only for the statement that turns its quote around."""
+
+    model_name = "test/turned-around"
+
+    def score(self, pairs: list[tuple[str, str]]) -> list[NliScores]:
+        assert len(pairs) == 1, "scored one pair at a time (batches shift the scores)"
+        return [
+            NliScores(0.0, 0.1, 0.9)
+            if "does not support IPv6" in statement
+            else NliScores(0.9, 0.1, 0.0)
+            for _, statement in pairs
+        ]
+
+
+async def test_a_statement_its_own_quote_contradicts_is_left_out(
+    api, ws, port_gap, llm, db_session, gap_queue, embedder, vector_store
+) -> None:
+    promise = "I've asked our engineering team about IPv6 and I'll get back to you."
+    await resolved_ticket(
+        api,
+        ws,
+        subject="Port forwarding on my Q3 router",
+        message="How do I set up port forwarding on my Q3 router? Does it support IPv6?",
+        answer=f"{STEPS} {promise}",
+    )
+    llm.reply = scripted(
+        [GOOD, {"text": "The Q3 does not support IPv6.", "ticket": 1, "quote": promise}]
+    )
+
+    await start(api, ws, f"/{port_gap}/drafts")
+    job = await run_last(db_session, gap_queue, llm, embedder, vector_store, nli=TurnedAroundNli())
+
+    assert job.status == "finished", job.error
+    draft = (await gap(api, ws, port_gap))["draft"]
+    assert draft["status"] == "drafted" and draft["body"] == STEPS
+    assert [s["problems"] for s in draft["statements"]] == [[], ["quote_contradicts"]]
 
 
 async def test_without_sources_nothing_is_drafted_and_failures_are_recorded(

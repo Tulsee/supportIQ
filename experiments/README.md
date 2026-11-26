@@ -124,4 +124,5 @@ McNemar). It also rechecks each gap as the product does and, with `--regression`
 the benchmark's test split before and after. Every model reply is cached in
 `results/gap-replies-<model>.jsonl`, keyed by the exact prompt, so a rerun replays it.
 The write-up, with every draft and every held-out answer checked by hand, is
-[`reports/knowledge-gaps-g1-g3.md`](reports/knowledge-gaps-g1-g3.md).
+[`reports/knowledge-gaps-g1-g3.md`](reports/knowledge-gaps-g1-g3.md). It covers the first
+run and two more with the fixes it led to (`--name g1-g3-fixes`, `--name g1-g3-nli`).

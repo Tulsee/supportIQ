@@ -1,0 +1,2537 @@
+{
+  "started_at": "2026-11-26T06:46:21.209722+00:00",
+  "g0": {
+    "asked": 34,
+    "unanswered": 30,
+    "by_status": {
+      "abstained": 30,
+      "answered": 4
+    },
+    "answered_questions": [
+      {
+        "topic": "g03",
+        "question": "Is there a website that shows Quillon outages?",
+        "status": "answered",
+        "text": "Yes, if many customers are affected by an outage, updates are posted on the Quillon status page [1]."
+      },
+      {
+        "topic": "g06",
+        "question": "I want to keep my internet provider's router. Can the Q3 work behind it?",
+        "status": "answered",
+        "text": "Yes, the Q3 can work behind your internet provider's router because you must plug the Ethernet cable from your modem into the yellow WAN port of the Q3 [4]."
+      },
+      {
+        "topic": "g07",
+        "question": "What should I do before giving my router to someone else?",
+        "status": "answered",
+        "text": "To prepare the router for transfer, you can restore factory settings by pressing and holding the recessed reset button on the back with a paperclip for 10 seconds until the light pulses blue [2]. This will erase your Wi-Fi name, password, guest network, and parental controls. However, the documents do not state whether this is required or recommended before giving the router to someone else."
+      },
+      {
+        "topic": "g10",
+        "question": "Which Wi-Fi standard does the Q3 support?",
+        "status": "answered",
+        "text": "The Q3 supports WPA3 encryption by default and can be configured to use WPA2 compatibility mode for older devices [1]. The passages do not specify which Wi-Fi frequency bands (e.g., 2.4 GHz or 5 GHz) the Q3 router supports."
+      }
+    ]
+  },
+  "g1": {
+    "sweep": {
+      "dev": [
+        {
+          "threshold": 0.5,
+          "pairs_precision": 0.1728,
+          "pairs_recall": 1.0,
+          "pairs_f1": 0.2947,
+          "bcubed_f1": 0.5248,
+          "clusters": 2,
+          "topics": 6,
+          "questions": 16
+        },
+        {
+          "threshold": 0.55,
+          "pairs_precision": 0.2745,
+          "pairs_recall": 1.0,
+          "pairs_f1": 0.4308,
+          "bcubed_f1": 0.6992,
+          "clusters": 3,
+          "topics": 6,
+          "questions": 16
+        },
+        {
+          "threshold": 0.6,
+          "pairs_precision": 0.3333,
+          "pairs_recall": 0.7143,
+          "pairs_f1": 0.4545,
+          "bcubed_f1": 0.6944,
+          "clusters": 4,
+          "topics": 6,
+          "questions": 16
+        },
+        {
+          "threshold": 0.65,
+          "pairs_precision": 0.3333,
+          "pairs_recall": 0.7143,
+          "pairs_f1": 0.4545,
+          "bcubed_f1": 0.6944,
+          "clusters": 4,
+          "topics": 6,
+          "questions": 16
+        },
+        {
+          "threshold": 0.7,
+          "pairs_precision": 0.5,
+          "pairs_recall": 0.7143,
+          "pairs_f1": 0.5882,
+          "bcubed_f1": 0.7706,
+          "clusters": 5,
+          "topics": 6,
+          "questions": 16
+        },
+        {
+          "threshold": 0.75,
+          "pairs_precision": 0.8333,
+          "pairs_recall": 0.7143,
+          "pairs_f1": 0.7692,
+          "bcubed_f1": 0.873,
+          "clusters": 7,
+          "topics": 6,
+          "questions": 16
+        },
+        {
+          "threshold": 0.8,
+          "pairs_precision": 0.8,
+          "pairs_recall": 0.5714,
+          "pairs_f1": 0.6667,
+          "bcubed_f1": 0.825,
+          "clusters": 8,
+          "topics": 6,
+          "questions": 16
+        },
+        {
+          "threshold": 0.85,
+          "pairs_precision": 0.75,
+          "pairs_recall": 0.2143,
+          "pairs_f1": 0.3333,
+          "bcubed_f1": 0.6866,
+          "clusters": 12,
+          "topics": 6,
+          "questions": 16
+        },
+        {
+          "threshold": 0.9,
+          "pairs_precision": 1.0,
+          "pairs_recall": 0.0714,
+          "pairs_f1": 0.1333,
+          "bcubed_f1": 0.6087,
+          "clusters": 15,
+          "topics": 6,
+          "questions": 16
+        },
+        {
+          "threshold": 0.95,
+          "pairs_precision": 1.0,
+          "pairs_recall": 0.0714,
+          "pairs_f1": 0.1333,
+          "bcubed_f1": 0.6087,
+          "clusters": 15,
+          "topics": 6,
+          "questions": 16
+        }
+      ],
+      "test": [
+        {
+          "threshold": 0.5,
+          "pairs_precision": 0.1099,
+          "pairs_recall": 1.0,
+          "pairs_f1": 0.198,
+          "bcubed_f1": 0.2957,
+          "clusters": 1,
+          "topics": 6,
+          "questions": 14
+        },
+        {
+          "threshold": 0.55,
+          "pairs_precision": 0.186,
+          "pairs_recall": 0.8,
+          "pairs_f1": 0.3019,
+          "bcubed_f1": 0.4418,
+          "clusters": 2,
+          "topics": 6,
+          "questions": 14
+        },
+        {
+          "threshold": 0.6,
+          "pairs_precision": 0.2105,
+          "pairs_recall": 0.8,
+          "pairs_f1": 0.3333,
+          "bcubed_f1": 0.5252,
+          "clusters": 3,
+          "topics": 6,
+          "questions": 14
+        },
+        {
+          "threshold": 0.65,
+          "pairs_precision": 0.3478,
+          "pairs_recall": 0.8,
+          "pairs_f1": 0.4848,
+          "bcubed_f1": 0.6857,
+          "clusters": 4,
+          "topics": 6,
+          "questions": 14
+        },
+        {
+          "threshold": 0.7,
+          "pairs_precision": 0.4706,
+          "pairs_recall": 0.8,
+          "pairs_f1": 0.5926,
+          "bcubed_f1": 0.7706,
+          "clusters": 5,
+          "topics": 6,
+          "questions": 14
+        },
+        {
+          "threshold": 0.75,
+          "pairs_precision": 0.8571,
+          "pairs_recall": 0.6,
+          "pairs_f1": 0.7059,
+          "bcubed_f1": 0.837,
+          "clusters": 8,
+          "topics": 6,
+          "questions": 14
+        },
+        {
+          "threshold": 0.8,
+          "pairs_precision": 1.0,
+          "pairs_recall": 0.4,
+          "pairs_f1": 0.5714,
+          "bcubed_f1": 0.8,
+          "clusters": 10,
+          "topics": 6,
+          "questions": 14
+        },
+        {
+          "threshold": 0.85,
+          "pairs_precision": 1.0,
+          "pairs_recall": 0.2,
+          "pairs_f1": 0.3333,
+          "bcubed_f1": 0.7273,
+          "clusters": 12,
+          "topics": 6,
+          "questions": 14
+        },
+        {
+          "threshold": 0.9,
+          "pairs_precision": 1.0,
+          "pairs_recall": 0.1,
+          "pairs_f1": 0.1818,
+          "bcubed_f1": 0.6667,
+          "clusters": 13,
+          "topics": 6,
+          "questions": 14
+        },
+        {
+          "threshold": 0.95,
+          "pairs_precision": 1.0,
+          "pairs_recall": 0.0,
+          "pairs_f1": 0.0,
+          "bcubed_f1": 0.6,
+          "clusters": 14,
+          "topics": 6,
+          "questions": 14
+        }
+      ],
+      "all": [
+        {
+          "threshold": 0.5,
+          "pairs_precision": 0.0552,
+          "pairs_recall": 1.0,
+          "pairs_f1": 0.1046,
+          "bcubed_f1": 0.1595,
+          "clusters": 1,
+          "topics": 12,
+          "questions": 30
+        },
+        {
+          "threshold": 0.55,
+          "pairs_precision": 0.1224,
+          "pairs_recall": 0.75,
+          "pairs_f1": 0.2105,
+          "bcubed_f1": 0.4734,
+          "clusters": 4,
+          "topics": 12,
+          "questions": 30
+        },
+        {
+          "threshold": 0.6,
+          "pairs_precision": 0.1295,
+          "pairs_recall": 0.75,
+          "pairs_f1": 0.2209,
+          "bcubed_f1": 0.5097,
+          "clusters": 5,
+          "topics": 12,
+          "questions": 30
+        },
+        {
+          "threshold": 0.65,
+          "pairs_precision": 0.1748,
+          "pairs_recall": 0.75,
+          "pairs_f1": 0.2835,
+          "bcubed_f1": 0.5942,
+          "clusters": 6,
+          "topics": 12,
+          "questions": 30
+        },
+        {
+          "threshold": 0.7,
+          "pairs_precision": 0.2903,
+          "pairs_recall": 0.75,
+          "pairs_f1": 0.4186,
+          "bcubed_f1": 0.7088,
+          "clusters": 8,
+          "topics": 12,
+          "questions": 30
+        },
+        {
+          "threshold": 0.75,
+          "pairs_precision": 0.4848,
+          "pairs_recall": 0.6667,
+          "pairs_f1": 0.5614,
+          "bcubed_f1": 0.7864,
+          "clusters": 12,
+          "topics": 12,
+          "questions": 30
+        },
+        {
+          "threshold": 0.8,
+          "pairs_precision": 0.6667,
+          "pairs_recall": 0.5,
+          "pairs_f1": 0.5714,
+          "bcubed_f1": 0.7901,
+          "clusters": 17,
+          "topics": 12,
+          "questions": 30
+        },
+        {
+          "threshold": 0.85,
+          "pairs_precision": 0.8333,
+          "pairs_recall": 0.2083,
+          "pairs_f1": 0.3333,
+          "bcubed_f1": 0.7056,
+          "clusters": 24,
+          "topics": 12,
+          "questions": 30
+        },
+        {
+          "threshold": 0.9,
+          "pairs_precision": 1.0,
+          "pairs_recall": 0.0833,
+          "pairs_f1": 0.1538,
+          "bcubed_f1": 0.6364,
+          "clusters": 28,
+          "topics": 12,
+          "questions": 30
+        },
+        {
+          "threshold": 0.95,
+          "pairs_precision": 1.0,
+          "pairs_recall": 0.0417,
+          "pairs_f1": 0.08,
+          "bcubed_f1": 0.6047,
+          "clusters": 29,
+          "topics": 12,
+          "questions": 30
+        }
+      ]
+    },
+    "chosen_on_dev": 0.75,
+    "used": 0.75,
+    "live": {
+      "pairs_precision": 0.4848,
+      "pairs_recall": 0.6667,
+      "pairs_f1": 0.5614,
+      "bcubed_f1": 0.7864,
+      "clusters": 12,
+      "topics": 12,
+      "questions": 30,
+      "analysis": {
+        "questions": 30,
+        "new_questions": 30,
+        "joined": 0,
+        "gaps_created": 12,
+        "left_for_later": 0
+      },
+      "gaps": [
+        {
+          "label": "Can I add my Quillon router to the Apple Home app?",
+          "topic": "g05",
+          "questions": [
+            "Can I turn on IPv6 on my Quillon router?",
+            "Can I transfer my Quillon Secure subscription to the new owner of my router?",
+            "Does Quillon work with HomeKit?",
+            "Can I add my Quillon router to the Apple Home app?",
+            "Where is port forwarding in the Quillon Home app?"
+          ],
+          "topics": [
+            "g12",
+            "g07",
+            "g05",
+            "g05",
+            "g01"
+          ]
+        },
+        {
+          "label": "Can I open a port on my Q3 router for a game server?",
+          "topic": "g06",
+          "questions": [
+            "Does the Q3 support IPv6?",
+            "How do I turn on bridge mode on the Q3?",
+            "Can I use the Q3 in bridge mode with my own router?",
+            "Can I open a port on my Q3 router for a game server?",
+            "How do I set up port forwarding on the Q3?"
+          ],
+          "topics": [
+            "g12",
+            "g06",
+            "g06",
+            "g01",
+            "g01"
+          ]
+        },
+        {
+          "label": "Can I change the delivery address of my order?",
+          "topic": "g08",
+          "questions": [
+            "How do I update the address on an order that hasn't shipped yet?",
+            "I typed the wrong shipping address. Can it be fixed?",
+            "Can I change the delivery address of my order?"
+          ],
+          "topics": [
+            "g08",
+            "g08",
+            "g08"
+          ]
+        },
+        {
+          "label": "Can I return a Q3 I bought from an electronics store to Quillon?",
+          "topic": "g04",
+          "questions": [
+            "Does the Quillon return policy cover products bought in a shop?",
+            "I bought my camera from a retailer, not from Quillon. Where do I return it?",
+            "Can I return a Q3 I bought from an electronics store to Quillon?"
+          ],
+          "topics": [
+            "g04",
+            "g04",
+            "g04"
+          ]
+        },
+        {
+          "label": "Does the QC2 delete old recordings when the SD card fills up?",
+          "topic": "g02",
+          "questions": [
+            "How many days of video fit on a 128 GB card in the QC2?",
+            "Does the QC2 delete old recordings when the SD card fills up?",
+            "What happens when the QC2's microSD card is full?"
+          ],
+          "topics": [
+            "g02",
+            "g02",
+            "g02"
+          ]
+        },
+        {
+          "label": "How fast is the Q3's Wi-Fi?",
+          "topic": "g10",
+          "questions": [
+            "How fast is the Q3's Wi-Fi?",
+            "What is the maximum Wi-Fi speed of the Q3 router in Mbps?"
+          ],
+          "topics": [
+            "g10",
+            "g10"
+          ]
+        },
+        {
+          "label": "Is there a discount for teachers or students on Quillon products?",
+          "topic": "g09",
+          "questions": [
+            "Is there military or student pricing for Quillon Secure?",
+            "Is there a discount for teachers or students on Quillon products?"
+          ],
+          "topics": [
+            "g09",
+            "g09"
+          ]
+        },
+        {
+          "label": "What is the web address of the Quillon status page?",
+          "topic": "g03",
+          "questions": [
+            "Where is the Quillon status page?",
+            "What is the web address of the Quillon status page?"
+          ],
+          "topics": [
+            "g03",
+            "g03"
+          ]
+        },
+        {
+          "label": "Who is the CEO of Quillon?",
+          "topic": "g11",
+          "questions": [
+            "Who runs Quillon?",
+            "Who is the CEO of Quillon?"
+          ],
+          "topics": [
+            "g11",
+            "g11"
+          ]
+        },
+        {
+          "label": "Do you offer a student discount?",
+          "topic": "g09",
+          "questions": [
+            "Do you offer a student discount?"
+          ],
+          "topics": [
+            "g09"
+          ]
+        },
+        {
+          "label": "I sold my Q3. How do I remove it from my account?",
+          "topic": "g07",
+          "questions": [
+            "I sold my Q3. How do I remove it from my account?"
+          ],
+          "topics": [
+            "g07"
+          ]
+        },
+        {
+          "label": "Is the Q3 router compatible with Apple HomeKit?",
+          "topic": "g05",
+          "questions": [
+            "Is the Q3 router compatible with Apple HomeKit?"
+          ],
+          "topics": [
+            "g05"
+          ]
+        }
+      ]
+    }
+  },
+  "g2": {
+    "drafts": [
+      {
+        "gap": "Can I add my Quillon router to the Apple Home app?",
+        "topic": "g05",
+        "answerable": true,
+        "status": "drafted",
+        "verdict": "partial",
+        "title": "Quillon router features and subscriptions",
+        "body": "To transfer a Quillon Secure subscription, the customer must cancel their own subscription under Account, then Subscription. Quillon Secure subscriptions cannot be transferred to another person; the new owner must start their own subscription. Before selling or giving away a Q3 router, the buyer should open the Quillon Home app, go to Devices, select the router, and tap Remove device. After removing the device in the app, the user must perform a factory reset on the Q3 router. The Q3 does not currently support Apple HomeKit. The Q3 router works with Amazon Alexa and Google Home for voice commands.",
+        "sources": [
+          "t08",
+          "t14",
+          "t06",
+          "t04"
+        ],
+        "gold_sources": [
+          "t06"
+        ],
+        "source_hits": 1,
+        "facts": [
+          false,
+          true
+        ],
+        "outdated_in_body": [],
+        "outdated_in_statements": [],
+        "private_in_body": [],
+        "statements": [
+          {
+            "text": "To transfer a Quillon Secure subscription, the customer must cancel their own subscription under Account, then Subscription.",
+            "ticket": 8,
+            "quote": "Remember to cancel yours under Account, then Subscription, if you no longer need it.",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": false,
+            "included": true,
+            "problems": []
+          },
+          {
+            "text": "Quillon Secure subscriptions cannot be transferred to another person; the new owner must start their own subscription.",
+            "ticket": 8,
+            "quote": "Quillon Secure subscriptions can't be transferred to another person: the new owner starts their own subscription.",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": false,
+            "included": true,
+            "problems": []
+          },
+          {
+            "text": "Before selling or giving away a Q3 router, the buyer should open the Quillon Home app, go to Devices, select the router, and tap Remove device.",
+            "ticket": 8,
+            "quote": "Before you sell or give away a Q3, open the Quillon Home app, go to Devices, select the router and tap Remove device",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": false,
+            "included": true,
+            "problems": []
+          },
+          {
+            "text": "After removing the device in the app, the user must perform a factory reset on the Q3 router.",
+            "ticket": 8,
+            "quote": "then do a factory reset.",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": false,
+            "included": true,
+            "problems": []
+          },
+          {
+            "text": "The Q3 does not currently support Apple HomeKit.",
+            "ticket": 6,
+            "quote": "The Q3 doesn't support Apple HomeKit at the moment.",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": false,
+            "included": true,
+            "problems": []
+          },
+          {
+            "text": "The Q3 router works with Amazon Alexa and Google Home for voice commands.",
+            "ticket": 6,
+            "quote": "It works with Amazon Alexa and Google Home for voice commands",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": false,
+            "included": true,
+            "problems": []
+          }
+        ],
+        "conflicts": [],
+        "conflict_checks": [
+          {
+            "document_id": "24a8dedd-7762-4899-a794-2baa2ad08adc",
+            "chunk_id": "44762656-bb62-46e8-bf11-bbdaeb9ef4fa",
+            "verdict": "unrelated",
+            "flagged": false
+          },
+          {
+            "document_id": "24a8dedd-7762-4899-a794-2baa2ad08adc",
+            "chunk_id": "393367fc-7ebf-460e-b7d4-bcca7e0f6ed8",
+            "verdict": "unrelated",
+            "flagged": false
+          },
+          {
+            "document_id": "3d151139-b29d-45be-b0b8-499a72545c9f",
+            "chunk_id": "7a1aaaca-831f-4be9-a079-554404a87981",
+            "verdict": "unrelated",
+            "flagged": false
+          }
+        ],
+        "error": null,
+        "latency_ms": 196701
+      },
+      {
+        "gap": "Can I open a port on my Q3 router for a game server?",
+        "topic": "g06",
+        "answerable": true,
+        "status": "drafted",
+        "verdict": "partial",
+        "title": "Q3 IPv6 and Bridge Mode Setup",
+        "body": "The Q3 does not support IPv6. Bridge mode can be enabled on the Q3 behind another router. In bridge mode, parental controls, the guest network, and Quillon Secure malware blocking are not available. Port forwarding can be set up on the Q3 to allow a game server. To configure port forwarding, enter the external and internal port numbers and the protocol. The Q3 supports up to 20 port forwarding rules. No restart is needed for new port forwarding rules to take effect.",
+        "sources": [
+          "t14",
+          "t07",
+          "t01",
+          "t02"
+        ],
+        "gold_sources": [
+          "t07"
+        ],
+        "source_hits": 1,
+        "facts": [
+          false,
+          true
+        ],
+        "outdated_in_body": [],
+        "outdated_in_statements": [],
+        "private_in_body": [],
+        "statements": [
+          {
+            "text": "The Q3 does not support IPv6.",
+            "ticket": 14,
+            "quote": "I've asked our engineering team about IPv6 on the Q3 and I'll get back to you as soon as I hear from them.",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": false,
+            "included": true,
+            "problems": []
+          },
+          {
+            "text": "Bridge mode can be enabled on the Q3 behind another router.",
+            "ticket": 7,
+            "quote": "Yes. In the Quillon Home app, go to Settings, then Advanced, then Network mode, and choose Bridge.",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": false,
+            "included": true,
+            "problems": []
+          },
+          {
+            "text": "In bridge mode, parental controls, the guest network, and Quillon Secure malware blocking are not available.",
+            "ticket": 7,
+            "quote": "In bridge mode your satellite nodes keep working, but parental controls, the guest network and Quillon Secure malware blocking are not available, because your other router manages the network.",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": false,
+            "included": true,
+            "problems": []
+          },
+          {
+            "text": "Port forwarding can be set up on the Q3 to allow a game server.",
+            "ticket": 1,
+            "quote": "In the Quillon Home app, go to Settings, then Advanced, then Port forwarding, and tap Add rule.",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": false,
+            "included": true,
+            "problems": []
+          },
+          {
+            "text": "To configure port forwarding, enter the external and internal port numbers and the protocol.",
+            "ticket": 1,
+            "quote": "Choose the device, enter the external and internal port numbers and the protocol, and save.",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": false,
+            "included": true,
+            "problems": []
+          },
+          {
+            "text": "The Q3 supports up to 20 port forwarding rules.",
+            "ticket": 1,
+            "quote": "The Q3 supports up to 20 port forwarding rules.",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": false,
+            "included": true,
+            "problems": []
+          },
+          {
+            "text": "No restart is needed for new port forwarding rules to take effect.",
+            "ticket": 2,
+            "quote": "No restart is needed: new port forwarding rules take effect within about a minute.",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": false,
+            "included": true,
+            "problems": []
+          }
+        ],
+        "conflicts": [],
+        "conflict_checks": [
+          {
+            "document_id": "24a8dedd-7762-4899-a794-2baa2ad08adc",
+            "chunk_id": "393367fc-7ebf-460e-b7d4-bcca7e0f6ed8",
+            "verdict": "unrelated",
+            "flagged": false
+          },
+          {
+            "document_id": "24a8dedd-7762-4899-a794-2baa2ad08adc",
+            "chunk_id": "8bab2181-f586-49f3-a9f6-761c99a33ae5",
+            "verdict": "unrelated",
+            "flagged": false
+          },
+          {
+            "document_id": "24a8dedd-7762-4899-a794-2baa2ad08adc",
+            "chunk_id": "44762656-bb62-46e8-bf11-bbdaeb9ef4fa",
+            "verdict": "unrelated",
+            "flagged": false
+          }
+        ],
+        "error": null,
+        "latency_ms": 230621
+      },
+      {
+        "gap": "Can I change the delivery address of my order?",
+        "topic": "g08",
+        "answerable": true,
+        "status": "drafted",
+        "verdict": "partial",
+        "title": "Changing delivery addresses and returning store purchases",
+        "body": "You can change the delivery address yourself within 2 hours of placing the order. To change the address, go to the Quillon Home app, select Account, then Orders, tap the order, and choose Change address. If you cannot change the address yourself or after the order has shipped, contact the carrier with the tracking number from your shipping email. The Quillon warranty still applies to products bought from a retailer.",
+        "sources": [
+          "t09",
+          "t05"
+        ],
+        "gold_sources": [
+          "t09"
+        ],
+        "source_hits": 1,
+        "facts": [
+          true,
+          true
+        ],
+        "outdated_in_body": [],
+        "outdated_in_statements": [],
+        "private_in_body": [],
+        "statements": [
+          {
+            "text": "You can change the delivery address yourself within 2 hours of placing the order.",
+            "ticket": 9,
+            "quote": "You can change the delivery address yourself within 2 hours of placing the order",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": false,
+            "included": true,
+            "problems": []
+          },
+          {
+            "text": "To change the address, go to the Quillon Home app, select Account, then Orders, tap the order, and choose Change address.",
+            "ticket": 9,
+            "quote": "in the Quillon Home app, go to Account, then Orders, select the order and tap Change address",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": false,
+            "included": true,
+            "problems": []
+          },
+          {
+            "text": "If you cannot change the address yourself or after the order has shipped, contact the carrier with the tracking number from your shipping email.",
+            "ticket": 9,
+            "quote": "After that, or once the order has shipped, contact the carrier with the tracking number from your shipping email",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": false,
+            "included": true,
+            "problems": []
+          },
+          {
+            "text": "Products bought from a retailer must be returned to that retailer under their own return policy.",
+            "ticket": 5,
+            "quote": "Products bought from a retailer have to be returned to that retailer, under the retailer's own return policy",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": true,
+            "included": false,
+            "problems": [
+              "conflict"
+            ]
+          },
+          {
+            "text": "Quillon can only process returns for orders placed in the Quillon Home app or on their website.",
+            "ticket": 5,
+            "quote": "Quillon can only process returns for orders placed in the Quillon Home app or on our website",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": true,
+            "included": false,
+            "problems": [
+              "conflict"
+            ]
+          },
+          {
+            "text": "The Quillon warranty still applies to products bought from a retailer.",
+            "ticket": 5,
+            "quote": "The Quillon warranty still applies to products bought from a retailer",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": false,
+            "included": true,
+            "problems": []
+          },
+          {
+            "text": "Unopened products bought directly from Quillon can be returned within 60 days.",
+            "ticket": 5,
+            "quote": "unopened products bought directly from Quillon can be returned within 60 days",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": true,
+            "included": false,
+            "problems": [
+              "conflict"
+            ]
+          }
+        ],
+        "conflicts": [
+          {
+            "document_id": "117f9907-a8a2-4ccb-ab96-82ad51ce8109",
+            "document_title": "Returns and Refunds Policy",
+            "section": "Returning a product",
+            "chunk_id": "1a2ed99e-a226-444c-a796-7e7e4c7789ef",
+            "topic": "Return window for unopened products",
+            "quote_draft": "Unopened products bought directly from Quillon can be returned within 60 days.",
+            "quote_document": "You can return an unopened Quillon product within 30 days of delivery for a full refund.",
+            "explanation": "Passage A states the return window is 60 days, while Passage B states it is 30 days."
+          },
+          {
+            "document_id": "fb27f954-b587-4a51-8c7b-ce42092f0020",
+            "document_title": "Help Center: Frequently Asked Questions",
+            "section": "Can I return my Quillon product?",
+            "chunk_id": "122cb56e-1c23-44da-9ac2-fad2c7102890",
+            "topic": "Return eligibility for retailer products",
+            "quote_draft": "Products bought from a retailer must be returned to that retailer under their own return policy. Quillon can only process returns for orders placed in the Quillon Home app or on their website.",
+            "quote_document": "Yes. You can return any Quillon product within 60 days for a full refund, no questions asked.",
+            "explanation": "Passage A states that products bought from retailers must be returned to the retailer and Quillon cannot process them, whereas Passage B claims you can return 'any' Quillon product."
+          }
+        ],
+        "conflict_checks": [
+          {
+            "document_id": "117f9907-a8a2-4ccb-ab96-82ad51ce8109",
+            "chunk_id": "1a2ed99e-a226-444c-a796-7e7e4c7789ef",
+            "verdict": "conflict",
+            "flagged": true
+          },
+          {
+            "document_id": "fb27f954-b587-4a51-8c7b-ce42092f0020",
+            "chunk_id": "122cb56e-1c23-44da-9ac2-fad2c7102890",
+            "verdict": "conflict",
+            "flagged": true
+          },
+          {
+            "document_id": "65855d56-1014-411c-b48f-9f38bb320482",
+            "chunk_id": "286d7585-eb6b-47ef-94cb-3faf3f639f3f",
+            "verdict": "unrelated",
+            "flagged": false
+          }
+        ],
+        "error": null,
+        "latency_ms": 315584
+      },
+      {
+        "gap": "Can I return a Q3 I bought from an electronics store to Quillon?",
+        "topic": "g04",
+        "answerable": true,
+        "status": "drafted",
+        "verdict": "partial",
+        "title": "Returning products bought from retailers",
+        "body": "The Quillon warranty still applies to products bought from a retailer.",
+        "sources": [
+          "t05",
+          "t18",
+          "t04",
+          "t10"
+        ],
+        "gold_sources": [
+          "t05"
+        ],
+        "source_hits": 1,
+        "facts": [
+          true,
+          true
+        ],
+        "outdated_in_body": [],
+        "outdated_in_statements": [
+          "60 days"
+        ],
+        "private_in_body": [],
+        "statements": [
+          {
+            "text": "Products bought from a retailer must be returned to that retailer.",
+            "ticket": 5,
+            "quote": "Products bought from a retailer have to be returned to that retailer, under the retailer's own return policy.",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": true,
+            "included": false,
+            "problems": [
+              "conflict"
+            ]
+          },
+          {
+            "text": "Quillon can only process returns for orders placed in the Quillon Home app or on their website.",
+            "ticket": 5,
+            "quote": "Quillon can only process returns for orders placed in the Quillon Home app or on our website.",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": true,
+            "included": false,
+            "problems": [
+              "conflict"
+            ]
+          },
+          {
+            "text": "The Quillon warranty still applies to products bought from a retailer.",
+            "ticket": 5,
+            "quote": "The Quillon warranty still applies to products bought from a retailer.",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": false,
+            "included": true,
+            "problems": []
+          },
+          {
+            "text": "Unopened products bought directly from Quillon can be returned within 60 days.",
+            "ticket": 5,
+            "quote": "For comparison, unopened products bought directly from Quillon can be returned within 60 days.",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": true,
+            "included": false,
+            "problems": [
+              "conflict"
+            ]
+          }
+        ],
+        "conflicts": [
+          {
+            "document_id": "fb27f954-b587-4a51-8c7b-ce42092f0020",
+            "document_title": "Help Center: Frequently Asked Questions",
+            "section": "Can I return my Quillon product?",
+            "chunk_id": "122cb56e-1c23-44da-9ac2-fad2c7102890",
+            "topic": "Return eligibility for retailer products",
+            "quote_draft": "Products bought from a retailer must be returned to that retailer. Quillon can only process returns for orders placed in the Quillon Home app or on their website.",
+            "quote_document": "Yes. You can return any Quillon product within 60 days for a full refund, no questions asked.",
+            "explanation": "Passage A states Quillon cannot process returns for retailer products (requiring them to go back to the retailer), while Passage B claims any Quillon product can be returned directly with a full refund."
+          },
+          {
+            "document_id": "117f9907-a8a2-4ccb-ab96-82ad51ce8109",
+            "document_title": "Returns and Refunds Policy",
+            "section": "Returning a product",
+            "chunk_id": "1a2ed99e-a226-444c-a796-7e7e4c7789ef",
+            "topic": "Return window for unopened products",
+            "quote_draft": "Unopened products bought directly from Quillon can be returned within 60 days.",
+            "quote_document": "You can return an unopened Quillon product within 30 days of delivery for a full refund.",
+            "explanation": "Passage A states the return window is 60 days, while Passage B states it is 30 days."
+          }
+        ],
+        "conflict_checks": [
+          {
+            "document_id": "fb27f954-b587-4a51-8c7b-ce42092f0020",
+            "chunk_id": "122cb56e-1c23-44da-9ac2-fad2c7102890",
+            "verdict": "conflict",
+            "flagged": true
+          },
+          {
+            "document_id": "117f9907-a8a2-4ccb-ab96-82ad51ce8109",
+            "chunk_id": "1a2ed99e-a226-444c-a796-7e7e4c7789ef",
+            "verdict": "conflict",
+            "flagged": true
+          },
+          {
+            "document_id": "f515f911-9be7-4aa1-bb94-8b493fa97139",
+            "chunk_id": "5f58bf56-61d2-4f6c-bd8e-6d034de49e16",
+            "verdict": "unrelated",
+            "flagged": false
+          }
+        ],
+        "error": null,
+        "latency_ms": 108464
+      },
+      {
+        "gap": "Does the QC2 delete old recordings when the SD card fills up?",
+        "topic": "g02",
+        "answerable": true,
+        "status": "drafted",
+        "verdict": "answered",
+        "title": "Video storage on QC2 SD cards",
+        "body": "When the microSD card is full, the QC2 overwrites the oldest recordings first. The camera never stops recording even when the card is full. With continuous 1080p recording, a 128 GB card holds about 12 days of video. If motion detection recording is used instead, the card lasts much longer.",
+        "sources": [
+          "t03"
+        ],
+        "gold_sources": [
+          "t03"
+        ],
+        "source_hits": 1,
+        "facts": [
+          true,
+          true
+        ],
+        "outdated_in_body": [],
+        "outdated_in_statements": [],
+        "private_in_body": [],
+        "statements": [
+          {
+            "text": "When the microSD card is full, the QC2 overwrites the oldest recordings first.",
+            "ticket": 3,
+            "quote": "When the microSD card is full, the QC2 overwrites the oldest recordings first",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": false,
+            "included": true,
+            "problems": []
+          },
+          {
+            "text": "The camera never stops recording even when the card is full.",
+            "ticket": 3,
+            "quote": "so it never stops recording",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": false,
+            "included": true,
+            "problems": []
+          },
+          {
+            "text": "With continuous 1080p recording, a 128 GB card holds about 12 days of video.",
+            "ticket": 3,
+            "quote": "With continuous 1080p recording, a 128 GB card holds about 12 days of video",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": false,
+            "included": true,
+            "problems": []
+          },
+          {
+            "text": "If motion detection recording is used instead, the card lasts much longer.",
+            "ticket": 3,
+            "quote": "if you record only when motion is detected, it lasts much longer",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": false,
+            "included": true,
+            "problems": []
+          }
+        ],
+        "conflicts": [],
+        "conflict_checks": [
+          {
+            "document_id": "2adfc18c-f435-4c0d-8db2-80eb76eebbc8",
+            "chunk_id": "f7efbfb9-f98e-48d9-aede-3ac3879e8c6a",
+            "verdict": "unrelated",
+            "flagged": false
+          },
+          {
+            "document_id": "21bf2831-e504-4a66-b7f2-22690dd36803",
+            "chunk_id": "049ddb9c-8432-4fc7-aeaf-f21d69f1bdbd",
+            "verdict": "unrelated",
+            "flagged": false
+          },
+          {
+            "document_id": "2adfc18c-f435-4c0d-8db2-80eb76eebbc8",
+            "chunk_id": "ccf2e0ac-8867-460b-9a06-ac4c9e344ce8",
+            "verdict": "unrelated",
+            "flagged": false
+          }
+        ],
+        "error": null,
+        "latency_ms": 174080
+      },
+      {
+        "gap": "How fast is the Q3's Wi-Fi?",
+        "topic": "g10",
+        "answerable": true,
+        "status": "drafted",
+        "verdict": "answered",
+        "title": "Q3 Wi-Fi speed specifications",
+        "body": "The Q3 is a Wi-Fi 6E router. Its combined maximum speed across its three bands is 5400 Mbps. Real-world speeds depend on the internet plan and device distance from the router or nearest node. The Q3 can run in bridge mode behind another router if required. In bridge mode, satellite nodes continue to work. Parental controls are not available in bridge mode because the other router manages the network. The guest network is not available in bridge mode because the other router manages the network. Quillon Secure malware blocking is not available in bridge mode because the other router manages the network.",
+        "sources": [
+          "t11",
+          "t12",
+          "t07"
+        ],
+        "gold_sources": [
+          "t11",
+          "t12"
+        ],
+        "source_hits": 2,
+        "facts": [
+          true,
+          true
+        ],
+        "outdated_in_body": [],
+        "outdated_in_statements": [],
+        "private_in_body": [],
+        "statements": [
+          {
+            "text": "The Q3 is a Wi-Fi 6E router.",
+            "ticket": 11,
+            "quote": "The Q3 is a Wi-Fi 6E router",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": false,
+            "included": true,
+            "problems": []
+          },
+          {
+            "text": "Its combined maximum speed across its three bands is 5400 Mbps.",
+            "ticket": 11,
+            "quote": "The Q3 is a Wi-Fi 6E router with a combined maximum speed of 5400 Mbps across its three bands.",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": false,
+            "included": true,
+            "problems": []
+          },
+          {
+            "text": "Real-world speeds depend on the internet plan and device distance from the router or nearest node.",
+            "ticket": 11,
+            "quote": "Real-world speeds depend on your internet plan and how far your devices are from the router or the nearest node.",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": false,
+            "included": true,
+            "problems": []
+          },
+          {
+            "text": "The Q3 can run in bridge mode behind another router if required.",
+            "ticket": 7,
+            "quote": "Yes. In the Quillon Home app, go to Settings, then Advanced, then Network mode, and choose Bridge.",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": false,
+            "included": true,
+            "problems": []
+          },
+          {
+            "text": "In bridge mode, satellite nodes continue to work.",
+            "ticket": 7,
+            "quote": "In bridge mode your satellite nodes keep working",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": false,
+            "included": true,
+            "problems": []
+          },
+          {
+            "text": "Parental controls are not available in bridge mode because the other router manages the network.",
+            "ticket": 7,
+            "quote": "but parental controls, the guest network and Quillon Secure malware blocking are not available, because your other router manages the network.",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": false,
+            "included": true,
+            "problems": []
+          },
+          {
+            "text": "The guest network is not available in bridge mode because the other router manages the network.",
+            "ticket": 7,
+            "quote": "but parental controls, the guest network and Quillon Secure malware blocking are not available, because your other router manages the network.",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": false,
+            "included": true,
+            "problems": []
+          },
+          {
+            "text": "Quillon Secure malware blocking is not available in bridge mode because the other router manages the network.",
+            "ticket": 7,
+            "quote": "but parental controls, the guest network and Quillon Secure malware blocking are not available, because your other router manages the network.",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": false,
+            "included": true,
+            "problems": []
+          }
+        ],
+        "conflicts": [],
+        "conflict_checks": [
+          {
+            "document_id": "24a8dedd-7762-4899-a794-2baa2ad08adc",
+            "chunk_id": "393367fc-7ebf-460e-b7d4-bcca7e0f6ed8",
+            "verdict": "unrelated",
+            "flagged": false
+          },
+          {
+            "document_id": "24a8dedd-7762-4899-a794-2baa2ad08adc",
+            "chunk_id": "8bab2181-f586-49f3-a9f6-761c99a33ae5",
+            "verdict": "unrelated",
+            "flagged": false
+          },
+          {
+            "document_id": "24a8dedd-7762-4899-a794-2baa2ad08adc",
+            "chunk_id": "44762656-bb62-46e8-bf11-bbdaeb9ef4fa",
+            "verdict": "unrelated",
+            "flagged": false
+          }
+        ],
+        "error": null,
+        "latency_ms": 177848
+      },
+      {
+        "gap": "Is there a discount for teachers or students on Quillon products?",
+        "topic": "g09",
+        "answerable": true,
+        "status": "drafted",
+        "verdict": "answered",
+        "title": "Student and military pricing for Quillon products",
+        "body": "Quillon does not offer student, teacher, or military discounts. The best saving for Quillon Secure is annual billing, which costs the same as 10 months.",
+        "sources": [
+          "t10"
+        ],
+        "gold_sources": [
+          "t10"
+        ],
+        "source_hits": 1,
+        "facts": [
+          true
+        ],
+        "outdated_in_body": [],
+        "outdated_in_statements": [],
+        "private_in_body": [],
+        "statements": [
+          {
+            "text": "Quillon does not offer student, teacher, or military discounts.",
+            "ticket": 10,
+            "quote": "We don't offer student, teacher or military discounts at the moment.",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": false,
+            "included": true,
+            "problems": []
+          },
+          {
+            "text": "The best saving for Quillon Secure is annual billing, which costs the same as 10 months.",
+            "ticket": 10,
+            "quote": "The best saving is annual billing for Quillon Secure, which costs the same as 10 months.",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": false,
+            "included": true,
+            "problems": []
+          }
+        ],
+        "conflicts": [],
+        "conflict_checks": [
+          {
+            "document_id": "117f9907-a8a2-4ccb-ab96-82ad51ce8109",
+            "chunk_id": "adde79d7-0e98-47e4-8b0e-31fc2364ccff",
+            "verdict": "unrelated",
+            "flagged": false
+          },
+          {
+            "document_id": "3d151139-b29d-45be-b0b8-499a72545c9f",
+            "chunk_id": "7a1aaaca-831f-4be9-a079-554404a87981",
+            "verdict": "unrelated",
+            "flagged": false
+          },
+          {
+            "document_id": "65855d56-1014-411c-b48f-9f38bb320482",
+            "chunk_id": "286d7585-eb6b-47ef-94cb-3faf3f639f3f",
+            "verdict": "unrelated",
+            "flagged": false
+          }
+        ],
+        "error": null,
+        "latency_ms": 83301
+      },
+      {
+        "gap": "What is the web address of the Quillon status page?",
+        "topic": "g03",
+        "answerable": true,
+        "status": "drafted",
+        "verdict": "answered",
+        "title": "Quillon status page location and address",
+        "body": "The Quillon status page is located at status.quillon.example. The status page is updated every 5 minutes during an incident. Users can subscribe to the status page to receive email updates.",
+        "sources": [
+          "t04"
+        ],
+        "gold_sources": [
+          "t04"
+        ],
+        "source_hits": 1,
+        "facts": [
+          true,
+          true
+        ],
+        "outdated_in_body": [],
+        "outdated_in_statements": [],
+        "private_in_body": [],
+        "statements": [
+          {
+            "text": "The Quillon status page is located at status.quillon.example.",
+            "ticket": 4,
+            "quote": "You can check current outages at status.quillon.example",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": false,
+            "included": true,
+            "problems": []
+          },
+          {
+            "text": "The status page is updated every 5 minutes during an incident.",
+            "ticket": 4,
+            "quote": "which is updated every 5 minutes during an incident",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": false,
+            "included": true,
+            "problems": []
+          },
+          {
+            "text": "Users can subscribe to the status page to receive email updates.",
+            "ticket": 4,
+            "quote": "You can also subscribe there to get email updates",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": false,
+            "included": true,
+            "problems": []
+          }
+        ],
+        "conflicts": [],
+        "conflict_checks": [
+          {
+            "document_id": "52524b8e-0ac5-48d0-9578-d3eff46bc0f8",
+            "chunk_id": "4e94cead-7727-4391-957b-667ab5c9ccd1",
+            "verdict": "unrelated",
+            "flagged": false
+          },
+          {
+            "document_id": "52524b8e-0ac5-48d0-9578-d3eff46bc0f8",
+            "chunk_id": "956aee6f-b281-44a6-a36f-cd407515c6dc",
+            "verdict": "unrelated",
+            "flagged": false
+          },
+          {
+            "document_id": "3d151139-b29d-45be-b0b8-499a72545c9f",
+            "chunk_id": "7a1aaaca-831f-4be9-a079-554404a87981",
+            "verdict": "unrelated",
+            "flagged": false
+          }
+        ],
+        "error": null,
+        "latency_ms": 88840
+      },
+      {
+        "gap": "Who is the CEO of Quillon?",
+        "topic": "g11",
+        "answerable": false,
+        "status": "no_sources",
+        "verdict": null,
+        "title": null,
+        "body": "",
+        "sources": [],
+        "gold_sources": [],
+        "source_hits": 0,
+        "facts": [],
+        "outdated_in_body": [],
+        "outdated_in_statements": [],
+        "private_in_body": [],
+        "statements": [],
+        "conflicts": [],
+        "conflict_checks": [],
+        "error": null,
+        "latency_ms": 0
+      },
+      {
+        "gap": "Do you offer a student discount?",
+        "topic": "g09",
+        "answerable": true,
+        "status": "drafted",
+        "verdict": "answered",
+        "title": "Student discount availability",
+        "body": "The company does not offer student discounts. The best saving option is annual billing for Quillon Secure.",
+        "sources": [
+          "t10"
+        ],
+        "gold_sources": [
+          "t10"
+        ],
+        "source_hits": 1,
+        "facts": [
+          true
+        ],
+        "outdated_in_body": [],
+        "outdated_in_statements": [],
+        "private_in_body": [],
+        "statements": [
+          {
+            "text": "The company does not offer student discounts.",
+            "ticket": 10,
+            "quote": "We don't offer student, teacher or military discounts at the moment.",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": false,
+            "included": true,
+            "problems": []
+          },
+          {
+            "text": "The best saving option is annual billing for Quillon Secure.",
+            "ticket": 10,
+            "quote": "The best saving is annual billing for Quillon Secure, which costs the same as 10 months.",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": false,
+            "included": true,
+            "problems": []
+          }
+        ],
+        "conflicts": [],
+        "conflict_checks": [
+          {
+            "document_id": "117f9907-a8a2-4ccb-ab96-82ad51ce8109",
+            "chunk_id": "adde79d7-0e98-47e4-8b0e-31fc2364ccff",
+            "verdict": "unrelated",
+            "flagged": false
+          },
+          {
+            "document_id": "3d151139-b29d-45be-b0b8-499a72545c9f",
+            "chunk_id": "7a1aaaca-831f-4be9-a079-554404a87981",
+            "verdict": "unrelated",
+            "flagged": false
+          },
+          {
+            "document_id": "f515f911-9be7-4aa1-bb94-8b493fa97139",
+            "chunk_id": "5e2cb423-40d9-4c5c-bae4-7e3003f29e06",
+            "verdict": "unrelated",
+            "flagged": false
+          }
+        ],
+        "error": null,
+        "latency_ms": 75927
+      },
+      {
+        "gap": "I sold my Q3. How do I remove it from my account?",
+        "topic": "g07",
+        "answerable": true,
+        "status": "drafted",
+        "verdict": "answered",
+        "title": "Removing and returning Q3 routers",
+        "body": "To remove a Q3 from your account, open the Quillon Home app, go to Devices, select the router, and tap Remove device. After removing the device, perform a factory reset on the router. Secure Plus subscriptions cannot be transferred to another person; the new owner must start their own subscription. Products bought from a retailer must be returned to that retailer under their own return policy. Quillon can only process returns for orders placed in the Quillon Home app or on their website. The Quillon warranty still applies to products bought from a retailer.",
+        "sources": [
+          "t08",
+          "t05"
+        ],
+        "gold_sources": [
+          "t08"
+        ],
+        "source_hits": 1,
+        "facts": [
+          true,
+          true
+        ],
+        "outdated_in_body": [],
+        "outdated_in_statements": [],
+        "private_in_body": [],
+        "statements": [
+          {
+            "text": "To remove a Q3 from your account, open the Quillon Home app, go to Devices, select the router, and tap Remove device.",
+            "ticket": 8,
+            "quote": "Before you sell or give away a Q3, open the Quillon Home app, go to Devices, select the router and tap Remove device",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": false,
+            "included": true,
+            "problems": []
+          },
+          {
+            "text": "After removing the device, perform a factory reset on the router.",
+            "ticket": 8,
+            "quote": "then do a factory reset",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": false,
+            "included": true,
+            "problems": []
+          },
+          {
+            "text": "Secure Plus subscriptions cannot be transferred to another person; the new owner must start their own subscription.",
+            "ticket": 8,
+            "quote": "Quillon Secure subscriptions can't be transferred to another person: the new owner starts their own subscription",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": false,
+            "included": true,
+            "problems": []
+          },
+          {
+            "text": "If you no longer need the subscription, cancel it under Account, then Subscription.",
+            "ticket": 8,
+            "quote": "Remember to cancel yours under Account, then Subscription, if you no longer need it.",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": true,
+            "included": false,
+            "problems": [
+              "conflict"
+            ]
+          },
+          {
+            "text": "Products bought from a retailer must be returned to that retailer under their own return policy.",
+            "ticket": 5,
+            "quote": "Products bought from a retailer have to be returned to that retailer, under the retailer's own return policy",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": false,
+            "included": true,
+            "problems": []
+          },
+          {
+            "text": "Quillon can only process returns for orders placed in the Quillon Home app or on their website.",
+            "ticket": 5,
+            "quote": "Quillon can only process returns for orders placed in the Quillon Home app or on our website",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": false,
+            "included": true,
+            "problems": []
+          },
+          {
+            "text": "The Quillon warranty still applies to products bought from a retailer.",
+            "ticket": 5,
+            "quote": "The Quillon warranty still applies to products bought from a retailer",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": false,
+            "included": true,
+            "problems": []
+          },
+          {
+            "text": "Unopened products bought directly from Quillon can be returned within 60 days.",
+            "ticket": 5,
+            "quote": "For comparison, unopened products bought directly from Quillon can be returned within 60 days.",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": true,
+            "included": false,
+            "problems": [
+              "conflict"
+            ]
+          }
+        ],
+        "conflicts": [
+          {
+            "document_id": "65855d56-1014-411c-b48f-9f38bb320482",
+            "document_title": "Quillon Secure Plans",
+            "section": "Cancelling",
+            "chunk_id": "286d7585-eb6b-47ef-94cb-3faf3f639f3f",
+            "topic": "Annual plan refund timing",
+            "quote_draft": "If you no longer need the subscription, cancel it under Account, then Subscription.",
+            "quote_document": "If you cancel an annual plan within 14 days of purchase or renewal, you get a full refund.",
+            "explanation": "Passage A implies cancellation is possible at any time without specifying conditions for refunds, while Passage B explicitly states that a full refund is only granted if the annual plan is cancelled within 14 days."
+          },
+          {
+            "document_id": "117f9907-a8a2-4ccb-ab96-82ad51ce8109",
+            "document_title": "Returns and Refunds Policy",
+            "section": "Returning a product",
+            "chunk_id": "1a2ed99e-a226-444c-a796-7e7e4c7789ef",
+            "topic": "Return window for unopened products",
+            "quote_draft": "Unopened products bought directly from Quillon can be returned within 60 days.",
+            "quote_document": "You can return an unopened Quillon product within 30 days of delivery for a full refund.",
+            "explanation": "Passage A states the return window is 60 days, while Passage B states it is 30 days."
+          }
+        ],
+        "conflict_checks": [
+          {
+            "document_id": "65855d56-1014-411c-b48f-9f38bb320482",
+            "chunk_id": "286d7585-eb6b-47ef-94cb-3faf3f639f3f",
+            "verdict": "conflict",
+            "flagged": true
+          },
+          {
+            "document_id": "117f9907-a8a2-4ccb-ab96-82ad51ce8109",
+            "chunk_id": "adde79d7-0e98-47e4-8b0e-31fc2364ccff",
+            "verdict": "unrelated",
+            "flagged": false
+          },
+          {
+            "document_id": "117f9907-a8a2-4ccb-ab96-82ad51ce8109",
+            "chunk_id": "1a2ed99e-a226-444c-a796-7e7e4c7789ef",
+            "verdict": "conflict",
+            "flagged": true
+          }
+        ],
+        "error": null,
+        "latency_ms": 165459
+      },
+      {
+        "gap": "Is the Q3 router compatible with Apple HomeKit?",
+        "topic": "g05",
+        "answerable": true,
+        "status": "drafted",
+        "verdict": "answered",
+        "title": "Q3 router HomeKit compatibility",
+        "body": "The Q3 router does not support Apple HomeKit. The Q3 works with Amazon Alexa and Google Home for voice commands.",
+        "sources": [
+          "t06",
+          "t07",
+          "t02",
+          "t05"
+        ],
+        "gold_sources": [
+          "t06"
+        ],
+        "source_hits": 1,
+        "facts": [
+          true,
+          true
+        ],
+        "outdated_in_body": [],
+        "outdated_in_statements": [],
+        "private_in_body": [],
+        "statements": [
+          {
+            "text": "The Q3 router does not support Apple HomeKit.",
+            "ticket": 6,
+            "quote": "The Q3 doesn't support Apple HomeKit at the moment.",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": false,
+            "included": true,
+            "problems": []
+          },
+          {
+            "text": "The Q3 works with Amazon Alexa and Google Home for voice commands.",
+            "ticket": 6,
+            "quote": "It works with Amazon Alexa and Google Home for voice commands, such as turning the guest network on or off.",
+            "found": true,
+            "numbers_ok": true,
+            "private": [],
+            "conflict": false,
+            "included": true,
+            "problems": []
+          }
+        ],
+        "conflicts": [],
+        "conflict_checks": [
+          {
+            "document_id": "24a8dedd-7762-4899-a794-2baa2ad08adc",
+            "chunk_id": "393367fc-7ebf-460e-b7d4-bcca7e0f6ed8",
+            "verdict": "unrelated",
+            "flagged": false
+          },
+          {
+            "document_id": "24a8dedd-7762-4899-a794-2baa2ad08adc",
+            "chunk_id": "6210000c-a405-4456-8a0b-1c64fb085a95",
+            "verdict": "unrelated",
+            "flagged": false
+          },
+          {
+            "document_id": "f66accf2-cee5-4ced-873c-1d8330f1d088",
+            "chunk_id": "19d4218d-b192-4930-bca7-b02b0d4a247e",
+            "verdict": "unrelated",
+            "flagged": false
+          }
+        ],
+        "error": null,
+        "latency_ms": 82703
+      }
+    ],
+    "summary": {
+      "gaps": 12,
+      "topics_with_a_gap": 10,
+      "answerable_drafted": {
+        "value": 1.0,
+        "successes": 9,
+        "n": 9,
+        "ci95": [
+          0.7008,
+          1.0
+        ]
+      },
+      "decoys_drafted": {
+        "value": 0.0,
+        "successes": 0,
+        "n": 1,
+        "ci95": [
+          0.0,
+          0.7935
+        ]
+      },
+      "decoy_statuses": {
+        "g11": "no_sources"
+      },
+      "source_recall": {
+        "value": 1.0,
+        "successes": 10,
+        "n": 10,
+        "ci95": [
+          0.7225,
+          1.0
+        ]
+      },
+      "source_precision": {
+        "value": 0.4545,
+        "successes": 10,
+        "n": 22,
+        "ci95": [
+          0.2692,
+          0.6534
+        ]
+      },
+      "key_facts_in_body": {
+        "value": 0.8824,
+        "successes": 15,
+        "n": 17,
+        "ci95": [
+          0.6566,
+          0.9671
+        ]
+      },
+      "drafts_with_every_fact": {
+        "value": 0.7778,
+        "successes": 7,
+        "n": 9,
+        "ci95": [
+          0.4526,
+          0.9368
+        ]
+      },
+      "statements": 53,
+      "included": 45,
+      "left_out_by": {
+        "conflict": 8
+      },
+      "private_details_in_bodies": 0,
+      "outdated_claims_in_bodies": 0,
+      "outdated_claims_in_statements": 1,
+      "conflicts_flagged": 6,
+      "conflict_checks": 33,
+      "latency_ms_median": 165459
+    }
+  },
+  "g3": {
+    "held_out": [
+      {
+        "topic": "g01",
+        "question": "I need to forward port 25565 to my PC. How do I do that on the Q3?",
+        "before": "abstained",
+        "after": "answered",
+        "correct_before": false,
+        "correct_after": false,
+        "cites_article": true,
+        "answer_after": "To configure port forwarding for port 25565, enter the external and internal port numbers along with the protocol in the app [1]. The Q3 supports up to 20 port forwarding rules, and no restart is needed for new rules to take effect [1]."
+      },
+      {
+        "topic": "g01",
+        "question": "How many port forwarding rules can the Q3 have?",
+        "before": "abstained",
+        "after": "answered",
+        "correct_before": false,
+        "correct_after": true,
+        "cites_article": true,
+        "answer_after": "The Q3 supports up to 20 port forwarding rules [1]."
+      },
+      {
+        "topic": "g02",
+        "question": "Will my QC2 stop recording once the memory card is full?",
+        "before": "abstained",
+        "after": "answered",
+        "correct_before": false,
+        "correct_after": true,
+        "cites_article": true,
+        "answer_after": "No, the camera will not stop recording even when the microSD card is full; instead, it overwrites the oldest recordings first [1]."
+      },
+      {
+        "topic": "g02",
+        "question": "How long does a 128 GB microSD card last in the QC2 with continuous recording?",
+        "before": "abstained",
+        "after": "answered",
+        "correct_before": false,
+        "correct_after": true,
+        "cites_article": true,
+        "answer_after": "With continuous 1080p recording, a 128 GB card holds about 12 days of video [1]."
+      },
+      {
+        "topic": "g03",
+        "question": "What's the URL to check whether Quillon is having an outage?",
+        "before": "abstained",
+        "after": "answered",
+        "correct_before": false,
+        "correct_after": true,
+        "cites_article": true,
+        "answer_after": "The Quillon status page is located at status.quillon.example [2]."
+      },
+      {
+        "topic": "g03",
+        "question": "How often is the Quillon status page updated during an incident?",
+        "before": "abstained",
+        "after": "answered",
+        "correct_before": false,
+        "correct_after": true,
+        "cites_article": true,
+        "answer_after": "The Quillon status page is updated every 5 minutes during an incident [1]."
+      },
+      {
+        "topic": "g04",
+        "question": "My router came from a third-party seller. Can Quillon take it back?",
+        "before": "abstained",
+        "after": "abstained",
+        "correct_before": false,
+        "correct_after": false,
+        "cites_article": false,
+        "answer_after": "I couldn't find a reliable answer to this in the knowledge base. A team member can help with it."
+      },
+      {
+        "topic": "g04",
+        "question": "Does the Quillon warranty cover a camera I bought from a retailer?",
+        "before": "answered",
+        "after": "abstained",
+        "correct_before": true,
+        "correct_after": false,
+        "cites_article": false,
+        "answer_after": "I couldn't find a reliable answer to this in the knowledge base. A team member can help with it."
+      },
+      {
+        "topic": "g05",
+        "question": "Will the Q3 show up in Apple Home on my iPhone?",
+        "before": "abstained",
+        "after": "answered",
+        "correct_before": false,
+        "correct_after": true,
+        "cites_article": true,
+        "answer_after": "The Q3 router will not show up in Apple Home because it does not support Apple HomeKit [1][2]. It is compatible with Amazon Alexa and Google Home for voice commands instead [1][2]."
+      },
+      {
+        "topic": "g05",
+        "question": "Which voice assistants work with the Q3?",
+        "before": "abstained",
+        "after": "answered",
+        "correct_before": false,
+        "correct_after": true,
+        "cites_article": true,
+        "answer_after": "The Q3 router works with Amazon Alexa and Google Home for voice commands [1][2]."
+      },
+      {
+        "topic": "g06",
+        "question": "Where is the bridge mode setting in the Quillon app?",
+        "before": "abstained",
+        "after": "abstained",
+        "correct_before": false,
+        "correct_after": false,
+        "cites_article": false,
+        "answer_after": "I couldn't find a reliable answer to this in the knowledge base. A team member can help with it."
+      },
+      {
+        "topic": "g06",
+        "question": "Do parental controls still work when the Q3 is in bridge mode?",
+        "before": "abstained",
+        "after": "answered",
+        "correct_before": false,
+        "correct_after": true,
+        "cites_article": true,
+        "answer_after": "Parental controls do not work when the Q3 is in bridge mode because the other router manages the network [1]."
+      },
+      {
+        "topic": "g07",
+        "question": "Can the buyer of my used Q3 take over my Secure plan?",
+        "before": "abstained",
+        "after": "abstained",
+        "correct_before": false,
+        "correct_after": false,
+        "cites_article": false,
+        "answer_after": "I couldn't find a reliable answer to this in the knowledge base. A team member can help with it."
+      },
+      {
+        "topic": "g07",
+        "question": "How do I unlink a router I'm selling from my Quillon account?",
+        "before": "abstained",
+        "after": "answered",
+        "correct_before": false,
+        "correct_after": true,
+        "cites_article": true,
+        "answer_after": "To unlink a router you are selling, open the Quillon Home app, go to Devices, select the router, and tap Remove device. After removing it from your account, perform a factory reset on the Q3 router [1][2]."
+      },
+      {
+        "topic": "g08",
+        "question": "My order has my old address on it. How long do I have to change where it goes?",
+        "before": "abstained",
+        "after": "answered",
+        "correct_before": false,
+        "correct_after": true,
+        "cites_article": true,
+        "answer_after": "You have 2 hours from placing the order to change the delivery address yourself through the Quillon Home app [1]. If you cannot do this or if the order has already shipped, contact the carrier using the tracking number from your shipping email [1]."
+      },
+      {
+        "topic": "g08",
+        "question": "My order already shipped to the wrong address. What now?",
+        "before": "abstained",
+        "after": "answered",
+        "correct_before": false,
+        "correct_after": true,
+        "cites_article": true,
+        "answer_after": "Since your order has already shipped, you cannot change the delivery address yourself. You must contact the carrier with your tracking number from your shipping email [1]."
+      },
+      {
+        "topic": "g09",
+        "question": "Can I get the Q3 cheaper with a student ID?",
+        "before": "abstained",
+        "after": "abstained",
+        "correct_before": false,
+        "correct_after": false,
+        "cites_article": false,
+        "answer_after": "I couldn't find a reliable answer to this in the knowledge base. A team member can help with it."
+      },
+      {
+        "topic": "g09",
+        "question": "Are there education discounts on Quillon products?",
+        "before": "abstained",
+        "after": "answered",
+        "correct_before": false,
+        "correct_after": true,
+        "cites_article": true,
+        "answer_after": "No, Quillon does not offer student or teacher discounts [1]. The best saving option is annual billing for Quillon Secure [2]."
+      },
+      {
+        "topic": "g10",
+        "question": "Is the Q3 a Wi-Fi 6 router?",
+        "before": "abstained",
+        "after": "answered",
+        "correct_before": false,
+        "correct_after": true,
+        "cites_article": true,
+        "answer_after": "The Q3 is a Wi-Fi 6E router [1]."
+      },
+      {
+        "topic": "g10",
+        "question": "What is the top speed of the Q3 in Mbps?",
+        "before": "abstained",
+        "after": "answered",
+        "correct_before": false,
+        "correct_after": true,
+        "cites_article": true,
+        "answer_after": "The combined maximum speed across the three bands is 5400 Mbps [1]."
+      },
+      {
+        "topic": "g11",
+        "question": "Who leads Quillon as chief executive?",
+        "before": "abstained",
+        "after": "abstained",
+        "correct_before": false,
+        "correct_after": false,
+        "cites_article": false,
+        "answer_after": "I couldn't find a reliable answer to this in the knowledge base. A team member can help with it."
+      },
+      {
+        "topic": "g12",
+        "question": "Is IPv6 available on the Q3?",
+        "before": "abstained",
+        "after": "answered",
+        "correct_before": false,
+        "correct_after": true,
+        "cites_article": true,
+        "answer_after": "No, the Q3 does not support IPv6 [1]."
+      }
+    ],
+    "answerable_questions": 20,
+    "answered_before": {
+      "value": 0.05,
+      "successes": 1,
+      "n": 20,
+      "ci95": [
+        0.0089,
+        0.2361
+      ]
+    },
+    "answered_after": {
+      "value": 0.75,
+      "successes": 15,
+      "n": 20,
+      "ci95": [
+        0.5313,
+        0.8881
+      ]
+    },
+    "correct_before": {
+      "value": 0.05,
+      "successes": 1,
+      "n": 20,
+      "ci95": [
+        0.0089,
+        0.2361
+      ]
+    },
+    "correct_after": {
+      "value": 0.7,
+      "successes": 14,
+      "n": 20,
+      "ci95": [
+        0.481,
+        0.8545
+      ]
+    },
+    "cite_article_after": {
+      "value": 0.75,
+      "successes": 15,
+      "n": 20,
+      "ci95": [
+        0.5313,
+        0.8881
+      ]
+    },
+    "answered_without_every_fact_after": 1,
+    "mcnemar": {
+      "only_before": 1,
+      "only_after": 14,
+      "p": 0.0009765625
+    },
+    "decoys_answered_after": 1,
+    "decoy_questions": 2,
+    "rechecks": [
+      {
+        "gap": "Can I add my Quillon router to the Apple Home app?",
+        "topic": "g05",
+        "total": 5,
+        "answered": 2,
+        "cited_article": 1,
+        "questions": [
+          {
+            "query": "Can I add my Quillon router to the Apple Home app?",
+            "before": "abstained",
+            "after": "abstained",
+            "run_id": "e0da0d18-18ec-46e8-96ac-1f5d95150a58",
+            "cited_article": false
+          },
+          {
+            "query": "Can I transfer my Quillon Secure subscription to the new owner of my router?",
+            "before": "abstained",
+            "after": "abstained",
+            "run_id": "8ef17bea-56f8-411b-8074-3b2e8ae4edb6",
+            "cited_article": false
+          },
+          {
+            "query": "Can I turn on IPv6 on my Quillon router?",
+            "before": "abstained",
+            "after": "answered",
+            "run_id": "a9400ffe-c64b-41e8-b5ba-54be3f0cae2b",
+            "cited_article": false
+          },
+          {
+            "query": "Does Quillon work with HomeKit?",
+            "before": "abstained",
+            "after": "answered",
+            "run_id": "54708d09-ee02-4e37-a5c4-77c99ae29ee3",
+            "cited_article": true
+          },
+          {
+            "query": "Where is port forwarding in the Quillon Home app?",
+            "before": "abstained",
+            "after": "abstained",
+            "run_id": "ea9e6e46-f9d3-474f-97b3-c6f12642603a",
+            "cited_article": false
+          }
+        ]
+      },
+      {
+        "gap": "Can I open a port on my Q3 router for a game server?",
+        "topic": "g06",
+        "total": 5,
+        "answered": 4,
+        "cited_article": 4,
+        "questions": [
+          {
+            "query": "Can I open a port on my Q3 router for a game server?",
+            "before": "abstained",
+            "after": "answered",
+            "run_id": "efd25de2-6fa5-4410-8868-d83ed8d8437d",
+            "cited_article": true
+          },
+          {
+            "query": "Can I use the Q3 in bridge mode with my own router?",
+            "before": "abstained",
+            "after": "answered",
+            "run_id": "43ce8606-e997-41b8-966f-f4337e1d2749",
+            "cited_article": true
+          },
+          {
+            "query": "Does the Q3 support IPv6?",
+            "before": "abstained",
+            "after": "answered",
+            "run_id": "05689e7e-30c2-400e-8e9e-4a1207c96171",
+            "cited_article": true
+          },
+          {
+            "query": "How do I set up port forwarding on the Q3?",
+            "before": "abstained",
+            "after": "answered",
+            "run_id": "438d9c0a-907d-450e-83e3-fba232e8bd08",
+            "cited_article": true
+          },
+          {
+            "query": "How do I turn on bridge mode on the Q3?",
+            "before": "abstained",
+            "after": "abstained",
+            "run_id": "ca6d6c93-15af-496c-8999-216e7604c593",
+            "cited_article": false
+          }
+        ]
+      },
+      {
+        "gap": "Can I change the delivery address of my order?",
+        "topic": "g08",
+        "total": 3,
+        "answered": 3,
+        "cited_article": 3,
+        "questions": [
+          {
+            "query": "Can I change the delivery address of my order?",
+            "before": "abstained",
+            "after": "answered",
+            "run_id": "59e5aea3-8656-4aba-b1f8-3bccd7785062",
+            "cited_article": true
+          },
+          {
+            "query": "How do I update the address on an order that hasn't shipped yet?",
+            "before": "abstained",
+            "after": "answered",
+            "run_id": "44c6da5f-4591-4124-8585-f60f4d63fba2",
+            "cited_article": true
+          },
+          {
+            "query": "I typed the wrong shipping address. Can it be fixed?",
+            "before": "abstained",
+            "after": "answered",
+            "run_id": "db7aafc2-4a5e-4d44-8f37-c7a1506ec3ec",
+            "cited_article": true
+          }
+        ]
+      },
+      {
+        "gap": "Can I return a Q3 I bought from an electronics store to Quillon?",
+        "topic": "g04",
+        "total": 3,
+        "answered": 2,
+        "cited_article": 2,
+        "questions": [
+          {
+            "query": "Can I return a Q3 I bought from an electronics store to Quillon?",
+            "before": "abstained",
+            "after": "abstained",
+            "run_id": "ada5198a-25fa-4d03-93bc-760ddb4e0f3a",
+            "cited_article": false
+          },
+          {
+            "query": "Does the Quillon return policy cover products bought in a shop?",
+            "before": "abstained",
+            "after": "answered",
+            "run_id": "b08e6cc8-e425-4cc9-98a4-ae4c28b28cef",
+            "cited_article": true
+          },
+          {
+            "query": "I bought my camera from a retailer, not from Quillon. Where do I return it?",
+            "before": "abstained",
+            "after": "answered",
+            "run_id": "132d809f-af63-41d7-b6e0-2fa9a8870433",
+            "cited_article": true
+          }
+        ]
+      },
+      {
+        "gap": "Does the QC2 delete old recordings when the SD card fills up?",
+        "topic": "g02",
+        "total": 3,
+        "answered": 3,
+        "cited_article": 3,
+        "questions": [
+          {
+            "query": "Does the QC2 delete old recordings when the SD card fills up?",
+            "before": "abstained",
+            "after": "answered",
+            "run_id": "700f45cd-4547-411b-a1b7-33f2d7953c25",
+            "cited_article": true
+          },
+          {
+            "query": "How many days of video fit on a 128 GB card in the QC2?",
+            "before": "abstained",
+            "after": "answered",
+            "run_id": "c586e489-29b6-4423-85a6-3f21ab77d22a",
+            "cited_article": true
+          },
+          {
+            "query": "What happens when the QC2's microSD card is full?",
+            "before": "abstained",
+            "after": "answered",
+            "run_id": "47474a76-b691-400a-8a06-e77cb8578c51",
+            "cited_article": true
+          }
+        ]
+      },
+      {
+        "gap": "How fast is the Q3's Wi-Fi?",
+        "topic": "g10",
+        "total": 2,
+        "answered": 2,
+        "cited_article": 2,
+        "questions": [
+          {
+            "query": "How fast is the Q3's Wi-Fi?",
+            "before": "abstained",
+            "after": "answered",
+            "run_id": "6b9137b9-dac2-440e-8bc0-69e57b0d32c6",
+            "cited_article": true
+          },
+          {
+            "query": "What is the maximum Wi-Fi speed of the Q3 router in Mbps?",
+            "before": "abstained",
+            "after": "answered",
+            "run_id": "66b8284a-1c49-411b-9f50-cb77afb13085",
+            "cited_article": true
+          }
+        ]
+      },
+      {
+        "gap": "Is there a discount for teachers or students on Quillon products?",
+        "topic": "g09",
+        "total": 2,
+        "answered": 2,
+        "cited_article": 2,
+        "questions": [
+          {
+            "query": "Is there a discount for teachers or students on Quillon products?",
+            "before": "abstained",
+            "after": "answered",
+            "run_id": "1501d3c3-992b-4373-b42c-7cbfd707d281",
+            "cited_article": true
+          },
+          {
+            "query": "Is there military or student pricing for Quillon Secure?",
+            "before": "abstained",
+            "after": "answered",
+            "run_id": "9aa92ffb-4c16-43d6-a913-99731565ed7e",
+            "cited_article": true
+          }
+        ]
+      },
+      {
+        "gap": "What is the web address of the Quillon status page?",
+        "topic": "g03",
+        "total": 2,
+        "answered": 2,
+        "cited_article": 2,
+        "questions": [
+          {
+            "query": "What is the web address of the Quillon status page?",
+            "before": "abstained",
+            "after": "answered",
+            "run_id": "5cd9ad65-5359-4ce1-9835-7c4fe073dce7",
+            "cited_article": true
+          },
+          {
+            "query": "Where is the Quillon status page?",
+            "before": "abstained",
+            "after": "answered",
+            "run_id": "0513dfb7-90df-4c6b-89db-aa01b2834c98",
+            "cited_article": true
+          }
+        ]
+      },
+      {
+        "gap": "Do you offer a student discount?",
+        "topic": "g09",
+        "total": 1,
+        "answered": 1,
+        "cited_article": 1,
+        "questions": [
+          {
+            "query": "Do you offer a student discount?",
+            "before": "abstained",
+            "after": "answered",
+            "run_id": "7e72ca54-0ff4-4189-bc84-502d4c03ab00",
+            "cited_article": true
+          }
+        ]
+      },
+      {
+        "gap": "I sold my Q3. How do I remove it from my account?",
+        "topic": "g07",
+        "total": 1,
+        "answered": 1,
+        "cited_article": 1,
+        "questions": [
+          {
+            "query": "I sold my Q3. How do I remove it from my account?",
+            "before": "abstained",
+            "after": "answered",
+            "run_id": "3598c455-09d9-4e89-b7a8-354eac8245ea",
+            "cited_article": true
+          }
+        ]
+      },
+      {
+        "gap": "Is the Q3 router compatible with Apple HomeKit?",
+        "topic": "g05",
+        "total": 1,
+        "answered": 1,
+        "cited_article": 1,
+        "questions": [
+          {
+            "query": "Is the Q3 router compatible with Apple HomeKit?",
+            "before": "abstained",
+            "after": "answered",
+            "run_id": "1220961b-1de8-46d5-96ec-1f1545e18241",
+            "cited_article": true
+          }
+        ]
+      }
+    ],
+    "recheck_answered": {
+      "value": 0.8214,
+      "successes": 23,
+      "n": 28,
+      "ci95": [
+        0.6441,
+        0.9212
+      ]
+    }
+  },
+  "regression": {
+    "questions": 29,
+    "before": {
+      "decision_accuracy": {
+        "value": 0.931,
+        "successes": 27,
+        "n": 29,
+        "ci95": [
+          0.7804,
+          0.9809
+        ]
+      },
+      "correctness": {
+        "value": 1.0,
+        "successes": 15,
+        "n": 15,
+        "ci95": [
+          0.7961,
+          1.0
+        ]
+      },
+      "unwarranted_answers": {
+        "value": 0.0,
+        "successes": 0,
+        "n": 13,
+        "ci95": [
+          0.0,
+          0.2281
+        ]
+      },
+      "coverage": {
+        "value": 0.9375,
+        "successes": 15,
+        "n": 16,
+        "ci95": [
+          0.7167,
+          0.9889
+        ]
+      }
+    },
+    "after": {
+      "decision_accuracy": {
+        "value": 0.931,
+        "successes": 27,
+        "n": 29,
+        "ci95": [
+          0.7804,
+          0.9809
+        ]
+      },
+      "correctness": {
+        "value": 1.0,
+        "successes": 16,
+        "n": 16,
+        "ci95": [
+          0.8064,
+          1.0
+        ]
+      },
+      "unwarranted_answers": {
+        "value": 0.0769,
+        "successes": 1,
+        "n": 13,
+        "ci95": [
+          0.0137,
+          0.3331
+        ]
+      },
+      "coverage": {
+        "value": 1.0,
+        "successes": 16,
+        "n": 16,
+        "ci95": [
+          0.8064,
+          1.0
+        ]
+      }
+    },
+    "changed": [
+      {
+        "id": "q004",
+        "category": "factual",
+        "expected": "answer",
+        "before": "escalated",
+        "after": "answered",
+        "correct_before": false,
+        "correct_after": true
+      },
+      {
+        "id": "q050",
+        "category": "insufficient",
+        "expected": "abstain",
+        "before": "abstained",
+        "after": "answered",
+        "correct_before": false,
+        "correct_after": true
+      }
+    ]
+  },
+  "finished_at": "2026-11-26T07:47:45.765365+00:00",
+  "name": "g1-g3-fixes",
+  "model": "qwen3.5:4b",
+  "embedding_model": "BAAI/bge-small-en-v1.5",
+  "seed": 42,
+  "cache": {
+    "hits": 90,
+    "misses": 103
+  },
+  "environment": {
+    "git": {
+      "commit": "2e1bc22359a7062c7931cefe9057d349a1b99ad7",
+      "dirty": true
+    },
+    "python": "3.12.10",
+    "platform": "Windows-11-10.0.26300-SP0",
+    "cpus": 8,
+    "packages": {
+      "fastembed": "0.9.1",
+      "onnxruntime": "1.31.1",
+      "qdrant-client": "1.20.0",
+      "anthropic": "2.8.0",
+      "httpx2": "2.16.0",
+      "sqlalchemy": "2.1.8"
+    }
+  },
+  "duration_s": 3687
+}

@@ -20,7 +20,7 @@ flowchart LR
     A -->|dismiss| D[Dismissed]
     A -->|draft| S["Source tickets<br/>linked first, then similar"]
     S --> M["Model: statements, each quoting<br/>an agent's reply"]
-    M --> C["Checks: quote found, numbers kept,<br/>no customer details, no contradiction"]
+    M --> C["Checks: quote found and not contradicted,<br/>numbers kept, no customer details,<br/>no conflict with the knowledge base"]
     C --> E[Admin edits and publishes]
     E --> P["Markdown document,<br/>indexed like any upload"]
     P --> K["Check again: ask the<br/>questions once more"]
@@ -79,7 +79,9 @@ first. The rest wait for the next one.
 
    The prompt forbids adding facts and using the customer's message as a source. It
    also forbids names, contact details, order numbers, dates of a case, greetings and
-   apologies. Questions and tickets are fenced as data.
+   apologies. A reply that says something isn't offered or supported counts as an
+   answer. A reply that only promises to find out, or is about one customer's case,
+   counts as none. Questions and tickets are fenced as data.
 3. **Checks on every statement** (`ai_engine/gaps/draft.py`, no model). A statement goes
    into the body only if it passes all of these:
    - **The quote is real.** Its quote is found in that ticket's agent replies, with the
@@ -87,6 +89,17 @@ first. The rest wait for the next one.
      rather than penalized.
    - **The numbers match.** Every number in the statement appears in its quote, so
      "within 30 days" can't become "within 60 days" on the way into the article.
+     Digits inside a name ("Q3", "QC2") aren't quantities. The name must appear in the
+     quote or anywhere in that ticket, so "the Q3" is fine when the quote says "it",
+     but "the QC3" from a ticket about the QC2 isn't.
+   - **The quote doesn't contradict it.** The NLI model (the one the answer assistant's
+     grounding check uses) scores each statement against its own quote, one pair at a
+     time, because the quantized model's scores shift with what else is in a batch. A
+     statement the quote contradicts with probability `GAP_QUOTE_CONTRADICTION` (0.5)
+     or more is left out. In the evaluation, the model turned "I've asked our engineering team
+     about IPv6" into "The Q3 does not support IPv6", and this check catches that. Only
+     contradiction counts: the small NLI model calls many faithful paraphrases
+     "neutral", so requiring entailment would reject them.
    - **Nothing identifies a person.** The statement mustn't contain any of these:
      - the names or email addresses of the tickets' customers and agents. Full names
        and emails match in any case; single name parts only capitalized, so a customer
@@ -164,13 +177,14 @@ gaps (RLS).
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `GAP_LOOKBACK_DAYS` | 90 | Window of unanswered questions |
-| `GAP_JOIN_SIMILARITY` | 0.8 | A new question joins the closest gap at this similarity or more |
-| `GAP_CLUSTER_SIMILARITY` | 0.8 | New questions are grouped at this average similarity or more |
+| `GAP_JOIN_SIMILARITY` | 0.75 | A new question joins the closest gap at this similarity or more (the grouping value; not measured separately) |
+| `GAP_CLUSTER_SIMILARITY` | 0.75 | New questions are grouped at this average similarity or more (chosen on the G1 dev topics) |
 | `GAP_MAX_NEW_QUESTIONS` | 300 | New questions grouped per analysis |
 | `GAP_TICKET_CANDIDATES` | 30 | Tickets shortlisted by the keyword search |
 | `GAP_TICKET_MIN_SIMILARITY` | 0.7 | A similar ticket must reach this similarity to one of the questions |
 | `GAP_MAX_SOURCES` | 4 | Tickets in the drafting prompt |
 | `GAP_CONFLICT_PASSAGES` | 3 | Knowledge-base passages the draft is checked against; 0 skips the check |
+| `GAP_QUOTE_CONTRADICTION` | 0.5 | A statement its own quote contradicts at this NLI probability or more is left out; 0 skips the check |
 | `GAP_RECHECK_QUESTIONS` | 10 | Questions asked again after publishing |
 
 ## API
@@ -193,20 +207,28 @@ All under `/api/v1/knowledge/gaps`, in the organization in `X-Organization-Id`.
 `uv run python -m app.cli evaluate-gaps --name g1-g3 --regression` (from `backend/`) runs
 experiments G1-G3 on `datasets/knowledge_gaps/`. The write-up is
 [`experiments/reports/knowledge-gaps-g1-g3.md`](../../experiments/reports/knowledge-gaps-g1-g3.md).
-In short:
+There were three runs. The first used the code as committed. The second and third fixed
+what the first found. In short:
 
-- **Effect:** publishing the drafts unedited made 10 of 20 held-out paraphrases correctly
-  answerable, up from 0 (checked by hand; exact McNemar p = 0.002).
-- **Safety:** no customer detail or outdated claim reached an article.
+- **Effect:** publishing the drafts unedited made held-out paraphrases correctly
+  answerable, checked by hand:
+  - 10 of 20 in the first run, up from 0;
+  - 14 of 20 with the fixes (exact McNemar p < 0.001).
+- **Safety:** no customer detail or outdated claim reached an article, and no decoy
+  question was answered in the final run.
 - **Regression:** none on the benchmark's test split.
-- **Grouping:** 0.75 was chosen on the dev topics. The defaults above are still the
-  provisional 0.8.
-- **Faults found:**
-  - the number check treats the digit in a product name ("Q3") as a number;
-  - the conflict check removes a correct statement when the knowledge-base side is the
+- **Grouping:** 0.75 was chosen on the dev topics and is now the default.
+- **What the fixes changed:**
+  - the number check treats "Q3" as a name, not a number;
+  - the prompt counts "we don't offer that" as an answer, and "I'll find out" as none;
+  - the quote-contradiction check was added after the second run. The new prompt rule
+    had led the model to turn "I'll find out about IPv6" into "The Q3 does not support
+    IPv6", which was published and then given as an answer.
+- **Still open:**
+  - the conflict check drops a correct statement when the knowledge-base side is the
     outdated FAQ;
-  - the drafting model misreads "we don't offer that" as no answer, and keeps an agent's
-    "I'll find out" as a fact.
+  - three distorted statements pass every check;
+  - the drafting model sometimes paraphrases menu paths away.
 
 ## Limitations
 

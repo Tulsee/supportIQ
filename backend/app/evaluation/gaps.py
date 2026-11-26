@@ -549,7 +549,7 @@ async def run_experiment(
     run.progress(f"G1: {len(gaps)} gaps at threshold {used} (dev choice {chosen})")
 
     # --- G2: drafting ----------------------------------------------------------------------
-    drafter = GapDrafter(run.session, run.llm, run.embedder, run.vectors)
+    drafter = GapDrafter(run.session, run.llm, run.embedder, run.vectors, nli=run.nli)
     dataset_id = {v: k for k, v in run.ticket_ids.items()}
     private = drafting.private_terms(
         [t.customer for t in tickets] + [run.workspace.user.full_name],

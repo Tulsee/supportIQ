@@ -49,6 +49,7 @@ const WHERE: Record<string, string> = {
 const PROBLEMS: Record<GapDraftStatement["problems"][number], string> = {
   quote_not_found: "its quote isn't in the ticket's agent replies",
   number_not_in_quote: "it states a number its quote doesn't",
+  quote_contradicts: "its quote says something else",
   private: "it names a customer or a reference",
   conflict: "it contradicts the knowledge base",
 };

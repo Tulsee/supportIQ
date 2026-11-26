@@ -3243,7 +3243,7 @@ export interface components {
              */
             included: boolean;
             /** Problems */
-            problems: ("quote_not_found" | "number_not_in_quote" | "private" | "conflict")[];
+            problems: ("quote_not_found" | "number_not_in_quote" | "quote_contradicts" | "private" | "conflict")[];
             /**
              * Private
              * @description Customer details found in the text.

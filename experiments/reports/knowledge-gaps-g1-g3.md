@@ -3,8 +3,16 @@
 Module 13 of the [implementation plan](../../IMPLEMENTATION_PLAN.MD#157-module-13---knowledge-base-quality-loop);
 the feature is described in [docs/features/knowledge-gaps.md](../../docs/features/knowledge-gaps.md).
 Run on 26 November 2026 with `uv run python -m app.cli evaluate-gaps --name g1-g3 --regression`.
+It was then run twice more with fixes, as `--name g1-g3-fixes` and `--name g1-g3-nli`.
 Generated output: [`results/20261126-113120-g1-g3.md`](../results/20261126-113120-g1-g3.md)
-and `.json`. The model replies are cached in `results/gap-replies-qwen3-5-4b.jsonl`.
+and `.json`, with the later runs beside it. The model replies of all three runs are
+cached in `results/gap-replies-qwen3-5-4b.jsonl`.
+
+Everything up to [Faults to fix](#faults-to-fix) is about this first run, made with the
+code as committed. Fixing those faults took two more runs, reported in
+[After the fixes](#after-the-fixes-runs-2-and-3). With the fixes, 14 of 20 held-out
+questions are correctly answerable instead of 10. The second run showed that a prompt
+change can make the model invent a fact, which led to a fourth check.
 
 ## Summary
 
@@ -22,11 +30,11 @@ and `.json`. The model replies are cached in `results/gap-replies-qwen3-5-4b.jso
   threshold on the test topics (pair F1 0.71). But grouping all 30 questions together, as
   the product does, gives a pair precision of only 0.48. Router questions from different
   topics merge: two of the 12 gaps hold questions from 3 and 4 topics. The shipped
-  defaults are still the provisional 0.8.
+  defaults were the provisional 0.8 during this run; they are now 0.75.
 - **8 of the 9 answerable topics that led a gap got a draft, and neither decoy got an
   article of its own.** (The tenth answerable topic, port forwarding, never led a gap: its
-  questions went into the router gaps.) The CEO decoy found no source ticket. The other decoy is a ticket whose agent
-  only promised to find out about IPv6. Its questions were grouped into the two router
+  questions went into the router gaps.) The CEO decoy found no source ticket. The other
+  decoy is a ticket whose agent only promised to find out about IPv6. Its questions were grouped into the two router
   gaps, and "I'll get back to you" became a statement in both published articles.
 - **Three faults explain 7 of the 10 held-out misses** (the answering model accounts for
   the other 3):
@@ -95,8 +103,8 @@ together" is what the live analysis does.
 | 0.60 | 0.45 | 0.21 | 0.80 | 0.33 | 0.53 | 0.13 / 0.75 / 0.22 | 5 |
 | 0.65 | 0.45 | 0.35 | 0.80 | 0.48 | 0.69 | 0.17 / 0.75 / 0.28 | 6 |
 | 0.70 | 0.59 | 0.47 | 0.80 | 0.59 | 0.77 | 0.29 / 0.75 / 0.42 | 8 |
-| **0.75 (chosen on dev)** | **0.77** | **0.86** | **0.60** | **0.71** | **0.84** | **0.48 / 0.67 / 0.56** | **12** |
-| 0.80 (current default) | 0.67 | 1.00 | 0.40 | 0.57 | 0.80 | 0.67 / 0.50 / 0.57 | 17 |
+| **0.75 (chosen on dev; now the default)** | **0.77** | **0.86** | **0.60** | **0.71** | **0.84** | **0.48 / 0.67 / 0.56** | **12** |
+| 0.80 (the default during run 1) | 0.67 | 1.00 | 0.40 | 0.57 | 0.80 | 0.67 / 0.50 / 0.57 | 17 |
 | 0.85 | 0.33 | 1.00 | 0.20 | 0.33 | 0.73 | 0.83 / 0.21 / 0.33 | 24 |
 | 0.90 | 0.13 | 1.00 | 0.10 | 0.18 | 0.67 | 1.00 / 0.08 / 0.15 | 28 |
 | 0.95 | 0.13 | 1.00 | 0.00 | 0.00 | 0.60 | 1.00 / 0.04 / 0.08 | 29 |
@@ -114,8 +122,10 @@ The other 10 gaps hold one topic each. Counting both kinds, three topics end up 
 gaps each: HomeKit, selling the router, and the student discount. The merged questions
 are all about the router and share its vocabulary ("Q3", "Quillon router", "the Quillon
 Home app"). The likely explanation, though it wasn't measured, is that the embedding model
-weighs that shared vocabulary more than what is being asked. In the live setting, 0.75 and 0.8 score about the same (F1 0.56 against 0.57), and 0.75 gives an
-admin 12 gaps to review instead of 17.
+weighs that shared vocabulary more than what is being asked. In the live setting, 0.75
+and 0.8 score about the same (F1 0.56 against 0.57), and 0.75 gives an admin 12 gaps to
+review instead of 17. Grouping makes no model call, so all three runs grouped
+identically.
 
 ## G2: drafting
 
@@ -282,11 +292,15 @@ A full run without the cache would take about 80 minutes. In the product:
 - **A recheck** takes up to about 5 minutes: 10 questions at about 28 s each.
 
 The generated summary's "median drafting time 59 ms" is replay time, not model time.
+Run 2 drafted every gap afresh. Its median, 165 s per gap including the conflict judge
+calls, is the real cost. The quote-contradiction check added in run 3 takes about 25 ms
+per statement.
 
 ## Faults to fix
 
 These were found by looking at this run, so any fix has to be measured in a second run,
-reported as a change made after seeing the results.
+reported as a change made after seeing the results. Items 1 and 2 are done (see the
+next section); 3 and 4 are still open.
 
 1. **The number check (bug).** Digits that are part of a word, as in Q3, QC2 or 1080p,
    are names, not quantities. Either ignore them, or check them against the whole ticket
@@ -308,11 +322,141 @@ reported as a change made after seeing the results.
      its own gap;
    - relabel q050 for the regression check, since the article answers it.
 
+## After the fixes: runs 2 and 3
+
+All of these changes were made after seeing the first run, and were measured on the
+same topics.
+
+| Run | Changes | New model calls | Output |
+| --- | --- | --- | --- |
+| 1 (`g1-g3`) | none: the code as committed (`451c443`) | 15 (the rest replayed) | [`results/20261126-113120-g1-g3.md`](../results/20261126-113120-g1-g3.md) |
+| 2 (`g1-g3-fixes`) | **The number check:** digits inside a name ("Q3", "QC2") are a name, which must appear in the quote or the ticket, not a quantity. **Two prompt rules:** a reply that says something isn't offered or supported answers the question; a reply that only promises to find out, or is about one customer's case, answers nothing. **Grouping defaults** set to 0.75 (this doesn't change the evaluation, because G1 chooses on dev each run) | 103, 61 min | [`results/20261126-133246-g1-g3-fixes.md`](../results/20261126-133246-g1-g3-fixes.md) |
+| 3 (`g1-g3-nli`) | **A fourth check:** a statement its own quote contradicts (NLI probability ≥ 0.5) is left out | 17, 11 min | [`results/20261126-135157-g1-g3-nli.md`](../results/20261126-135157-g1-g3-nli.md) |
+
+Run 3 replays run 2's drafting replies, because the prompt didn't change. So it shows
+exactly what the fourth check changes: one statement.
+
+| | Run 1 | Run 2 | Run 3 |
+| --- | --- | --- | --- |
+| Topics drafted (of the 9 that led a gap) | 8 | 9 | 9 |
+| Statements kept / written | 29 / 43 | 45 / 53 | 44 / 53 |
+| Left out: number not in quote | 5 (all wrong) | 0 | 0 |
+| Left out: conflict with the knowledge base | 9 | 8 | 8 |
+| Left out: contradicted by its own quote | | | 1 |
+| Key facts in the bodies (automatic) | 11/17 | 15/17 | 15/17 |
+| **Invented claims in an article (by hand)** | 0 | **1** | 0 |
+| Distorted statements in an article (by hand) | 0 | 3 | 3 |
+| Case promises in an article | 2 | 0 | 0 |
+| Customers' details or the outdated claim in an article | 0 | 0 | 0 |
+| Held-out questions answered | 12/20 | 15/20 | 15/20 |
+| **Held-out questions correct, by hand** | 10/20 | 14/20 | **14/20 (70%, CI 48-85%)** |
+| **Decoy questions answered (must be 0)** | 0/2 | **1/2** | **0/2** |
+| In-product recheck answered | 18/25 | 23/28 | 21/28 |
+| Benchmark test split, decision accuracy after | 27/29 | 27/29 | 27/29 |
+
+By hand, run 3 against before publishing is 14 against 0 (exact McNemar p < 0.001). The
+recheck asks more questions in runs 2 and 3 (28 against 25), because both
+student-discount gaps were drafted and published.
+
+### What the fixes did
+
+- **The number check no longer rejects anything here.** The Alexa fact and the bridge
+  mode statements are back in the articles. The two held-out questions it cost in run 1
+  are now answered correctly: voice assistants, and parental controls in bridge mode.
+- **Gains and losses against run 1, by hand:** 5 questions are newly correct (voice
+  assistants, parental controls, education discounts, "Is the Q3 a Wi-Fi 6 router?",
+  unlinking the router) and 1 is lost ("Can the buyer of my used Q3 take over my Secure
+  plan?": the article was retrieved, but the model said "not found"). That nets out at 10
+  to 14.
+- **"Isn't offered" now counts as an answer.** Both student-discount gaps were drafted
+  ("Quillon does not offer student, teacher, or military discounts"), and one of the two
+  held-out questions is answered. The other ("Can I get the Q3 cheaper with a student
+  ID?") is a retrieval miss: no passage reached the model (relevance 0.00).
+- **The case promise is gone, and in run 2 it came back as a lie.** The model no longer
+  copied "I've asked our engineering team about IPv6, I'll get back to you" as a
+  promise. Instead, following the new "isn't supported" rule, it wrote **"The Q3 does not
+  support IPv6."** Every check passed it: the quote is real, and it has no numbers and no
+  names. It was published, and the held-out decoy "Is IPv6 available on the Q3?" was
+  answered **"No, the Q3 does not support IPv6"**, with a citation. The two IPv6 recheck
+  questions were also answered. That is the kind of failure this project exists to
+  prevent: a confident, cited answer that nothing supports.
+
+### The fourth check: the quote must not contradict the statement
+
+The existing checks test that the quote exists, and that numbers and names match. None of
+them tests that the statement says what the quote says. The project already has an NLI
+model, `cross-encoder/nli-deberta-v3-xsmall`, used by the answer assistant's grounding
+check. All 96 statements of runs 1 and 2 were scored, one pair at a time (see below),
+with no model calls:
+
+- **Contradiction ≥ 0.5 against the quote flags exactly one statement:** "The Q3 does
+  not support IPv6" (0.99). No faithful statement comes close; the highest is 0.30.
+- **Requiring entailment instead would reject 32 of the 92 faithful statements.** The
+  small model calls many correct paraphrases neutral. For example, "The Q3 router does
+  not support Apple HomeKit" scores neutral 0.99 against "The Q3 doesn't support Apple
+  HomeKit at the moment".
+- **Scoring against the whole agent reply instead of the quote is worse.** It flags 7
+  faithful statements as contradicted, such as "To remove a Q3 from your account … tap
+  Remove device" (0.99).
+
+So the check counts contradiction against the quote only, at 0.5
+(`GAP_QUOTE_CONTRADICTION`). The threshold was chosen on these same statements. In run
+3 it removed the IPv6 claim and nothing else. The decoy question then abstained again,
+and so did both IPv6 recheck questions, which is why the recheck count fell from 23 to
+21.
+
+**The NLI model's scores depend on the batch.** The model is a quantized ONNX build, and
+the same pair scores differently depending on what else is in the batch. "To remove a Q3
+from your account…" against its quote scores 0.30 alone, 0.45 batched with a short
+pair, and 0.55 with a long one, which crosses the threshold. Run 3 scored each draft's
+statements as one batch and happened to stay below 0.5. The check now scores one pair
+at a time. Scored that way, it flags the same single statement in every run, so run 3's
+results stand without another run. The answer assistant's grounding check also scores
+in batches. That was not changed or measured here.
+
+### What is still wrong after run 3
+
+- **Distorted statements that no check catches (3, all in published articles):**
+  - "Before selling or giving away a Q3 router, **the buyer** should … tap Remove
+    device". The reply says "before you sell", meaning the seller.
+  - "**To transfer** a Quillon Secure subscription, the customer must cancel their own
+    subscription". The reply says the subscription can't be transferred, and to cancel
+    it if it's no longer needed.
+  - "**Secure Plus** subscriptions cannot be transferred". The reply says Quillon
+    Secure, the plan family, not one plan in it.
+
+  NLI scores all three as entailed or neutral, not contradicted. They are what an admin's
+  review has to catch, and an unedited publish shows them to customers.
+- **Steps paraphrased away.** The quotes for port forwarding and bridge mode contain the
+  menu path ("Settings, then Advanced, then …"). The statements kept the meaning but
+  lost the path. "Where is the bridge mode setting?" abstains for that reason, with the
+  article retrieved at relevance 1.00. The port 25565 answer is incomplete for the same
+  reason. A check can't notice content that is missing. A prompt rule to keep steps and
+  menu paths word for word is the obvious next thing to try.
+- **Titles aren't checked.** Run 3's port forwarding article is titled "Q3 IPv6 and
+  Bridge Mode Setup", although its IPv6 statement was left out.
+- **Still open from the first run:** the outdated FAQ still beats the retailer rule (two
+  g04 misses, unchanged), the router gaps still mix topics, and the evaluation's own
+  scoring faults remain.
+
+The six misses in run 3, by cause:
+
+| Cause | Misses |
+| --- | --- |
+| Steps paraphrased away in drafting | 2 |
+| The answering model said "not found", with the article retrieved | 2 (the warranty question; the Secure plan transfer) |
+| The conflict check sided with the outdated FAQ | 1 |
+| Retrieval | 1 (student ID) |
+
 ## Threats to validity
 
+- **Every fix was chosen after seeing the results, on the same topics.** This includes
+  the NLI threshold, chosen on these same statements. The rise from 10 to 14 correct
+  answers is measured on the data that motivated the fixes. A fresh topic set would show
+  how much of it holds.
 - **Small numbers.** 12 topics, 20 answerable held-out questions, one or two tickets per
-  topic. The 50% effect has an interval from 30% to 70%. The grouping threshold is chosen
-  on 16 questions.
+  topic. The intervals are wide: 30-70% for run 1's 50%, and 48-85% for run 3's 70%. The
+  grouping threshold is chosen on 16 questions.
 - **Written by the people who built the system.** Topics, tickets, paraphrases and key
   facts were all written for this project. Real ticket replies are longer, mix several
   issues and repeat greetings and case details, which makes drafting harder.
@@ -321,23 +465,26 @@ reported as a change made after seeing the results.
   the retailer-rule conflict (real, but the outdated side wins) and the unlink answer
   (right in substance, but incomplete).
 - **Unedited publishing is the worst case**, not how the feature is meant to be used. An
-  admin reading these drafts would delete the IPv6 sentence and the off-topic return
-  rules. Nothing here measures that.
-- **One model, one run.** `qwen3.5:4b` at temperature 0 with a fixed seed, for both
-  drafting and answering. Three misses are the answering model's. A larger model may
-  answer from the articles more reliably, which wasn't measured.
+  admin reading these drafts would delete the IPv6 sentences, the distorted statements
+  and the off-topic return rules. Nothing here measures that.
+- **One model, one run per configuration.** `qwen3.5:4b` at temperature 0 with a fixed
+  seed, for both drafting and answering. Two or three misses in each run are the
+  answering model's. A larger model may answer from the articles more reliably, which
+  wasn't measured. Run 2 also shows that a small prompt change can change what the
+  model writes in ways no single run predicts.
 - **The faults above were found on the only labelled data there is.** A fix measured on
   the same topics will look better than it would on new ones.
 
 ## What this means for the product
 
 Run on a knowledge base like this one, the feature works as a starting point for an
-admin, not as an autopublisher. Finding gaps is free. Drafting a gap takes about two
-minutes. Half the questions people couldn't get answered become answerable once the
-drafts are published, and no customer detail or outdated claim got through.
+admin, not as an autopublisher. Finding gaps is free. Drafting a gap takes two to three
+minutes. In the first run, half the questions people couldn't get answered became
+answerable once the drafts were published, and no customer detail or outdated claim got
+through.
 
-Most of what went wrong goes wrong toward saying too little: one bug and two prompt rules
-removed or skipped correct content. An admin would have to add that content back by
+In the first run, most of what went wrong went toward saying too little: one bug and
+two missing prompt rules removed or skipped correct content. An admin would have to add that content back by
 hand. What goes wrong toward saying too much is what an admin must catch:
 
 - **Mixed router gaps** produce articles that cover several topics.
@@ -345,3 +492,9 @@ hand. What goes wrong toward saying too much is what an admin must catch:
 - **Similar but unrelated tickets** slip statements into the wrong article.
 
 The editor's warning that "an admin's review is the real safeguard" is accurate.
+
+The fixes made the drafts say more: 14 of 20 held-out questions are answerable instead
+of 10. They also showed the cost of saying more. One prompt rule was enough for the
+model to turn a support agent's "I'll find out" into a confident "no", and only a fourth
+check caught it. Three subtler distortions still pass every check. So the more complete
+the drafts get, the more the admin's review matters.

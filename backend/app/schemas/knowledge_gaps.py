@@ -63,7 +63,11 @@ class DraftStatement(BaseModel):
     ticket: int = Field(description="The number of the ticket it comes from.")
     quote: str = Field(description="The agent's sentence it rests on.")
     included: bool = Field(description="Passed every check: part of the body.")
-    problems: list[Literal["quote_not_found", "number_not_in_quote", "private", "conflict"]]
+    problems: list[
+        Literal[
+            "quote_not_found", "number_not_in_quote", "quote_contradicts", "private", "conflict"
+        ]
+    ]
     private: list[str] = Field(description="Customer details found in the text.")
 
 

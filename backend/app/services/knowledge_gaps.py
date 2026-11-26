@@ -449,14 +449,20 @@ class GapDrafter:
         embedder: Embedder,
         vectors: QdrantVectorStore,
         *,
+        nli: NliModel | None = None,
         ticket_min_similarity: float | None = None,
         max_sources: int | None = None,
         conflict_passages: int | None = None,
+        quote_contradiction: float | None = None,
     ) -> None:
         self.session = session
         self.llm = llm
         self.embedder = embedder
         self.vectors = vectors
+        self.nli = nli
+        self.quote_contradiction = (
+            settings.gap_quote_contradiction if quote_contradiction is None else quote_contradiction
+        )
         self.ticket_min_similarity = (
             settings.gap_ticket_min_similarity
             if ticket_min_similarity is None
@@ -639,6 +645,7 @@ class GapDrafter:
                 outcome.error = "The model's reply wasn't valid JSON."
             else:
                 checked = drafting.verify(parsed, [s.excerpt for s in sources], private)
+                checked = await self._check_quotes(checked)
                 if checked.body():
                     await self._check_conflicts(gap, checked, outcome)
                     checked = drafting.mark_conflicts(
@@ -653,6 +660,20 @@ class GapDrafter:
             outcome.status = DraftStatus.FAILED
         outcome.latency_ms = round((time.perf_counter() - started) * 1000)
         return outcome
+
+    async def _check_quotes(self, checked: Draft) -> Draft:
+        """Leave out statements their own quote contradicts (no model: skipped)."""
+        nli = self.nli
+        if nli is None or self.quote_contradiction <= 0 or not checked.statements:
+            return checked
+        pairs = drafting.quote_pairs(checked)
+        # One pair at a time: the quantized NLI model's scores shift with what else is in
+        # the batch (a faithful statement scored 0.30 alone and 0.55 next to a long pair),
+        # enough to cross the threshold. A draft has at most 10 statements, ~25 ms each.
+        scores = await to_thread.run_sync(lambda: [nli.score([pair])[0] for pair in pairs])
+        return drafting.mark_contradicted(
+            checked, [s.contradiction for s in scores], self.quote_contradiction
+        )
 
     async def _check_conflicts(
         self, gap: KnowledgeGap, checked: Draft, outcome: DraftOutcome
@@ -980,7 +1001,7 @@ async def _run(session: AsyncSession, job: KnowledgeGapJob, tools: JobTools) -> 
     if gap is None:
         raise NotFoundError("Gap not found")
     if job.kind == GapJobKind.DRAFT:
-        drafter = GapDrafter(session, tools.llm, tools.embedder, tools.vectors)
+        drafter = GapDrafter(session, tools.llm, tools.embedder, tools.vectors, nli=tools.nli)
         outcome = await drafter.draft(gap)
         await drafter.record(gap.id, outcome)
         draft = outcome.draft

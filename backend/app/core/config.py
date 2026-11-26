@@ -134,11 +134,12 @@ class Settings(BaseSettings):
     # Questions not answered (abstained, declined, no passages) in the last
     # lookback_days are grouped by the cosine similarity of their embeddings: a new
     # question joins the closest existing gap at join_similarity or more; the rest are
-    # grouped among themselves (average linkage) at cluster_similarity. Defaults from
-    # the G1 sweep (experiments/reports/knowledge-gaps-g1-g3.md).
+    # grouped among themselves (average linkage) at cluster_similarity. 0.75 was chosen
+    # on the dev topics of the G1 sweep (experiments/reports/knowledge-gaps-g1-g3.md);
+    # the join threshold takes the same value (it wasn't measured separately).
     gap_lookback_days: Annotated[int, Field(ge=1)] = 90
-    gap_join_similarity: Annotated[float, Field(ge=0, le=1)] = 0.8
-    gap_cluster_similarity: Annotated[float, Field(ge=0, le=1)] = 0.8
+    gap_join_similarity: Annotated[float, Field(ge=0, le=1)] = 0.75
+    gap_cluster_similarity: Annotated[float, Field(ge=0, le=1)] = 0.75
     # New questions grouped per analysis (most asked first; clustering is O(n^3)).
     gap_max_new_questions: Annotated[int, Field(ge=1, le=1000)] = 300
     # Source tickets: resolved or closed, with a public agent reply. Those the
@@ -151,6 +152,11 @@ class Settings(BaseSettings):
     # Knowledge-base passages the draft is checked against for contradictions (one
     # model call each); 0 skips the check.
     gap_conflict_passages: Annotated[int, Field(ge=0, le=6)] = 3
+    # A draft statement is left out when the NLI model finds its own quote contradicts
+    # it with this probability or more; 0 skips the check. Set after the second G1-G3
+    # run, where 0.5 flagged only an invented claim (experiments/reports/
+    # knowledge-gaps-g1-g3.md).
+    gap_quote_contradiction: Annotated[float, Field(ge=0, le=1)] = 0.5
     # Questions asked again after an article is published (most asked first).
     gap_recheck_questions: Annotated[int, Field(ge=1, le=50)] = 10
 
