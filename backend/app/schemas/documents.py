@@ -1,11 +1,12 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, Field, StringConstraints
 
 from ai_engine.ingestion.extract import DocumentType
 from app.models import Document, DocumentChunk, DocumentStatus, DocumentVisibility
+from app.repositories.documents import CitationUsage, UsageWindow
 from app.schemas.tickets import PersonSummary
 
 DocumentTitle = Annotated[
@@ -21,6 +22,19 @@ class QuarantinedSentence(BaseModel):
     )
     page: int | None
     heading: str | None
+
+
+class DocumentCitations(BaseModel):
+    """How much answers people were given used the document (evaluation probes and gap
+    rechecks don't count)."""
+
+    last_cited_at: datetime | None = Field(description="The latest answer that cited it.")
+    recent: int = Field(description="Answers that cited it in the last `window_days`.")
+    window_days: int
+    not_cited: bool = Field(
+        description="Indexed long enough to judge, and no answer cited it in the window: "
+        "a candidate for review or removal."
+    )
 
 
 class DocumentRead(BaseModel):
@@ -51,13 +65,36 @@ class DocumentRead(BaseModel):
     token_count: int
     embedding_model: str | None
     uploaded_by: PersonSummary | None
+    owner: PersonSummary | None = Field(description="The staff member who keeps it current.")
+    review_due_on: date | None = Field(description="When it should next be reviewed.")
+    review_interval_days: int | None = Field(
+        description="After a review, the next review date is this many days later."
+    )
+    review_due: bool = Field(description="The review date has come (UTC).")
+    reviewed_at: datetime | None
+    reviewed_by: PersonSummary | None
+    citations: DocumentCitations
     created_at: datetime
     updated_at: datetime
     processing_started_at: datetime | None
     indexed_at: datetime | None
 
     @classmethod
-    def build(cls, document: Document) -> Self:
+    def build(
+        cls,
+        document: Document,
+        *,
+        usage: CitationUsage | None,
+        window: UsageWindow,
+        window_days: int,
+        today: date,
+    ) -> Self:
+        last_cited = usage.last_cited_at if usage else None
+        not_cited = (
+            document.indexed_at is not None
+            and document.indexed_at <= window.judged_before
+            and (last_cited is None or last_cited < window.since)
+        )
         return cls(
             id=document.id,
             title=document.title,
@@ -75,6 +112,18 @@ class DocumentRead(BaseModel):
             token_count=document.token_count,
             embedding_model=document.embedding_model,
             uploaded_by=PersonSummary.build(document.uploaded_by),
+            owner=PersonSummary.build(document.owner),
+            review_due_on=document.review_due_on,
+            review_interval_days=document.review_interval_days,
+            review_due=document.review_due_on is not None and document.review_due_on <= today,
+            reviewed_at=document.reviewed_at,
+            reviewed_by=PersonSummary.build(document.reviewed_by),
+            citations=DocumentCitations(
+                last_cited_at=last_cited,
+                recent=usage.recent if usage else 0,
+                window_days=window_days,
+                not_cited=not_cited,
+            ),
             created_at=document.created_at,
             updated_at=document.updated_at,
             processing_started_at=document.processing_started_at,
@@ -90,6 +139,19 @@ class DocumentUpdate(BaseModel):
         default=None,
         description="`public` lets the customer assistant answer from this document; "
         "`internal` keeps it to staff.",
+    )
+    owner_id: uuid.UUID | None = Field(
+        default=None,
+        description="A staff member who keeps the document current and is reminded when "
+        "its review is due; `null` removes the owner (admins are reminded instead).",
+    )
+    review_due_on: date | None = Field(
+        default=None, description="When the document should next be reviewed; `null` removes it."
+    )
+    review_interval_days: Annotated[int, Field(ge=1, le=730)] | None = Field(
+        default=None,
+        description="After a review, set the next review date this many days later; `null`: "
+        "a review clears the date.",
     )
 
 

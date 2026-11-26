@@ -130,6 +130,17 @@ class Settings(BaseSettings):
     # How often the scheduler scans organizations that turned scanning on. 0 disables.
     contradiction_scan_interval_minutes: int = 360
 
+    # --- Document freshness (Module 13) ---------------------------------------------
+    # How often the scheduler looks for documents due for review (each due date
+    # reminds its people once, so this only sets how soon after midnight UTC). 0
+    # disables reminders.
+    document_review_check_interval_minutes: int = 60
+    # A document is flagged "not cited" when no answer given in the last
+    # citation_window_days cited it, once it has been indexed for new_days (too new to
+    # judge before that). Evaluation probes and rechecks don't count.
+    document_citation_window_days: Annotated[int, Field(ge=1)] = 90
+    document_new_days: Annotated[int, Field(ge=0)] = 30
+
     # --- Knowledge gaps to articles (Module 13) -------------------------------------
     # Questions not answered (abstained, declined, no passages) in the last
     # lookback_days are grouped by the cosine similarity of their embeddings: a new

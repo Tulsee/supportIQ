@@ -3,7 +3,7 @@
 **Status:** implemented (Module 13, second part, in the
 [implementation plan](../../IMPLEMENTATION_PLAN.MD#157-module-13---knowledge-base-quality-loop),
 18 November 2026) and evaluated (26 November 2026; see [Evaluation](#evaluation)).
-Document freshness, the last part of Module 13, isn't built yet.
+[Document freshness](document-freshness.md) is the last part of Module 13.
 
 When the assistant can't answer a question, it says so and offers a person. That is the
 right behaviour, but the question comes back every time someone asks it. Often an agent

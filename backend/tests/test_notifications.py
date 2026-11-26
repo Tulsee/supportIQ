@@ -137,6 +137,7 @@ async def test_preferences_turn_kinds_off_or_add_email(
         {"kind": "sla_at_risk", "delivery": "in_app"},
         {"kind": "sla_breached", "delivery": "email"},
         {"kind": "routing_no_agent", "delivery": "in_app"},
+        {"kind": "document_review_due", "delivery": "in_app"},
     ]
     customer = await api.get(
         f"{API}/notifications/preferences", headers=in_org(ws.customer, ws.org_id)

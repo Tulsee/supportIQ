@@ -79,6 +79,17 @@ celery_app.conf.beat_schedule = {
             },
             settings.contradiction_scan_interval_minutes > 0,
         ),
+        (
+            # Each due date reminds each person once, so running often only makes the
+            # reminder arrive sooner after the date comes.
+            "document-review-reminders",
+            {
+                "task": "documents.review_reminders",
+                "schedule": settings.document_review_check_interval_minutes * 60,
+                "options": {"expires": 600},
+            },
+            settings.document_review_check_interval_minutes > 0,
+        ),
     )
     if enabled
 }

@@ -32,6 +32,11 @@ export const KIND_LABELS: Record<NotificationKind, { label: string; description:
     description:
       "Routing finds nobody in a team you lead who can take a new ticket (admins: teams without a lead).",
   },
+  document_review_due: {
+    label: "Document reviews",
+    description:
+      "A knowledge-base document you own is due for review (admins: documents without an owner).",
+  },
   agent_replied: {
     label: "Replies from support",
     description: "Support replies to one of your requests.",

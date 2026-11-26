@@ -45,7 +45,9 @@ export function NotificationBell({ organization }: { organization: Organization 
 
   function open(item: AppNotification) {
     if (!item.read_at) markRead.mutate({ ids: [item.id], all: false });
+    const documentId = item.data?.document_id;
     if (item.ticket_id) router.push(`/tickets/${item.ticket_id}`);
+    else if (typeof documentId === "string") router.push(`/knowledge-base/${documentId}`);
   }
 
   return (

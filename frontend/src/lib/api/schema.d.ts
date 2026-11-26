@@ -1382,12 +1382,36 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * Rename or publish a document
+         * Rename, publish or schedule a document's review
          * @description Admins only. `visibility: public` lets the customer assistant answer from the
          *     document (customers never download it or see its other passages); `internal`
-         *     takes it back at once. Both changes are recorded in the audit log.
+         *     takes it back at once. `owner_id`, `review_due_on` and `review_interval_days` set
+         *     who keeps it current and when it is next reviewed (send `null` to remove one).
+         *     400 `invalid_owner` unless the owner is active staff here. Every change is recorded
+         *     in the audit log.
          */
         patch: operations["update_document_api_v1_documents__document_id__patch"];
+        trace?: never;
+    };
+    "/api/v1/documents/{document_id}/reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark a document reviewed (owner or admin)
+         * @description Confirms the document is current. The next review date becomes today plus its
+         *     `review_interval_days`, or is cleared without one. Recorded in the audit log.
+         */
+        post: operations["review_document_api_v1_documents__document_id__reviews_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/documents/{document_id}/chunks": {
@@ -3106,6 +3130,30 @@ export interface components {
              */
             mean_score: number | null;
         };
+        /**
+         * DocumentCitations
+         * @description How much answers people were given used the document (evaluation probes and gap
+         *     rechecks don't count).
+         */
+        DocumentCitations: {
+            /**
+             * Last Cited At
+             * @description The latest answer that cited it.
+             */
+            last_cited_at: string | null;
+            /**
+             * Recent
+             * @description Answers that cited it in the last `window_days`.
+             */
+            recent: number;
+            /** Window Days */
+            window_days: number;
+            /**
+             * Not Cited
+             * @description Indexed long enough to judge, and no answer cited it in the window: a candidate for review or removal.
+             */
+            not_cited: boolean;
+        };
         /** DocumentRead */
         DocumentRead: {
             /**
@@ -3152,6 +3200,27 @@ export interface components {
             /** Embedding Model */
             embedding_model: string | null;
             uploaded_by: components["schemas"]["PersonSummary"] | null;
+            /** @description The staff member who keeps it current. */
+            owner: components["schemas"]["PersonSummary"] | null;
+            /**
+             * Review Due On
+             * @description When it should next be reviewed.
+             */
+            review_due_on: string | null;
+            /**
+             * Review Interval Days
+             * @description After a review, the next review date is this many days later.
+             */
+            review_interval_days: number | null;
+            /**
+             * Review Due
+             * @description The review date has come (UTC).
+             */
+            review_due: boolean;
+            /** Reviewed At */
+            reviewed_at: string | null;
+            reviewed_by: components["schemas"]["PersonSummary"] | null;
+            citations: components["schemas"]["DocumentCitations"];
             /**
              * Created At
              * Format: date-time
@@ -3197,6 +3266,21 @@ export interface components {
             title?: string | null;
             /** @description `public` lets the customer assistant answer from this document; `internal` keeps it to staff. */
             visibility?: components["schemas"]["DocumentVisibility"] | null;
+            /**
+             * Owner Id
+             * @description A staff member who keeps the document current and is reminded when its review is due; `null` removes the owner (admins are reminded instead).
+             */
+            owner_id?: string | null;
+            /**
+             * Review Due On
+             * @description When the document should next be reviewed; `null` removes it.
+             */
+            review_due_on?: string | null;
+            /**
+             * Review Interval Days
+             * @description After a review, set the next review date this many days later; `null`: a review clears the date.
+             */
+            review_interval_days?: number | null;
         };
         /**
          * DocumentVisibility
@@ -4050,7 +4134,7 @@ export interface components {
          * NotificationKind
          * @enum {string}
          */
-        NotificationKind: "ticket_assigned" | "customer_replied" | "ai_escalated" | "ticket_closed" | "sla_at_risk" | "sla_breached" | "routing_no_agent" | "agent_replied";
+        NotificationKind: "ticket_assigned" | "customer_replied" | "ai_escalated" | "ticket_closed" | "sla_at_risk" | "sla_breached" | "routing_no_agent" | "document_review_due" | "agent_replied";
         /** NotificationPage */
         NotificationPage: {
             /** Items */
@@ -11911,6 +11995,8 @@ export interface operations {
                 search?: string | null;
                 /** @description Only internal, or only public, documents. */
                 visibility?: components["schemas"]["DocumentVisibility"] | null;
+                /** @description `review_due`: the review date has come. `not_cited`: no answer cited it recently (see `citations.not_cited`). */
+                freshness?: ("review_due" | "not_cited") | null;
                 /** @description Maximum items to return. */
                 limit?: number;
                 /** @description Number of items to skip. */
@@ -12411,6 +12497,103 @@ export interface operations {
                 "application/json": components["schemas"]["DocumentUpdate"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentRead"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    review_document_api_v1_documents__document_id__reviews_post: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The organization to act in. */
+                "X-Organization-Id": string;
+            };
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {

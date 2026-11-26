@@ -24,6 +24,32 @@ export const VISIBILITY_FILTER_LABELS: Record<Visibility | "all", string> = {
   internal: "Internal",
 };
 
+export type Freshness = "review_due" | "not_cited";
+
+export const FRESHNESS_FILTER_LABELS: Record<Freshness | "all", string> = {
+  all: "Any freshness",
+  review_due: "Review due",
+  not_cited: "Not cited recently",
+};
+
+/** Choices for "review again every…" after a review. */
+export const REVIEW_INTERVALS: { days: number; label: string }[] = [
+  { days: 30, label: "Every month" },
+  { days: 90, label: "Every 3 months" },
+  { days: 180, label: "Every 6 months" },
+  { days: 365, label: "Every year" },
+];
+
+/** A date-only value (YYYY-MM-DD) as a readable date, without time-zone shifts. */
+export function formatDay(day: string): string {
+  const [year, month, date] = day.split("-").map(Number);
+  return new Date(year, month - 1, date).toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
 /** Mirrors the API's checks for instant feedback; the API validates for real. */
 export const ACCEPTED_EXTENSIONS = [".pdf", ".docx", ".txt", ".md", ".markdown"];
 export const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;

@@ -1,7 +1,8 @@
 """Knowledge-base documents of the organization in ``X-Organization-Id``.
 
 Admins upload, version, re-index, rename, publish (``visibility``) and delete
-documents; admins and agents list, inspect, download, and search them. Indexing is
+documents, and give them an owner and a review date; admins and agents list, inspect,
+download, and search them, and a document's owner marks it reviewed. Indexing is
 asynchronous: an upload returns ``202 Accepted`` with status ``queued``; poll the
 document until it is ``indexed`` or ``failed``.
 """
@@ -27,6 +28,7 @@ from app.api.deps import (
 from app.core.config import settings
 from app.core.exceptions import PayloadTooLargeError
 from app.models import DocumentStatus, DocumentVisibility
+from app.repositories.documents import Freshness
 from app.schemas.common import Page, error_responses
 from app.schemas.documents import (
     ChunkRead,
@@ -96,7 +98,8 @@ async def upload_document(
         content=await read_upload(file),
         title=title,
     )
-    return DocumentRead.build(await service.start_ingestion(document))
+    [read] = await service.present([await service.start_ingestion(document)])
+    return read
 
 
 @router.get("", summary="List documents")
@@ -109,17 +112,26 @@ async def list_documents(
     visibility: Annotated[
         DocumentVisibility | None, Query(description="Only internal, or only public, documents.")
     ] = None,
+    freshness: Annotated[
+        Freshness | None,
+        Query(
+            description="`review_due`: the review date has come. `not_cited`: no answer "
+            "cited it recently (see `citations.not_cited`)."
+        ),
+    ] = None,
 ) -> Page[DocumentRead]:
-    documents, total = await DocumentService(session).list_documents(
+    service = DocumentService(session)
+    documents, total = await service.list_documents(
         member,
         statuses=status_ or (),
         search=search,
         visibility=visibility,
+        freshness=freshness,
         limit=page.limit,
         offset=page.offset,
     )
     return Page(
-        items=[DocumentRead.build(d) for d in documents],
+        items=await service.present(documents),
         total=total,
         limit=page.limit,
         offset=page.offset,
@@ -140,17 +152,35 @@ async def worker_status(member: TenantMembership, registry: WorkerRegistryDep) -
 async def get_document(
     document_id: uuid.UUID, member: TenantMembership, session: DbSession
 ) -> DocumentRead:
-    return DocumentRead.build(await DocumentService(session).get(member, document_id))
+    service = DocumentService(session)
+    [read] = await service.present([await service.get(member, document_id)])
+    return read
 
 
-@router.patch("/{document_id}", summary="Rename or publish a document")
+@router.patch("/{document_id}", summary="Rename, publish or schedule a document's review")
 async def update_document(
     document_id: uuid.UUID, body: DocumentUpdate, member: TenantMembership, session: DbSession
 ) -> DocumentRead:
     """Admins only. `visibility: public` lets the customer assistant answer from the
     document (customers never download it or see its other passages); `internal`
-    takes it back at once. Both changes are recorded in the audit log."""
-    return DocumentRead.build(await DocumentService(session).update(member, document_id, body))
+    takes it back at once. `owner_id`, `review_due_on` and `review_interval_days` set
+    who keeps it current and when it is next reviewed (send `null` to remove one).
+    400 `invalid_owner` unless the owner is active staff here. Every change is recorded
+    in the audit log."""
+    service = DocumentService(session)
+    [read] = await service.present([await service.update(member, document_id, body)])
+    return read
+
+
+@router.post("/{document_id}/reviews", summary="Mark a document reviewed (owner or admin)")
+async def review_document(
+    document_id: uuid.UUID, member: TenantMembership, user: CurrentUser, session: DbSession
+) -> DocumentRead:
+    """Confirms the document is current. The next review date becomes today plus its
+    `review_interval_days`, or is cleared without one. Recorded in the audit log."""
+    service = DocumentService(session)
+    [read] = await service.present([await service.mark_reviewed(member, user, document_id)])
+    return read
 
 
 @router.get("/{document_id}/chunks", summary="List a document's indexed chunks")
@@ -221,7 +251,8 @@ async def upload_version(
         filename=file.filename or "document",
         content=await read_upload(file),
     )
-    return DocumentRead.build(await service.start_ingestion(document))
+    [read] = await service.present([await service.start_ingestion(document)])
+    return read
 
 
 @router.post(
@@ -236,7 +267,8 @@ async def reindex_document(
     409 `ingestion_in_progress` while it is queued or processing."""
     service = DocumentService(session, queue=queue)
     document = await service.reindex(member, document_id)
-    return DocumentRead.build(await service.start_ingestion(document))
+    [read] = await service.present([await service.start_ingestion(document)])
+    return read
 
 
 @router.delete(

@@ -3,6 +3,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeftIcon,
+  CalendarCheckIcon,
   CircleAlertIcon,
   DownloadIcon,
   FileUpIcon,
@@ -17,15 +18,24 @@ import { useId, useState } from "react";
 import { toast } from "sonner";
 
 import { ConfirmAction } from "@/components/confirm-action";
-import { DocumentStatusBadge, PublicBadge } from "@/components/knowledge/document-status";
+import {
+  DocumentStatusBadge,
+  NotCitedBadge,
+  PublicBadge,
+  ReviewDueBadge,
+} from "@/components/knowledge/document-status";
 import { UploadDocumentDialog } from "@/components/knowledge/upload-document-dialog";
 import { NoWorkerAlert, useWorkerOffline } from "@/components/knowledge/worker-status";
 import { Pager } from "@/components/pager";
+import { useAssignableMembers } from "@/components/tickets/hooks";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -37,10 +47,19 @@ import {
   type DocumentChunk,
   type KnowledgeDocument,
 } from "@/lib/api/client";
-import { FILE_TYPE_LABELS, formatBytes, isIndexing, pageLabel, type Visibility } from "@/lib/documents";
+import {
+  FILE_TYPE_LABELS,
+  REVIEW_INTERVALS,
+  formatBytes,
+  formatDay,
+  isIndexing,
+  pageLabel,
+  type Visibility,
+} from "@/lib/documents";
+import { useCurrentUser } from "@/lib/auth/auth-provider";
 import { useActiveOrganization } from "@/lib/org/org-provider";
 import { queryKeys } from "@/lib/query-keys";
-import { formatDateTime } from "@/lib/tickets";
+import { formatDateTime, timeAgo } from "@/lib/tickets";
 
 const CHUNK_LIMIT = 20;
 
@@ -137,6 +156,171 @@ function CustomerAccess({ document }: { document: KnowledgeDocument }) {
         <p className="text-sm">{isPublic ? "Public" : "Internal"}</p>
       )}
       <p className="text-xs text-muted-foreground">{explanation}</p>
+    </div>
+  );
+}
+
+const NO_OWNER = "none";
+const NO_REPEAT = "none";
+
+function intervalValue(days: number | null): string {
+  return days ? String(days) : NO_REPEAT;
+}
+
+/** Who keeps the document current, when it is next reviewed, and how much answers use
+ * it. Admins set the owner and the schedule; the owner or an admin marks it reviewed. */
+function Freshness({ document }: { document: KnowledgeDocument }) {
+  const organization = useActiveOrganization();
+  const user = useCurrentUser();
+  const queryClient = useQueryClient();
+  const uid = useId();
+  const isAdmin = organization.role === "admin";
+  const header = tenant(organization.id);
+  const { members } = useAssignableMembers();
+  const [owner, setOwner] = useState(document.owner?.id ?? NO_OWNER);
+  const [dueOn, setDueOn] = useState(document.review_due_on ?? "");
+  const [repeat, setRepeat] = useState(intervalValue(document.review_interval_days));
+
+  const ownerItems: Record<string, string> = {
+    [NO_OWNER]: "No owner (admins are reminded)",
+    ...Object.fromEntries(members.map((m) => [m.user_id, m.full_name])),
+  };
+  // Keep the current owner selectable even if they left the organization.
+  if (document.owner && !(document.owner.id in ownerItems)) {
+    ownerItems[document.owner.id] = document.owner.full_name;
+  }
+  const repeatItems: Record<string, string> = {
+    [NO_REPEAT]: "Don't schedule another",
+    ...Object.fromEntries(REVIEW_INTERVALS.map((i) => [String(i.days), i.label])),
+  };
+  if (document.review_interval_days && !(String(document.review_interval_days) in repeatItems)) {
+    repeatItems[String(document.review_interval_days)] = `Every ${document.review_interval_days} days`;
+  }
+  const changed =
+    owner !== (document.owner?.id ?? NO_OWNER) ||
+    dueOn !== (document.review_due_on ?? "") ||
+    repeat !== intervalValue(document.review_interval_days);
+
+  const settle = async (updated: KnowledgeDocument, message: string) => {
+    queryClient.setQueryData(queryKeys.document(organization.id, document.id), updated);
+    toast.success(message);
+    await queryClient.invalidateQueries({ queryKey: queryKeys.documents(organization.id), refetchType: "all" });
+  };
+  const save = useMutation({
+    mutationFn: () =>
+      unwrap(
+        api.PATCH("/api/v1/documents/{document_id}", {
+          params: { path: { document_id: document.id }, header },
+          body: {
+            owner_id: owner === NO_OWNER ? null : owner,
+            review_due_on: dueOn || null,
+            review_interval_days: repeat === NO_REPEAT ? null : Number(repeat),
+          },
+        }),
+      ),
+    onSuccess: (updated) => settle(updated, "Review schedule saved"),
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+  const review = useMutation({
+    mutationFn: () =>
+      unwrap(
+        api.POST("/api/v1/documents/{document_id}/reviews", {
+          params: { path: { document_id: document.id }, header },
+        }),
+      ),
+    onSuccess: (updated) =>
+      settle(
+        updated,
+        updated.review_due_on ? `Reviewed. Next review ${formatDay(updated.review_due_on)}` : "Marked reviewed",
+      ),
+    onError: (error) => toast.error(errorMessage(error)),
+  });
+  const canReview = isAdmin || document.owner?.id === user.id;
+  const { citations } = document;
+
+  return (
+    <div className="space-y-3 border-t pt-3">
+      <p className="text-xs text-muted-foreground">Freshness</p>
+      {isAdmin ? (
+        <FieldGroup className="gap-3">
+          <Field>
+            <FieldLabel htmlFor={`${uid}-owner`}>Owner</FieldLabel>
+            <Select items={ownerItems} value={owner} onValueChange={(value) => value && setOwner(value)}>
+              <SelectTrigger id={`${uid}-owner`} className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(ownerItems).map(([id, name]) => (
+                  <SelectItem key={id} value={id}>
+                    {name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+          <Field>
+            <FieldLabel htmlFor={`${uid}-due`}>Review by</FieldLabel>
+            <Input id={`${uid}-due`} type="date" value={dueOn} onChange={(e) => setDueOn(e.target.value)} />
+          </Field>
+          <Field>
+            <FieldLabel htmlFor={`${uid}-repeat`}>After a review</FieldLabel>
+            <Select items={repeatItems} value={repeat} onValueChange={(value) => value && setRepeat(value)}>
+              <SelectTrigger id={`${uid}-repeat`} className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(repeatItems).map(([days, label]) => (
+                  <SelectItem key={days} value={days}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FieldDescription>The owner is reminded when the date comes.</FieldDescription>
+          </Field>
+          {changed ? (
+            <Button size="sm" onClick={() => save.mutate()} disabled={save.isPending}>
+              Save schedule
+            </Button>
+          ) : null}
+        </FieldGroup>
+      ) : (
+        <dl className="grid gap-3">
+          <Detail label="Owner">{document.owner?.full_name ?? "No owner"}</Detail>
+          <Detail label="Review by">
+            {document.review_due_on ? formatDay(document.review_due_on) : "Not scheduled"}
+          </Detail>
+        </dl>
+      )}
+      <dl className="grid gap-3">
+        {document.review_due && document.review_due_on ? (
+          <div>
+            <ReviewDueBadge dueOn={document.review_due_on} className="px-2 py-0.5 text-xs" />
+          </div>
+        ) : null}
+        <Detail label="Last reviewed">
+          {document.reviewed_at
+            ? `${formatDateTime(document.reviewed_at)}${document.reviewed_by ? ` by ${document.reviewed_by.full_name}` : ""}`
+            : "Never"}
+        </Detail>
+        <Detail label={`Cited in the last ${citations.window_days} days`}>
+          {citations.recent === 1 ? "1 answer" : `${citations.recent} answers`}
+          {citations.last_cited_at ? (
+            <span className="text-muted-foreground"> · last {timeAgo(citations.last_cited_at)}</span>
+          ) : null}
+          {citations.not_cited ? (
+            <div className="mt-1">
+              <NotCitedBadge windowDays={citations.window_days} className="px-2 py-0.5 text-xs" />
+            </div>
+          ) : null}
+        </Detail>
+      </dl>
+      {canReview ? (
+        <Button size="sm" variant="outline" onClick={() => review.mutate()} disabled={review.isPending}>
+          <CalendarCheckIcon aria-hidden />
+          Mark reviewed
+        </Button>
+      ) : null}
     </div>
   );
 }
@@ -458,6 +642,8 @@ export function DocumentDetail() {
               {doc.indexed_at ? <Detail label="Indexed">{formatDateTime(doc.indexed_at)}</Detail> : null}
             </dl>
             <CustomerAccess document={doc} />
+            {/* Keyed by the last change, so the form shows what was saved. */}
+            <Freshness key={doc.updated_at} document={doc} />
           </CardContent>
         </Card>
       </div>

@@ -1,11 +1,13 @@
 import enum
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 from sqlalchemy import (
     BigInteger,
+    CheckConstraint,
     Computed,
+    Date,
     DateTime,
     ForeignKey,
     Index,
@@ -53,6 +55,13 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         # The same file can't be uploaded twice into one organization.
         UniqueConstraint("organization_id", "sha256"),
         Index("ix_documents_organization_id_updated_at", "organization_id", "updated_at"),
+        CheckConstraint("review_interval_days > 0", name="review_interval_days_positive"),
+        # The review reminder job looks for due dates across organizations.
+        Index(
+            "ix_documents_review_due_on",
+            "review_due_on",
+            postgresql_where=text("review_due_on IS NOT NULL"),
+        ),
     )
 
     organization_id: Mapped[uuid.UUID] = mapped_column(
@@ -92,8 +101,19 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     processing_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     indexed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Freshness: who keeps the document current, and when it should next be checked.
+    # A review date without an owner reminds the organization's admins.
+    owner_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    review_due_on: Mapped[date | None] = mapped_column(Date)
+    review_interval_days: Mapped[int | None] = mapped_column(Integer)  # next date after a review
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    reviewed_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
 
-    uploaded_by: Mapped[User | None] = relationship(lazy="raise")
+    uploaded_by: Mapped[User | None] = relationship(foreign_keys=[uploaded_by_id], lazy="raise")
+    owner: Mapped[User | None] = relationship(foreign_keys=[owner_id], lazy="raise")
+    reviewed_by: Mapped[User | None] = relationship(foreign_keys=[reviewed_by_id], lazy="raise")
 
 
 class DocumentChunk(UUIDPrimaryKeyMixin, Base):

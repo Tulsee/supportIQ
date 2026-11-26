@@ -191,8 +191,9 @@ class Citation(UUIDPrimaryKeyMixin, Base):
     # The claim the citation supports: a character range of the answer text.
     answer_start: Mapped[int] = mapped_column(Integer)
     answer_end: Mapped[int] = mapped_column(Integer)
+    # Indexed: a document's citation counts (freshness) look citations up by document.
     document_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("documents.id", ondelete="SET NULL")
+        ForeignKey("documents.id", ondelete="SET NULL"), index=True
     )
     document_version: Mapped[int] = mapped_column(Integer)
     chunk_id: Mapped[uuid.UUID | None] = mapped_column(

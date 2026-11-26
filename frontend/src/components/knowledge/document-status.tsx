@@ -1,7 +1,15 @@
-import { CircleAlertIcon, CircleCheckIcon, ClockIcon, GlobeIcon, Loader2Icon } from "lucide-react";
+import {
+  CalendarClockIcon,
+  CircleAlertIcon,
+  CircleCheckIcon,
+  ClockIcon,
+  GlobeIcon,
+  Loader2Icon,
+  QuoteIcon,
+} from "lucide-react";
 
 import type { KnowledgeDocument } from "@/lib/api/client";
-import { DOCUMENT_STATUS_LABELS } from "@/lib/documents";
+import { DOCUMENT_STATUS_LABELS, formatDay } from "@/lib/documents";
 import { cn } from "@/lib/utils";
 
 const ICONS = {
@@ -52,6 +60,38 @@ export function PublicBadge({ className }: { className?: string }) {
     >
       <GlobeIcon className="size-3" aria-hidden />
       Public
+    </span>
+  );
+}
+
+/** The document's review date has come. */
+export function ReviewDueBadge({ dueOn, className }: { dueOn: string; className?: string }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full border border-amber-300 px-1.5 py-0 text-[10px] font-medium whitespace-nowrap text-amber-800 dark:border-amber-800 dark:text-amber-300",
+        className,
+      )}
+      title={`Due for review since ${formatDay(dueOn)}`}
+    >
+      <CalendarClockIcon className="size-3" aria-hidden />
+      Review due
+    </span>
+  );
+}
+
+/** No answer people were given cited the document recently. */
+export function NotCitedBadge({ windowDays, className }: { windowDays: number; className?: string }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full border px-1.5 py-0 text-[10px] font-medium whitespace-nowrap text-muted-foreground",
+        className,
+      )}
+      title={`No answer cited this document in the last ${windowDays} days`}
+    >
+      <QuoteIcon className="size-3" aria-hidden />
+      Not cited
     </span>
   );
 }

@@ -5,7 +5,12 @@ import { BookOpenIcon, FileQuestionIcon, ScanSearchIcon } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
-import { DocumentStatusBadge, PublicBadge } from "@/components/knowledge/document-status";
+import {
+  DocumentStatusBadge,
+  NotCitedBadge,
+  PublicBadge,
+  ReviewDueBadge,
+} from "@/components/knowledge/document-status";
 import { UploadDocumentDialog } from "@/components/knowledge/upload-document-dialog";
 import { NoWorkerAlert, useWorkerOffline } from "@/components/knowledge/worker-status";
 import { PageHeader } from "@/components/page-header";
@@ -31,9 +36,11 @@ import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { api, errorMessage, tenant, unwrap } from "@/lib/api/client";
 import {
   FILE_TYPE_LABELS,
+  FRESHNESS_FILTER_LABELS,
   VISIBILITY_FILTER_LABELS,
   formatBytes,
   isIndexing,
+  type Freshness,
   type Visibility,
 } from "@/lib/documents";
 import { useActiveOrganization } from "@/lib/org/org-provider";
@@ -43,12 +50,14 @@ import { formatDateTime, timeAgo } from "@/lib/tickets";
 const LIMIT = 25;
 const POLL_MS = 2_000;
 const VISIBILITY_FILTERS = Object.keys(VISIBILITY_FILTER_LABELS) as (Visibility | "all")[];
+const FRESHNESS_FILTERS = Object.keys(FRESHNESS_FILTER_LABELS) as (Freshness | "all")[];
 
 export function DocumentsPage() {
   const organization = useActiveOrganization();
   const isAdmin = organization.role === "admin";
   const [search, setSearch] = useState("");
   const [visibility, setVisibility] = useState<Visibility | "all">("all");
+  const [freshness, setFreshness] = useState<Freshness | "all">("all");
   const [offset, setOffset] = useState(0);
   const debouncedSearch = useDebouncedValue(search.trim());
   const query = {
@@ -56,8 +65,9 @@ export function DocumentsPage() {
     offset,
     search: debouncedSearch || undefined,
     visibility: visibility === "all" ? undefined : visibility,
+    freshness: freshness === "all" ? undefined : freshness,
   };
-  const filtered = Boolean(debouncedSearch) || visibility !== "all";
+  const filtered = Boolean(debouncedSearch) || visibility !== "all" || freshness !== "all";
 
   const documents = useQuery({
     queryKey: queryKeys.documents(organization.id, query),
@@ -156,6 +166,26 @@ export function DocumentsPage() {
                   ))}
                 </SelectContent>
               </Select>
+              <Select
+                items={FRESHNESS_FILTER_LABELS}
+                value={freshness}
+                onValueChange={(value) => {
+                  if (!value) return;
+                  setFreshness(value as Freshness | "all");
+                  setOffset(0);
+                }}
+              >
+                <SelectTrigger aria-label="Freshness" className="w-48">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {FRESHNESS_FILTERS.map((value) => (
+                    <SelectItem key={value} value={value}>
+                      {FRESHNESS_FILTER_LABELS[value]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             {documents.isPending ? (
               <div className="space-y-2">
@@ -174,7 +204,11 @@ export function DocumentsPage() {
                   </EmptyMedia>
                   <EmptyTitle>{filtered ? "No matches" : "No documents yet"}</EmptyTitle>
                   <EmptyDescription>
-                    {debouncedSearch
+                    {freshness === "review_due" && !debouncedSearch
+                      ? "No document is due for review."
+                      : freshness === "not_cited" && !debouncedSearch
+                        ? "Every document old enough to judge was cited by an answer recently."
+                        : debouncedSearch
                       ? `No ${visibility === "all" ? "" : `${visibility} `}document matches “${debouncedSearch}”.`
                       : visibility === "public"
                         ? "No document is public yet. Open one and turn on “Answers customers” to let the customer assistant use it."
@@ -218,6 +252,12 @@ export function DocumentsPage() {
                             <span className="truncate">{document.filename}</span>
                             {document.version > 1 ? <span>v{document.version}</span> : null}
                             {document.visibility === "public" ? <PublicBadge /> : null}
+                            {document.review_due && document.review_due_on ? (
+                              <ReviewDueBadge dueOn={document.review_due_on} />
+                            ) : null}
+                            {document.citations.not_cited ? (
+                              <NotCitedBadge windowDays={document.citations.window_days} />
+                            ) : null}
                           </div>
                         </TableCell>
                         <TableCell>

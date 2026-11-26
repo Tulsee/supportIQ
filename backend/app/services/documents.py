@@ -10,6 +10,7 @@ import logging
 import re
 import uuid
 from collections.abc import Sequence
+from datetime import date
 from functools import partial
 from pathlib import PurePath, PureWindowsPath
 
@@ -21,13 +22,16 @@ from ai_engine.ingestion.extract import MEDIA_TYPES, DocumentType, ExtractionErr
 from ai_engine.retrieval.vector_store import QdrantVectorStore
 from app.core.config import settings
 from app.core.exceptions import (
+    AppError,
     ConflictError,
     InvalidFileError,
     NotFoundError,
+    PermissionDeniedError,
     ServiceUnavailableError,
     TooManyRequestsError,
 )
 from app.core.rate_limit import RateLimiter
+from app.core.security import utcnow
 from app.core.storage import ObjectStorage, StorageError
 from app.models import (
     ACTIVE_INGESTION,
@@ -39,10 +43,11 @@ from app.models import (
     OrgRole,
     User,
 )
-from app.repositories.documents import DocumentRepository
-from app.schemas.documents import DocumentUpdate
+from app.repositories.documents import CitationUsage, DocumentRepository, Freshness
+from app.schemas.documents import DocumentRead, DocumentUpdate
 from app.services import audit
 from app.services.authorization import STAFF_ROLES, require_role
+from app.services.document_freshness import active_staff, next_review, usage_window
 from app.services.ingestion import storage_prefix
 from app.workers.queue import IngestionQueue, QueueUnavailableError
 
@@ -63,6 +68,11 @@ def safe_filename(name: str) -> str:
     if dot and len(cleaned) > 255:
         return f"{stem[: 254 - len(suffix)]}.{suffix}"
     return cleaned[:255]
+
+
+def _plain(value: date | None) -> str | None:
+    """A date for the audit log (JSON)."""
+    return value.isoformat() if value is not None else None
 
 
 def default_title(filename: str) -> str:
@@ -100,16 +110,41 @@ class DocumentService:
         limit: int,
         offset: int,
         visibility: DocumentVisibility | None = None,
+        freshness: Freshness | None = None,
     ) -> tuple[list[Document], int]:
         require_role(member, *STAFF_ROLES)
+        now = utcnow()
         return await self.documents.find(
             member.organization_id,
             statuses=statuses,
             search=search,
             visibility=visibility,
+            freshness=freshness,
+            today=now.date(),
+            window=usage_window(now),
             limit=limit,
             offset=offset,
         )
+
+    async def present(self, documents: Sequence[Document]) -> list[DocumentRead]:
+        """Documents as the API returns them, with their citation counts."""
+        now = utcnow()
+        window = usage_window(now)
+        usage: dict[uuid.UUID, CitationUsage] = {}
+        if documents:
+            usage = await self.documents.citation_usage(
+                documents[0].organization_id, [d.id for d in documents], window.since
+            )
+        return [
+            DocumentRead.build(
+                d,
+                usage=usage.get(d.id),
+                window=window,
+                window_days=settings.document_citation_window_days,
+                today=now.date(),
+            )
+            for d in documents
+        ]
 
     async def get(self, member: OrganizationMember, document_id: uuid.UUID) -> Document:
         require_role(member, *STAFF_ROLES)
@@ -166,6 +201,8 @@ class DocumentService:
             token_count=0,
         )
         document.uploaded_by = user
+        document.owner = None
+        document.reviewed_by = None
         document.storage_key = self._new_key(document, name)
         await self._store(document.storage_key, content, kind)
         self.documents.add(document)
@@ -269,6 +306,126 @@ class DocumentService:
                 },
             )
             document.visibility = data.visibility
+        given = data.model_fields_set
+        if "owner_id" in given and data.owner_id != document.owner_id:
+            await self._set_owner(member, document, data.owner_id)
+        due = data.review_due_on if "review_due_on" in given else document.review_due_on
+        interval = (
+            data.review_interval_days
+            if "review_interval_days" in given
+            else document.review_interval_days
+        )
+        if (due, interval) != (document.review_due_on, document.review_interval_days):
+            await self._schedule_review(member, document, due, interval)
+        await self.session.commit()
+        updated = await self.documents.get(member.organization_id, document.id)
+        assert updated is not None
+        return updated
+
+    async def _set_owner(
+        self, member: OrganizationMember, document: Document, owner_id: uuid.UUID | None
+    ) -> None:
+        owner = None
+        if owner_id is not None:
+            staff = await active_staff(self.session, member.organization_id)
+            owner = await self.session.get(User, owner_id) if owner_id in staff else None
+            if owner is None:
+                raise AppError(
+                    "Choose an active staff member of this organization", code="invalid_owner"
+                )
+        previous = document.owner
+        await audit.record(
+            self.session,
+            organization_id=member.organization_id,
+            actor_id=member.user_id,
+            entity_type="document",
+            entity_id=document.id,
+            action="document.owner_changed",
+            summary=(
+                f"Made {owner.full_name or owner.email} the owner of {document.title}"
+                if owner is not None
+                else f"Removed the owner of {document.title}"
+            ),
+            changes={
+                "owner": {
+                    "from": previous.email if previous else None,
+                    "to": owner.email if owner else None,
+                }
+            },
+        )
+        document.owner_id = owner_id
+        document.owner = owner
+
+    async def _schedule_review(
+        self,
+        member: OrganizationMember,
+        document: Document,
+        due: date | None,
+        interval: int | None,
+    ) -> None:
+        if due is not None:
+            summary = f"Set the review of {document.title} for {due.isoformat()}"
+            if interval:
+                summary += f", then every {interval} days"
+        else:
+            summary = f"Removed the review date of {document.title}"
+        changes: dict[str, dict[str, object]] = {}
+        if due != document.review_due_on:
+            changes["review_due_on"] = {
+                "from": _plain(document.review_due_on),
+                "to": _plain(due),
+            }
+        if interval != document.review_interval_days:
+            changes["review_interval_days"] = {
+                "from": document.review_interval_days,
+                "to": interval,
+            }
+        await audit.record(
+            self.session,
+            organization_id=member.organization_id,
+            actor_id=member.user_id,
+            entity_type="document",
+            entity_id=document.id,
+            action="document.review_scheduled",
+            summary=summary,
+            changes=changes,
+        )
+        document.review_due_on = due
+        document.review_interval_days = interval
+
+    async def mark_reviewed(
+        self, member: OrganizationMember, user: User, document_id: uuid.UUID
+    ) -> Document:
+        """The owner or an admin confirms the document is current. The next review date
+        is its interval from today, or none."""
+        require_role(member, *STAFF_ROLES)
+        document = await self._get_for_update(member, document_id)
+        if member.role != OrgRole.ADMIN and document.owner_id != user.id:
+            raise PermissionDeniedError("Only the document's owner or an admin can review it")
+        now = utcnow()
+        following = next_review(now.date(), document.review_interval_days)
+        summary = f"Reviewed {document.title}"
+        if following is not None:
+            summary += f"; next review {following.isoformat()}"
+        await audit.record(
+            self.session,
+            organization_id=member.organization_id,
+            actor_id=member.user_id,
+            entity_type="document",
+            entity_id=document.id,
+            action="document.reviewed",
+            summary=summary,
+            changes={
+                "review_due_on": {
+                    "from": _plain(document.review_due_on),
+                    "to": _plain(following),
+                }
+            },
+        )
+        document.reviewed_at = now
+        document.reviewed_by_id = user.id
+        document.reviewed_by = user
+        document.review_due_on = following
         await self.session.commit()
         updated = await self.documents.get(member.organization_id, document.id)
         assert updated is not None

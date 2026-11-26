@@ -7,6 +7,7 @@ from celery import Task
 
 from app.services.automation import run_auto_close_job
 from app.services.contradictions import run_scan_job, run_schedule_job
+from app.services.document_freshness import run_review_reminder_job
 from app.services.ingestion import TransientIngestionError, run_ingestion_job
 from app.services.knowledge_gaps import run_gap_job
 from app.services.notifications import run_email_job
@@ -108,6 +109,12 @@ def scan_contradictions(scan_id: str) -> str | None:
 def schedule_contradiction_scans() -> int:
     """Start scans for organizations with scanning on whose last scan is old enough."""
     return asyncio.run(run_schedule_job())
+
+
+@celery_app.task(name="documents.review_reminders", ignore_result=True)
+def remind_document_reviews() -> int:
+    """Notify owners (or admins) about documents whose review date has come."""
+    return asyncio.run(run_review_reminder_job())
 
 
 @celery_app.task(name="knowledge_gaps.run", ignore_result=True)

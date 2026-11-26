@@ -2034,7 +2034,11 @@ article is implemented (18 November 2026) and evaluated (26 November 2026). See
 [G1-G3 report](experiments/reports/knowledge-gaps-g1-g3.md). Publishing the drafts
 unedited made 14 of 20 held-out paraphrases correctly answerable (0 before; 10 before
 the fixes the first run led to). No customer detail, outdated claim or answer to a
-decoy question reached customers. Freshness is not started.
+decoy question reached customers. Freshness is implemented (26 November 2026): owners,
+review dates with an interval, hourly reminders through notifications (the owner, or the
+admins), and citation counts with a "not cited" flag; see
+[docs/features/document-freshness.md](docs/features/document-freshness.md). Module 13 is
+complete.
 
 **Why:** the evaluation's most common escalation cause was documents that contradict
 each other, and the analytics page already lists knowledge gaps. This module acts on

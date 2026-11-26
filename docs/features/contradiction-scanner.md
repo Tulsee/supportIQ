@@ -4,8 +4,8 @@
 [implementation plan](../../IMPLEMENTATION_PLAN.MD#157-module-13---knowledge-base-quality-loop),
 17 November 2026). Evaluated in the [C1-C3 report](../../experiments/reports/contradictions-c1-c3.md).
 The second part, [knowledge gaps to articles](knowledge-gaps.md), reuses the judge to
-check drafts against the knowledge base. Document owners with review dates (the third
-part) aren't built yet.
+check drafts against the knowledge base. The third part,
+[document freshness](document-freshness.md), gives documents owners and review dates.
 
 In the [answer evaluation](../../experiments/reports/quillon-v1-evaluation.md), documents
 that contradict each other were the most common reason for an escalation: the assistant
