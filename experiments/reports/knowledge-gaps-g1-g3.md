@@ -409,10 +409,12 @@ and so did both IPv6 recheck questions, which is why the recheck count fell from
 the same pair scores differently depending on what else is in the batch. "To remove a Q3
 from your account…" against its quote scores 0.30 alone, 0.45 batched with a short
 pair, and 0.55 with a long one, which crosses the threshold. Run 3 scored each draft's
-statements as one batch and happened to stay below 0.5. The check now scores one pair
-at a time. Scored that way, it flags the same single statement in every run, so run 3's
-results stand without another run. The answer assistant's grounding check also scores
-in batches. That was not changed or measured here.
+statements as one batch and happened to stay below 0.5. The NLI model now scores one
+pair at a time, for this check and for the answer assistant's grounding check. Scored
+that way, the check flags the same single statement in every run, so run 3's results
+stand without another run. For the answer assistant, replaying the benchmark's dev and
+test runs changed no decision; see
+[the Quillon report, section 4](quillon-v1-evaluation.md#4-tuning-the-decision-policy-dev-split).
 
 ### What is still wrong after run 3
 

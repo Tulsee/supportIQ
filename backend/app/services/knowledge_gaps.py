@@ -666,11 +666,7 @@ class GapDrafter:
         nli = self.nli
         if nli is None or self.quote_contradiction <= 0 or not checked.statements:
             return checked
-        pairs = drafting.quote_pairs(checked)
-        # One pair at a time: the quantized NLI model's scores shift with what else is in
-        # the batch (a faithful statement scored 0.30 alone and 0.55 next to a long pair),
-        # enough to cross the threshold. A draft has at most 10 statements, ~25 ms each.
-        scores = await to_thread.run_sync(lambda: [nli.score([pair])[0] for pair in pairs])
+        scores = await to_thread.run_sync(nli.score, drafting.quote_pairs(checked))
         return drafting.mark_contradicted(
             checked, [s.contradiction for s in scores], self.quote_contradiction
         )

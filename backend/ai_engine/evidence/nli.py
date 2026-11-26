@@ -8,6 +8,11 @@ run directly with ONNX Runtime and the Hugging Face tokenizer.
 Small NLI models are strict: a correct paraphrase that adds a detail the premise
 doesn't state ("router" for "product") scores as neutral, not entailed. A claim
 contradicted by its own source is the more reliable signal.
+
+Pairs are scored one at a time. In a batch, this int8 model's output for a pair shifts
+with the other pairs it is padded next to: one claim scored 0.30 contradiction alone and
+0.55 beside a longer pair. A score must not depend on what else was checked with it. See
+experiments/reports/quillon-v1-evaluation.md (checked: no recorded decision changed).
 """
 
 import json
@@ -46,12 +51,10 @@ class OnnxNliModel:
         *,
         onnx_file: str = "onnx/model_quint8_avx2.onnx",
         cache_dir: Path,
-        batch_size: int = 16,
     ) -> None:
         self.repo = repo
         self.onnx_file = onnx_file
         self.cache_dir = cache_dir
-        self.batch_size = batch_size
         self._loaded: tuple[Tokenizer, onnxruntime.InferenceSession, dict[int, str]] | None = None
         self._lock = threading.Lock()
 
@@ -91,27 +94,25 @@ class OnnxNliModel:
         tokenizer, session, labels = self._load()
         names = {i.name for i in session.get_inputs()}
         results: list[NliScores] = []
-        for start in range(0, len(pairs), self.batch_size):
-            batch = pairs[start : start + self.batch_size]
-            encoded = tokenizer.encode_batch([(p, h) for p, h in batch])
+        for premise, hypothesis in pairs:  # one at a time: see the module docstring
+            [encoded] = tokenizer.encode_batch([(premise, hypothesis)])
             feeds: dict[str, Any] = {
-                "input_ids": np.array([e.ids for e in encoded], dtype=np.int64),
-                "attention_mask": np.array([e.attention_mask for e in encoded], dtype=np.int64),
+                "input_ids": np.array([encoded.ids], dtype=np.int64),
+                "attention_mask": np.array([encoded.attention_mask], dtype=np.int64),
             }
             if "token_type_ids" in names:
-                feeds["token_type_ids"] = np.array([e.type_ids for e in encoded], dtype=np.int64)
-            logits = session.run(None, feeds)[0]
-            exp = np.exp(logits - logits.max(axis=1, keepdims=True))
-            probabilities = exp / exp.sum(axis=1, keepdims=True)
-            for row in probabilities:
-                by_label = {labels[i]: float(p) for i, p in enumerate(row)}
-                results.append(
-                    NliScores(
-                        entailment=by_label.get("entailment", 0.0),
-                        neutral=by_label.get("neutral", 0.0),
-                        contradiction=by_label.get("contradiction", 0.0),
-                    )
+                feeds["token_type_ids"] = np.array([encoded.type_ids], dtype=np.int64)
+            [logits] = session.run(None, feeds)[0]
+            exp = np.exp(logits - logits.max())
+            probabilities = exp / exp.sum()
+            by_label = {labels[i]: float(p) for i, p in enumerate(probabilities)}
+            results.append(
+                NliScores(
+                    entailment=by_label.get("entailment", 0.0),
+                    neutral=by_label.get("neutral", 0.0),
+                    contradiction=by_label.get("contradiction", 0.0),
                 )
+            )
         return results
 
 

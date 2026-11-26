@@ -383,7 +383,6 @@ class TurnedAroundNli:
     model_name = "test/turned-around"
 
     def score(self, pairs: list[tuple[str, str]]) -> list[NliScores]:
-        assert len(pairs) == 1, "scored one pair at a time (batches shift the scores)"
         return [
             NliScores(0.0, 0.1, 0.9)
             if "does not support IPv6" in statement

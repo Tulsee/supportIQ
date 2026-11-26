@@ -213,6 +213,28 @@ signals:
   ambiguous questions in the whole dataset with no false positives. It was written after
   reading the dataset, test questions included; see the limitations.
 
+**A later check: the claim checker's scores depended on the batch (26 November 2026).**
+The checker scored all of an answer's claim–passage pairs in one batch, and the int8 NLI
+model's output for a pair shifts with the pairs it is padded next to. The
+[knowledge-gaps evaluation](knowledge-gaps-g1-g3.md#the-fourth-check-the-quote-must-not-contradict-the-statement)
+found this. The 39 answers with claim checks (20 dev, 19 test) were replayed from their
+stored model outputs, with every pair scored on its own and no model calls. The batched
+replay reproduced every recorded score.
+
+| Scoring each pair on its own | Effect |
+| --- | --- |
+| Grounding | Moves by up to 0.04 |
+| Contradiction | Moves by up to 0.17 (q027 on dev: 0.74 → 0.88) |
+| Decisions, dev and test | None change |
+| Test Brier score | 0.1325 → 0.1322 |
+| Tuning on dev | Picks the same thresholds; 16 settings tie instead of 24 |
+
+The results in this report stand. That is because the tuned thresholds switch the claim
+checks off as a gate. A stricter contradiction threshold, such as 0.8, would have made
+q027's decision depend on what it was scored with. The checker now scores one pair at a
+time (`ai_engine/evidence/nli.py`). So the recorded runs' claim-check scores differ
+slightly from what the code computes today.
+
 ## 5. Calibration
 
 The evidence score (a weighted mix of relevance, coverage, consistency and grounding)
@@ -280,8 +302,9 @@ enough data to fit or check one.
   the decision to rely on the model's self-report for conflicts came from inspecting
   failures across the dataset, test split included. Test results for the ambiguous and
   conflicting categories are therefore optimistic. A fresh, blind test set is the fix.
-- **Tuning could not choose.** 24 threshold settings tied on dev, so the chosen
-  thresholds are one of many that fit 29 questions, and may not transfer.
+- **Tuning could not choose.** 24 threshold settings tied on dev (16 with the claim
+  checker's scores computed one pair at a time; see section 4), so the chosen thresholds
+  are one of many that fit 29 questions, and may not transfer.
 - **One run per configuration.** Generation is seeded with temperature 0.1, and E5
   reproduced the earlier baseline exactly, but variation across seeds, models and
   prompt wording was not measured.

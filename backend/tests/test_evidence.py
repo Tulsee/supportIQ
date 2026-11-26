@@ -1,9 +1,13 @@
 """Evidence signals, claim checks and the decision policy (no database)."""
 
+from pathlib import Path
+from types import SimpleNamespace
+
+import numpy as np
 import pytest
 
 from ai_engine.evidence.grounding import check_claims, premise_for
-from ai_engine.evidence.nli import OverlapNli
+from ai_engine.evidence.nli import OnnxNliModel, OverlapNli
 from ai_engine.evidence.policy import (
     Decision,
     Signals,
@@ -175,3 +179,58 @@ def test_evidence_score() -> None:
         signals(generated=True, relevance=1.0, model_status="conflicting", grounding=1.0)
     )
     assert strong == 1.0 and conflicted == 0.75
+
+
+# --- The NLI model ---------------------------------------------------------------------------
+
+
+class PaddingTokenizer:
+    """Pads a batch to its longest pair, as the real tokenizer does (one token per word)."""
+
+    def encode_batch(self, pairs: list[tuple[str, str]]) -> list[SimpleNamespace]:
+        lengths = [len(f"{p} {h}".split()) for p, h in pairs]
+        width = max(lengths)
+        return [
+            SimpleNamespace(
+                ids=[1] * n + [0] * (width - n),
+                attention_mask=[1] * n + [0] * (width - n),
+                type_ids=[0] * width,
+            )
+            for n in lengths
+        ]
+
+
+class PaddingSensitiveSession:
+    """Like the int8 model: a pair's output shifts with the padded width of its batch."""
+
+    def __init__(self) -> None:
+        self.batch_sizes: list[int] = []
+
+    def get_inputs(self) -> list[SimpleNamespace]:
+        return [SimpleNamespace(name="input_ids"), SimpleNamespace(name="attention_mask")]
+
+    def run(self, _: object, feeds: dict) -> list[np.ndarray]:
+        ids, masks = feeds["input_ids"], feeds["attention_mask"]
+        self.batch_sizes.append(ids.shape[0])
+        width = ids.shape[1]
+        return [np.array([[mask.sum() / 10, 0.0, width / 10] for mask in masks])]
+
+
+def test_a_pairs_nli_score_does_not_depend_on_what_it_is_scored_with() -> None:
+    model = OnnxNliModel("test/padding-sensitive", cache_dir=Path("unused"))
+    session = PaddingSensitiveSession()
+    model._loaded = (  # type: ignore[assignment]
+        PaddingTokenizer(),
+        session,
+        {0: "entailment", 1: "neutral", 2: "contradiction"},
+    )
+    short = ("The link is valid", "for 30 minutes")
+    long = ("Opened products can be returned within 14 days of delivery", "minus a 15% fee")
+
+    alone = model.score([short])[0]
+    together = model.score([short, long])
+
+    assert together[0] == alone
+    assert together[1] == model.score([long])[0]
+    assert session.batch_sizes == [1, 1, 1, 1]
+    assert model.score([]) == []
