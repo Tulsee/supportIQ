@@ -407,6 +407,16 @@ F6-F9 are the strongest. F10-F13 are smaller. Hypotheses continue from H6. As wi
 
 ### F6: Distortion-aware faithfulness checking
 
+**Status (26 November 2026):** first study done; see
+[experiments/reports/faithfulness-f6.md](../experiments/reports/faithfulness-f6.md).
+
+- **Results on test:** the local model as judge caught 92% of D5's test distortions
+  and flagged no faithful statement. The NLI check catches 60%, the rules 59%.
+- **Hypotheses:** H7 is supported for the judge; H8 is met on its point estimate, but
+  the interval is too wide to show it.
+- **Caveat:** an AI assistant wrote both the data and the checks. The in-system test,
+  rerunning G1-G3 with the judge in the drafter, is next.
+
 **What happened.** In the second G1-G3 run, three statements were published in articles
 although every check passed: the quote was real, the numbers and names matched, and the
 NLI model scored them entailed or neutral.
@@ -1009,7 +1019,8 @@ is still publishable.
 **New features from supportIQ's runs (F6-F13)**
 
 - [ ] Choose which of F6-F13 enter the paper (recommended: F6, then F8 for F1, then F7)
-- [ ] F6: build D5 (distortion pairs), run the checker comparison, rerun G1-G3
+- [x] F6: build D5 (distortion pairs) and run the checker comparison (26 November 2026)
+- [ ] F6: rerun G1-G3 with the judge in the drafter; second annotator for D5
 - [ ] F7: authority and effective date per document; label conflicting questions
 - [ ] F8: link sent replies to the suggestion they came from; hand-check a sample
 - [ ] F9: build D6 (adversarial tickets) and run the stage-by-stage attack study

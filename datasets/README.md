@@ -206,3 +206,61 @@ Fields of a ticket: `id`, `topic` (or null for a distractor), `subject`, `custom
 is in its topic's source replies, that the documents don't already contain the
 answers, and that held-out questions aren't copies of asked ones. Everything is
 synthetic, written for this project in November 2026.
+
+## Distortion pairs (D5, research feature F6)
+
+```
+datasets/distortions/
+├── build_pairs_v1.py    writes the file below (the pairs are written by hand in it)
+└── pairs_v1.jsonl       200 statement/quote pairs from 51 source sentences
+```
+
+D5 measures whether a check can tell a faithful restatement from a distorted one. It
+targets the statements that knowledge-gap drafts and grounded answers make from a
+source sentence. The sources are 25 sentences from the agents' replies in
+`knowledge_gaps/tickets_v1.jsonl` and 26 from the Quillon documents. Each source has
+one or two faithful restatements and two to five distortions:
+
+| Type | What changes | Pairs |
+| --- | --- | --- |
+| `role` | who acts or is affected, or the direction ("the buyer" for the seller) | 23 |
+| `scope` | which product, plan, condition or thing; or the claim is widened | 40 |
+| `polarity` | a negation is added or dropped, or a word becomes its opposite | 27 |
+| `modality` | can, must, may, or "we'll find out" ("I've asked engineering" becomes "it doesn't support it") | 17 |
+| `quantity` | a number, unit or bound, including numbers in words and swapped numbers | 28 |
+| `none` | faithful | 65 |
+
+The three distortions seen in the knowledge-gaps study's second run, and the IPv6
+inversion, are among them, with these notes: "seen in G1-G3".
+
+**Hard items.** `hard` marks pairs a simple check is likely to get wrong:
+
+- faithful restatements that add a product name from the context, or reword a negation
+  ("unavailable" for "not available");
+- distortions that keep every number and name of the source (swaps, changed units,
+  direction reversals).
+
+**Splits.** The split alternates by source, so no source sentence is in both dev and
+test: dev has 107 pairs, test 93.
+
+| Field | Meaning |
+| --- | --- |
+| `id` | `d001`... |
+| `source` | `t08` (a ticket) or `doc:<file>#<heading>` |
+| `split` | `dev` (choosing thresholds and fixing rules) or `test` |
+| `quote` | The source sentence the statement restates |
+| `context` | The ticket (subject, customer message, reply) or the document section |
+| `statement` | The restatement to check |
+| `label` | `faithful` or `distorted` |
+| `type` | The distortion type, or `none` |
+| `hard` | See above |
+| `note` | What changed |
+
+**Who wrote it.** The pairs were written for this project by an AI coding assistant
+(Claude), the same one that then wrote the rules and the judge's prompt; the pairs came
+first. A distortion set written by a language model may be easier for a language-model
+judge than distortions a model makes while drafting (see the
+[F6 report](../experiments/reports/faithfulness-f6.md#threats-to-validity)). The labels
+have not been checked by a second person yet, which the research plan asks for. `tests/test_faithfulness.py` checks that every quote is
+in its context, that the file matches the builder, and that no source is in both
+splits. Run it with `uv run python -m app.cli evaluate-faithfulness` from `backend/`.

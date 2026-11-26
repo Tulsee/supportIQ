@@ -57,6 +57,8 @@ Reports of finished studies are in `reports/`:
   scanner, C1-C3.
 - [`knowledge-gaps-g1-g3.md`](reports/knowledge-gaps-g1-g3.md): knowledge gaps to
   articles, G1-G3.
+- [`faithfulness-f6.md`](reports/faithfulness-f6.md): research feature F6, checks that
+  tell faithful restatements from distorted ones.
 
 ## AI triage (Module 11, T1-T4)
 
@@ -126,3 +128,25 @@ the benchmark's test split before and after. Every model reply is cached in
 The write-up, with every draft and every held-out answer checked by hand, is
 [`reports/knowledge-gaps-g1-g3.md`](reports/knowledge-gaps-g1-g3.md). It covers the first
 run and two more with the fixes it led to (`--name g1-g3-fixes`, `--name g1-g3-nli`).
+
+## Faithfulness checks (research feature F6)
+
+```bash
+uv run python -m app.cli evaluate-faithfulness --name f6            # from backend/, ~1 h on a CPU
+uv run python -m app.cli evaluate-faithfulness --no-judge --name f6  # rules and NLI only, seconds
+```
+
+The pairs are D5 (`datasets/distortions/`): statements restating a source sentence,
+faithful or distorted in one of five ways. Conditions:
+
+- the rules (`ai_engine/faithfulness/rules.py`), and each rule on its own;
+- the NLI model's contradiction at 0.5 (the gap drafter's check) and at a threshold
+  chosen on dev;
+- requiring entailment;
+- a language model as judge (cached in `results/faithfulness-replies-<model>.jsonl`);
+- combinations.
+
+Thresholds are chosen on dev, with at most 5% of faithful statements flagged, and
+everything is reported on test, by distortion type. The write-up is
+[`reports/faithfulness-f6.md`](reports/faithfulness-f6.md).
+

@@ -11,6 +11,7 @@
     uv run python -m app.cli evaluate-contradictions --name c1-c3
     uv run python -m app.cli evaluate-self-service --name s1-s3
     uv run python -m app.cli evaluate-gaps --name g1-g3
+    uv run python -m app.cli evaluate-faithfulness --name f6
 
 Super admin can only be bootstrapped here (there is no API to grant it from
 scratch); afterwards super admins can manage each other via /api/v1/admin.
@@ -83,6 +84,76 @@ async def _routing_sweep() -> int:
 
     routed = await run_routing_sweep()
     print(f"Routing sweep: {routed} tickets routed")
+    return 0
+
+
+async def _evaluate_faithfulness(args: argparse.Namespace) -> int:
+    """Research feature F6: faithfulness checks on the distortion pairs (D5)."""
+    import re
+    from collections import Counter
+    from datetime import datetime
+
+    from anyio import to_thread
+
+    from app.core.config import REPO_ROOT, settings
+    from app.core.knowledge import get_nli_model
+    from app.core.llm import build_llm_client
+    from app.evaluation import faithfulness as evaluation
+    from app.evaluation.gaps import CachingLLM
+    from app.evaluation.report import _environment
+
+    pairs = evaluation.load_pairs(args.pairs)
+    nli = get_nli_model()
+    if nli is None:
+        print("No NLI model is configured (NLI_MODEL).", file=sys.stderr)
+        return 1
+    started = datetime.now().astimezone()
+    print(f"{len(pairs)} pairs: rules and NLI...", flush=True)
+    scored = await to_thread.run_sync(evaluation.score_offline, pairs, nli)
+
+    llm = None
+    model_name = None
+    if not args.no_judge:
+        real = build_llm_client(settings.model_copy(update={"ollama_seed": args.seed}))
+        status = await real.status()
+        model_name = str(getattr(real, "model", "model"))
+        slug = re.sub(r"[^a-z0-9]+", "-", model_name.lower()).strip("-")
+        results = REPO_ROOT / "experiments" / "results"
+        llm = CachingLLM(real, args.cache or results / f"faithfulness-replies-{slug}.jsonl")
+        if not status.available:
+            print(f"The model isn't ready ({status.detail}); cached replies only.", file=sys.stderr)
+
+        def progress(number: int, total: int, item: evaluation.Scored) -> None:
+            verdict = item.judgement.verdict if item.judgement else item.judge_error
+            seconds = (item.judge_ms or 0) / 1000
+            print(
+                f"[{number:>3}/{total}] {item.pair.id} {item.pair.label:<9} "
+                f"{item.pair.type:<8} -> {verdict} ({seconds:.1f} s)",
+                flush=True,
+            )
+
+        await evaluation.judge_all(scored, llm, progress)
+
+    report = evaluation.evaluate(scored, judged=llm is not None, max_false=args.max_false)
+    counts = Counter(p.label if p.label == "faithful" else p.type for p in pairs)
+    report.update(
+        {
+            "name": args.name,
+            "dataset": str(args.pairs.relative_to(REPO_ROOT))
+            if args.pairs.is_relative_to(REPO_ROOT)
+            else str(args.pairs),
+            "counts": dict(counts),
+            "nli_model": nli.model_name,
+            "judge_model": model_name,
+            "seed": args.seed,
+            "cache": {"hits": llm.hits, "misses": llm.misses} if llm else {},
+            "environment": _environment(),
+            "started_at": started.isoformat(),
+            "finished_at": datetime.now().astimezone().isoformat(),
+        }
+    )
+    json_path, md_path = evaluation.write(report, args.output, args.name)
+    print(f"Wrote {json_path} and {md_path}")
     return 0
 
 
@@ -793,6 +864,8 @@ async def _run(args: argparse.Namespace) -> int:
             return await _evaluate_self_service(args)
         if args.command == "evaluate-gaps":
             return await _evaluate_gaps(args)
+        if args.command == "evaluate-faithfulness":
+            return await _evaluate_faithfulness(args)
         if args.command == "evaluate-contradictions":
             return await _evaluate_contradictions(args)
         if args.command == "evaluate-triage":
@@ -957,6 +1030,31 @@ def main(argv: list[str] | None = None) -> int:
     gaps.add_argument("--cache", type=Path, help="The model replies cache (JSON lines)")
     gaps.add_argument("--share-with", help="Add this user to the evaluation organization")
     gaps.add_argument("--seed", type=int, default=42, help="Ollama sampling seed")
+    faithful = commands.add_parser(
+        "evaluate-faithfulness",
+        help="Research feature F6: faithfulness checks on the distortion pairs (D5)",
+    )
+    faithful.add_argument(
+        "--pairs",
+        type=Path,
+        default=REPO_ROOT / "datasets" / "distortions" / "pairs_v1.jsonl",
+        help="The statement/quote pairs (JSON lines)",
+    )
+    faithful.add_argument("--name", default="f6", help="Run name (output file names)")
+    faithful.add_argument(
+        "--output", type=Path, default=REPO_ROOT / "experiments" / "results", help="Output folder"
+    )
+    faithful.add_argument(
+        "--no-judge", action="store_true", help="Rules and NLI only (no language model calls)"
+    )
+    faithful.add_argument(
+        "--max-false",
+        type=float,
+        default=0.05,
+        help="The most faithful statements a threshold may flag on dev (H8: 0.05)",
+    )
+    faithful.add_argument("--cache", type=Path, help="The model replies cache (JSON lines)")
+    faithful.add_argument("--seed", type=int, default=42, help="Ollama sampling seed")
     scan = commands.add_parser(
         "evaluate-contradictions",
         help="Experiments C1-C3: the contradiction scanner on the planted conflicts",
