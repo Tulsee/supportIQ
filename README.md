@@ -322,8 +322,8 @@ Done in Phase 2: notifications and the audit log,
 [AI ticket triage](docs/features/ai-triage.md), the
 [customer assistant](docs/features/customer-self-service.md) and the
 [contradiction scanner](docs/features/contradiction-scanner.md), each with its
-evaluation, and [knowledge gaps to articles](docs/features/knowledge-gaps.md), whose
-evaluation is still to run. Next: document freshness (the last part of the knowledge-base quality loop),
+evaluation, and [knowledge gaps to articles](docs/features/knowledge-gaps.md), with its
+[G1-G3 evaluation](experiments/reports/knowledge-gaps-g1-g3.md). Next: document freshness (the last part of the knowledge-base quality loop),
 then the parts of production operations that don't need a server (backups with a tested
 restore, metrics, dependency audits), and deployment when there is a server for it. The
 full plan is in section

@@ -2029,7 +2029,11 @@ whose quotes must be found in both passages, findings that admins resolve or dis
 schedule. See [docs/features/contradiction-scanner.md](docs/features/contradiction-scanner.md)
 and the [C1-C3 report](experiments/reports/contradictions-c1-c3.md): all 6 planted
 conflicts found, 7 of 10 findings real when checked by hand (6 of 10 planted). Gap to
-article and freshness are not started.
+article is implemented (18 November 2026) and evaluated (26 November 2026). See
+[docs/features/knowledge-gaps.md](docs/features/knowledge-gaps.md) and the
+[G1-G3 report](experiments/reports/knowledge-gaps-g1-g3.md): publishing the drafts
+unedited made 10 of 20 held-out paraphrases correctly answerable (0 before), and no
+customer detail or outdated claim reached an article. Freshness is not started.
 
 **Why:** the evaluation's most common escalation cause was documents that contradict
 each other, and the analytics page already lists knowledge gaps. This module acts on

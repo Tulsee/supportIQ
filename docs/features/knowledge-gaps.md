@@ -2,8 +2,8 @@
 
 **Status:** implemented (Module 13, second part, in the
 [implementation plan](../../IMPLEMENTATION_PLAN.MD#157-module-13---knowledge-base-quality-loop),
-18 November 2026). Its G1-G3 evaluation is written but not yet run (see
-[Evaluation](#evaluation)). Document freshness, the last part of Module 13, isn't built yet.
+18 November 2026) and evaluated (26 November 2026; see [Evaluation](#evaluation)).
+Document freshness, the last part of Module 13, isn't built yet.
 
 When the assistant can't answer a question, it says so and offers a person. That is the
 right behaviour, but the question comes back every time someone asks it. Often an agent
@@ -191,9 +191,22 @@ All under `/api/v1/knowledge/gaps`, in the organization in `X-Organization-Id`.
 ## Evaluation
 
 `uv run python -m app.cli evaluate-gaps --name g1-g3 --regression` (from `backend/`) runs
-experiments G1-G3 on `datasets/knowledge_gaps/`. It hasn't been run to the end yet,
-so there are no results. Until it chooses them on the dev topics, the grouping
-thresholds (`GAP_JOIN_SIMILARITY`, `GAP_CLUSTER_SIMILARITY`) stay at a provisional 0.8.
+experiments G1-G3 on `datasets/knowledge_gaps/`. The write-up is
+[`experiments/reports/knowledge-gaps-g1-g3.md`](../../experiments/reports/knowledge-gaps-g1-g3.md).
+In short:
+
+- **Effect:** publishing the drafts unedited made 10 of 20 held-out paraphrases correctly
+  answerable, up from 0 (checked by hand; exact McNemar p = 0.002).
+- **Safety:** no customer detail or outdated claim reached an article.
+- **Regression:** none on the benchmark's test split.
+- **Grouping:** 0.75 was chosen on the dev topics. The defaults above are still the
+  provisional 0.8.
+- **Faults found:**
+  - the number check treats the digit in a product name ("Q3") as a number;
+  - the conflict check removes a correct statement when the knowledge-base side is the
+    outdated FAQ;
+  - the drafting model misreads "we don't offer that" as no answer, and keeps an agent's
+    "I'll find out" as a fact.
 
 ## Limitations
 

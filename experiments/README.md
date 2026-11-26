@@ -55,6 +55,8 @@ Reports of finished studies are in `reports/`:
 - [`triage-t1-t4.md`](reports/triage-t1-t4.md): AI triage, T1-T5.
 - [`contradictions-c1-c3.md`](reports/contradictions-c1-c3.md): the contradiction
   scanner, C1-C3.
+- [`knowledge-gaps-g1-g3.md`](reports/knowledge-gaps-g1-g3.md): knowledge gaps to
+  articles, G1-G3.
 
 ## AI triage (Module 11, T1-T4)
 
@@ -121,5 +123,5 @@ publishes every draft unedited and asks 22 held-out paraphrases before and after
 McNemar). It also rechecks each gap as the product does and, with `--regression`, asks
 the benchmark's test split before and after. Every model reply is cached in
 `results/gap-replies-<model>.jsonl`, keyed by the exact prompt, so a rerun replays it.
-The study hasn't been run to the end yet; its write-up will be
-`reports/knowledge-gaps-g1-g3.md`.
+The write-up, with every draft and every held-out answer checked by hand, is
+[`reports/knowledge-gaps-g1-g3.md`](reports/knowledge-gaps-g1-g3.md).
