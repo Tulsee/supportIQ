@@ -2099,6 +2099,16 @@ Both need a decision before work starts (recorded in the README's limitations).
 
 ## 15.11 Module 17 - Production operations
 
+**Status:** dependency audits and security headers are done (26 November 2026).
+- `.github/workflows/audit.yml` runs `pip-audit` on the backend's locked production
+  packages and `npm audit` on the frontend's production packages (high and critical
+  fail). It runs on pull requests, on pushes to main, and every Monday.
+- Caddy sends HSTS, `nosniff`, a referrer policy, `X-Frame-Options`, a content security
+  policy without script restrictions, a permissions policy and COOP, and hides `Server`
+  and `X-Powered-By`. CI checks this against stand-in upstreams.
+
+Deployment, backups, metrics and alerts are not started.
+
 - **Part 1, deployment:** one VM with the existing Docker Compose setup and Caddy HTTPS;
   production settings (secrets, secure cookies, new database passwords); the Claude
   provider or a GPU for the model; a seeded demo organization; continuous delivery from

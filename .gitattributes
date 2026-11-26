@@ -1,0 +1,2 @@
+# Shell scripts run in Bash (CI and locally): keep Unix line endings on every checkout.
+*.sh text eol=lf

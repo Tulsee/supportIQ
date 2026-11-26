@@ -250,7 +250,11 @@ npm run gen:api            # after changing the API: regenerates the typed clien
 ```
 
 GitHub Actions runs all of these, applies every migration and checks that it matches
-the models, and fails if the generated API types are out of date.
+the models, and fails if the generated API types are out of date. It also checks that
+Caddy sends the security headers (`infrastructure/docker/caddy/check-headers.sh`, needs
+Docker). A second workflow audits the dependencies that ship for known vulnerabilities
+(`pip-audit` on the locked backend packages, `npm audit` on the frontend's production
+packages). It runs on every pull request and every Monday.
 
 ## Evaluation
 
@@ -288,7 +292,11 @@ The Docker setup runs in development mode for a local demo. For a server:
    is slow on a CPU.
 
 Production mode turns off the interactive API docs and refuses to start with the
-development JWT secret or insecure cookies.
+development JWT secret or insecure cookies. Caddy adds security headers to every
+response: HSTS, `nosniff`, a referrer policy, no framing, and a content security policy
+for framing, `<base>`, plugins and form targets. It also removes the `Server` and
+`X-Powered-By` headers. Scripts aren't restricted by the policy yet: that needs nonces
+from Next.js.
 
 ## Repository layout
 

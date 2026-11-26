@@ -1,0 +1,61 @@
+# Known vulnerabilities in the dependencies that ship: on pull requests, on pushes to
+# main, and every Monday (new advisories appear without any change here).
+#   python: pip-audit over the backend's locked dependencies, without dev tools (as the
+#           Docker image installs them); any known vulnerability fails
+#   npm:    npm audit over the frontend's production dependencies; high or critical
+#           advisories fail, lower ones are reported
+name: Dependency audit
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: audit-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    name: Python (pip-audit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v7
+
+      # Pinned and hashed requirements from uv.lock, so pip-audit checks exactly the
+      # locked versions without resolving anything itself.
+      - name: Audit the locked dependencies
+        run: |
+          uv export --locked --no-dev --format requirements-txt --no-emit-project \
+            > "$RUNNER_TEMP/requirements.txt"
+          uvx pip-audit@2.10.1 --strict --disable-pip --require-hashes \
+            -r "$RUNNER_TEMP/requirements.txt"
+
+  npm:
+    name: npm (npm audit)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Audit the production dependencies
+        run: npm audit --omit=dev --audit-level=high

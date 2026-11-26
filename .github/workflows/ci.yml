@@ -1,7 +1,9 @@
 # Runs on every pull request and on pushes to main.
 #   backend:  lint, format, migrations (apply, drift check, round trip), tests
 #   frontend: API types in sync with the backend contract, lint, typecheck, build
-#   docker:   the Compose file is valid and the application images build
+#   docker:   the Compose file is valid, the application images build, and Caddy sends
+#             the security headers
+# Known vulnerabilities in dependencies are checked by audit.yml.
 name: CI
 
 on:
@@ -162,3 +164,6 @@ jobs:
 
       - name: Build the backend and web images
         run: docker compose --profile app build
+
+      - name: Caddy sends the security headers and hides the software
+        run: bash infrastructure/docker/caddy/check-headers.sh
